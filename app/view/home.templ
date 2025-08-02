@@ -1,0 +1,187 @@
+package view //import github.com/neifen/htmx-login/app/view
+
+import "github.com/labstack/echo/v4"
+
+func HomeHTMLReplace(c echo.Context) error {
+	return ReplaceUrl("/", c, home())
+}
+
+func HomeHTML(c echo.Context) error {
+	return RenderView(c, home())
+}
+
+templ home() {
+	<div class="bg-gray-100 flex min-h-screen overflow-hidden m-4">
+		<!-- Left Sidebar -->
+		<div class="w-2/3 bg-white rounded-lg shadow-lg p-8 flex flex-col h-screen">
+			<!-- Navbar -->
+			<nav class="bg-white text-gray-800 p-4 flex justify-between items-center border-b border-gray-300 mb-6">
+				<h1 class="text-2xl font-bold text-gray-800">Companion</h1>
+				<div class="flex space-x-4">
+					<div class="flex space-x-2">
+						<button class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Select Plan</button>
+						<button class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Set Duration</button>
+					</div>
+					<div class="flex space-x-2">
+						<button hx-get="/login" hx-target="#base" hx-push-url="true" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Login</button>
+						<button hx-get="/signup" hx-target="#base" hx-push-url="true" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Sign Up</button>
+					</div>
+				</div>
+			</nav>
+			<!-- Scrollable List -->
+			<div class="flex flex-wrap overflow-y-auto">
+				<!-- Group: Today -->
+				<div class="w-1/2">
+					<h2 class="text-lg font-semibold text-gray-800 mb-4">Today</h2>
+					<ul class="space-y-2 mb-6">
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">a</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">b</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">c</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">d</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">e</a>
+						</li>
+					</ul>
+				</div>
+				<!-- Group: Tomorrow -->
+				<div class="w-1/2">
+					<h2 class="text-lg font-semibold text-gray-800 mb-4">Tomorrow</h2>
+					<ul class="space-y-2 mb-6">
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">f</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">g</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">h</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">i</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">j</a>
+						</li>
+					</ul>
+				</div>
+				<!-- Group: Day 3 -->
+				<div class="w-1/2">
+					<h2 class="text-lg font-semibold text-gray-800 mb-4">Day 3</h2>
+					<ul class="space-y-2 mb-6">
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">k</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">l</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">m</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">n</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">o</a>
+						</li>
+					</ul>
+				</div>
+				<!-- Group: Day 4 -->
+				<div class="w-1/2">
+					<h2 class="text-lg font-semibold text-gray-800 mb-4">Day 4</h2>
+					<ul class="space-y-2 mb-6">
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">p</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">q</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">r</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">s</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">t</a>
+						</li>
+					</ul>
+				</div>
+				<!-- Group: Day 5 -->
+				<div class="w-1/2">
+					<h2 class="text-lg font-semibold text-gray-800 mb-4">Day 5</h2>
+					<ul class="space-y-2 mb-6">
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">u</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">v</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">w</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">x</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">y</a>
+						</li>
+						<li class="flex items-center">
+							<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+							<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center">z</a>
+						</li>
+					</ul>
+				</div>
+			</div>
+		</div>
+		<!-- Right Section -->
+		<div class="w-1/3 flex flex-col h-screen">
+			<!-- Image Section -->
+			<div class="h-1/2 p-8">
+				<img src="https://via.placeholder.com/800x400" alt="Placeholder Image" class="w-full h-full object-cover rounded-lg shadow-lg"/>
+			</div>
+			<!-- Description Section -->
+			<div class="h-1/2 overflow-y-auto p-8 bg-white rounded-lg shadow-lg">
+				<p class="text-gray-700 text-sm">
+					Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris. Integer in mauris eu nibh euismod gravida. Duis ac tellus et risus vulputate vehicula. Donec lobortis risus a elit. Etiam tempor. Ut ullamcorper, ligula eu tempor congue, eros est euismod turpis, id tincidunt sapien risus a quam. Maecenas fermentum consequat mi. Donec fermentum. Pellentesque malesuada nulla a mi. Duis sapien sem, aliquet nec, commodo eget, consequat quis, neque. Aliquam faucibus, elit ut dictum aliquet, felis nisl adipiscing sapien, sed malesuada diam lacus eget erat. Cras mollis scelerisque nunc. Nullam arcu.
+					Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris. Integer in mauris eu nibh euismod gravida. Duis ac tellus et risus vulputate vehicula. Donec lobortis risus a elit. Etiam tempor. Ut ullamcorper, ligula eu tempor congue, eros est euismod turpis, id tincidunt sapien risus a quam. Maecenas fermentum consequat mi. Donec fermentum. Pellentesque malesuada nulla a mi. Duis sapien sem, aliquet nec, commodo eget, consequat quis, neque. Aliquam faucibus, elit ut dictum aliquet, felis nisl adipiscing sapien, sed malesuada diam lacus eget erat. Cras mollis scelerisque nunc. Nullam arcu.
+					Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris. Integer in mauris eu nibh euismod gravida. Duis ac tellus et risus vulputate vehicula. Donec lobortis risus a elit. Etiam tempor. Ut ullamcorper, ligula eu tempor congue, eros est euismod turpis, id tincidunt sapien risus a quam. Maecenas fermentum consequat mi. Donec fermentum. Pellentesque malesuada nulla a mi. Duis sapien sem, aliquet nec, commodo eget, consequat quis, neque. Aliquam faucibus, elit ut dictum aliquet, felis nisl adipiscing sapien, sed malesuada diam lacus eget erat. Cras mollis scelerisque nunc. Nullam arcu.
+					Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris. Integer in mauris eu nibh euismod gravida. Duis ac tellus et risus vulputate vehicula. Donec lobortis risus a elit. Etiam tempor. Ut ullamcorper, ligula eu tempor congue, eros est euismod turpis, id tincidunt sapien risus a quam. Maecenas fermentum consequat mi. Donec fermentum. Pellentesque malesuada nulla a mi. Duis sapien sem, aliquet nec, commodo eget, consequat quis, neque. Aliquam faucibus, elit ut dictum aliquet, felis nisl adipiscing sapien, sed malesuada diam lacus eget erat. Cras mollis scelerisque nunc. Nullam arcu.
+					Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum. Curabitur pretium tincidunt lacus. Nulla gravida orci a odio. Nullam varius, turpis et commodo pharetra, est eros bibendum elit, nec luctus magna felis sollicitudin mauris. Integer in mauris eu nibh euismod gravida. Duis ac tellus et risus vulputate vehicula. Donec lobortis risus a elit. Etiam tempor. Ut ullamcorper, ligula eu tempor congue, eros est euismod turpis, id tincidunt sapien risus a quam. Maecenas fermentum consequat mi. Donec fermentum. Pellentesque malesuada nulla a mi. Duis sapien sem, aliquet nec, commodo eget, consequat quis, neque. Aliquam faucibus, elit ut dictum aliquet, felis nisl adipiscing sapien, sed malesuada diam lacus eget erat. Cras mollis scelerisque nunc. Nullam arcu.
+				</p>
+			</div>
+		</div>
+	</div>
+}

@@ -20,17 +20,20 @@ create table if not exists public.plans_to_bible
     id             BIGSERIAL PRIMARY KEY,
     plan_fk        INT REFERENCES public.plans     NOT NULL,
     chapter_fk     INT2 REFERENCES static.chapters NOT NULL,
-    verse_fks      INT[],                                    --optional
-    verses         VARCHAR(12),                              --might not be needed
+    verse_fks      INT[],       --optional
+    verses         VARCHAR(12), --might not be needed
     running_length INT                             NOT NULL
 );
 
-INSERT INTO public.plans_to_bible (plan_fk, chapter_fk, running_length)
-SELECT 0     as plan_fk,
+INSERT INTO public.plans_to_bible (id, plan_fk, chapter_fk, running_length)
+SELECT id.id as id,
+       0     as plan_fk,
        id.id as chapter_fk,
        sum(c.chapter_word_count) over (order by id.id)
 FROM generate_series(1, 1189) id
          join static.chapters c on id.id = c.id;
+
+ALTER SEQUENCE plans_to_bible_id_seq RESTART WITH 1189;
 
 
 create table if not exists public.tracker

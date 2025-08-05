@@ -21,6 +21,9 @@ type Storage interface {
 	DeleteRefreshToken(t *RefreshTokenModel) error
 	DeleteRefreshTokenByToken(token string) error
 	ReadRefreshTokenByToken(token string) (*RefreshTokenModel, error)
+
+	ReadChaptersFromPlan(planId int) ([]*ChapterModel, error)
+	ReadAllChapters() ([]*ChapterModel, error)
 }
 
 type PostgresStore struct {

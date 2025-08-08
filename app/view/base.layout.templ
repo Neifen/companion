@@ -2,15 +2,15 @@ package view //import github.com/neifen/htmx-login/app/view
 
 templ Base(errMsgs, sucMsgs []string) {
 	<!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Companion</title>
-        <link rel="shortcut icon" href="/static/img/favicon.png"  type="image/png">
-        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-        <script src="/static/js/htmx.min.js"></script>
-        <script type="text/javascript">
+	<html lang="en">
+		<head>
+			<meta charset="UTF-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+			<title>Companion</title>
+			<link rel="shortcut icon" href="/static/img/favicon.png" type="image/png"/>
+			<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+			<script src="/static/js/htmx.min.js"></script>
+			<script type="text/javascript">
             window.addEventListener("DOMContentLoaded", (event) => {
                 document.body?.addEventListener('htmx:responseError', function(event) {
                 if (event.detail.xhr.status === 401) {
@@ -37,23 +37,30 @@ templ Base(errMsgs, sucMsgs []string) {
                 }
                 });
             });
-  </script>
-    </head>
-    <body class="bg-gray-100 flex items-center justify-center min-h-screen" id="base">
-            { children... }
-            // @partials.FlashMessages(errMsgs, sucMsgs)
-            
-                <!-- Error Popup -->
-                @infoMessage("")
-                @errorMessage("")
-    </body>
-    </html>
+            </script>
+            <style>
+                .scrollbar-hidden::-webkit-scrollbar {
+                    width: 0;
+                }
+                
+               .scrollbar-hidden {
+                    scrollbar-width: none;
+                }
+            </style>
+		</head>
+		<body class="bg-gray-100 flex items-center justify-center min-h-screen" id="base">
+			{ children... }
+			// @partials.FlashMessages(errMsgs, sucMsgs)
+			<!-- Error Popup -->
+			@infoMessage("")
+			@errorMessage("")
+		</body>
+	</html>
 }
 
-
 templ BuildBase(errMsgs, sucMsgs []string,
-    cmp templ.Component,){
-        @Base(errMsgs, sucMsgs){
-            @cmp
-        }
-    }
+	cmp templ.Component) {
+	@Base(errMsgs, sucMsgs) {
+		@cmp
+	}
+}

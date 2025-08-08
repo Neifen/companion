@@ -36,11 +36,10 @@ func PaginateTrackerListBefore(c echo.Context, bible *entities.TrackedBible) err
 }
 
 templ trackerList(bible *entities.TrackedBible, before bool, after bool) {
-    {{fmt.Printf("before %v after %v hasMore %v\n", before, after, bible.HasMore)}}
 	for id, group := range bible.TrackedGroups {
-		{{ 
-		    afterUrl := fmt.Sprintf("/track-after/%s", group.Title) 
-            beforeUrl := fmt.Sprintf("/track-before/%s", group.Title) 
+		{{
+		afterUrl := fmt.Sprintf("/track-after/%s", group.Title)
+		beforeUrl := fmt.Sprintf("/track-before/%s", group.Title)
 		}} // title = date
 		<div
 			if id == len(bible.TrackedGroups) - 1 && after && bible.HasMore {
@@ -48,17 +47,15 @@ templ trackerList(bible *entities.TrackedBible, before bool, after bool) {
 				hx-trigger="intersect once"
 				hx-swap="afterend"
 			}
-			
-            if id == 0 && before && bible.HasMore {
-                    hx-get={ beforeUrl }
-                    hx-trigger="intersect once"
-                    hx-swap="beforebegin"
-                    hx-on::beforeRequest="preserveScrollPosition()"
-                    hx-on::afterSwap="restoreScrollPosition()"
-            }
-			
+			if id == 0 && before && bible.HasMore {
+				hx-get={ beforeUrl }
+				hx-swap="beforebegin"
+				hx-on::before-request="preserveScrollPosition()"
+				hx-on::after-swap="restoreScrollPosition()"
+				hx-trigger="intersect once delay:10ms threshold:0.8"
+			}
 			if group.Title == "Today" {
-			    id="trackerlist-start-here"
+				id="trackerlist-start-here"
 			}
 		>
 			<h1 class="text-2xl font-bold text-gray-800">{ group.Title }</h1>
@@ -82,6 +79,28 @@ templ trackerList(bible *entities.TrackedBible, before bool, after bool) {
 
 templ home(bible *entities.TrackedBible) {
 	<div class="bg-gray-100 flex min-h-screen overflow-hidden m-4 ">
+		<script>
+            window.addEventListener('load', () => {
+                const list = document.getElementById('trackerlist-start-here').scrollIntoView({
+                    block: 'start',
+                    behavior: 'instant'
+                });
+            });
+            
+            let prevScrollHeight, prevScrollTop;
+            function preserveScrollPosition() {
+                const el = document.getElementById('scrollbar-tracker');
+                prevScrollHeight = el.scrollHeight;
+                prevScrollTop = el.scrollTop;
+            }
+            
+            function restoreScrollPosition() {
+                const el = document.getElementById('scrollbar-tracker');
+                const newScrollHeight = el.scrollHeight;
+                el.scrollTop = prevScrollTop +  (newScrollHeight - prevScrollHeight);
+            }
+            
+        </script>
 		<!-- Left Sidebar -->
 		<div class="w-2/3 bg-white rounded-lg shadow-lg p-8 flex flex-col h-screen m-2">
 			<!-- Navbar -->
@@ -99,31 +118,9 @@ templ home(bible *entities.TrackedBible) {
 				</div>
 			</nav>
 			<!-- Scrollable List -->
-			<div class="overflow-y-auto  p-2">
+			<div class="overflow-y-auto  p-2 scrollbar-hiddenxx" id="scrollbar-tracker">
 				@trackerList(bible, true, true)
 			</div>
-			   <script>
-                window.addEventListener('load', () => {
-                    const list = document.getElementById('trackerlist-start-here').scrollIntoView({
-                        block: 'start',
-                        behavior: 'instant'
-                    });
-                });
-                
-                let prevScrollHeight, prevScrollTop;
-                function preserveScrollPosition() {
-                    const el = document.documentElement;
-                    prevScrollHeight = el.scrollHeight;
-                    prevScrollTop = el.scrollTop;
-                }
-                
-                function restoreScrollPosition() {
-                    const el = document.documentElement;
-                    const newScrollHeight = el.scrollHeight;
-                    el.scrollTop = prevScrollTop +  (newScrollHeight - prevScrollHeight);
-                }
-                
-            </script>
 		</div>
 		<!-- Right Section -->
 		<div class="w-1/3 flex flex-col h-screen m-2">

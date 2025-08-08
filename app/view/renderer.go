@@ -1,6 +1,7 @@
 package view
 
 import (
+	"github.com/pkg/errors"
 	"net/http"
 
 	"github.com/a-h/templ"
@@ -16,6 +17,21 @@ func RenderView(c echo.Context, cmp templ.Component) error {
 	}
 
 	return cmp.Render(c.Request().Context(), c.Response().Writer)
+}
+
+func RenderViews(c echo.Context, cmp ...templ.Component) error {
+	c.Response().Header().Set(echo.HeaderContentType, echo.MIMETextHTML)
+
+	var errStack error
+	for _, cmp := range cmp {
+		err := cmp.Render(c.Request().Context(), c.Response().Writer)
+		if err != nil && errStack == nil {
+			errStack = err
+		} else if err != nil {
+			errStack = errors.Wrap(errStack, err.Error())
+		}
+	}
+	return errStack
 }
 
 func ReplaceUrl(path string, c echo.Context, cmp templ.Component) error {

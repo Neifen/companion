@@ -3,10 +3,10 @@ CREATE SCHEMA IF NOT EXISTS static;
 CREATE TABLE IF NOT EXISTS static.chapters
 (
     id                 int2 PRIMARY KEY,
-    book_name          varchar(20) NULL,
-    book_id            int2        NULL,
-    chapter_nr         int2        NULL,
-    chapter_word_count int2        NULL
+    book_name          varchar(20) NOT NULL,
+    book_id            int2        NOT NULL,
+    chapter_nr         int2        NOT NULL,
+    chapter_word_count int2        NOT NULL
 );
 
 INSERT INTO static.chapters (id, book_name, book_id, chapter_nr, chapter_word_count)
@@ -1143,7 +1143,7 @@ VALUES (941, 'Matthew', 40, 12, 1192),
        (943, 'Matthew', 40, 14, 764),
        (944, 'Matthew', 40, 15, 807),
        (945, 'Matthew', 40, 16, 688),
-       (946, 'Matthew', 40, 17, 637),
+       (946, 'Matthew', 40, 17, 649),
        (947, 'Matthew', 40, 18, 898),
        (948, 'Matthew', 40, 19, 743),
        (949, 'Matthew', 40, 20, 777),

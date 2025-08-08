@@ -3,8 +3,8 @@ CREATE SCHEMA IF NOT EXISTS static;
 CREATE TABLE IF NOT EXISTS static.verses
 (
     id               int2 PRIMARY KEY, --int2 is up to 32,767 (there are 31,102 verses) 
-    verse_nr         int2 NULL,
-    verse_word_count int2 NULL
+    verse_nr         int2 NOT NULL,
+    verse_word_count int2 NOT NULL
 );
 
 INSERT INTO static.verses (id, verse_nr, verse_word_count)
@@ -28522,7 +28522,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO static.verses (id, verse_nr, verse_word_count)
 VALUES (23720, 19, 17),
        (23721, 20, 49),
-       (23722, 21, NULL),
+       (23722, 21, 12),
        (23723, 22, 24),
        (23724, 23, 20),
        (23725, 24, 27),

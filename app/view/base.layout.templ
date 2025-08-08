@@ -8,7 +8,7 @@ templ Base(errMsgs, sucMsgs []string) {
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Companion</title>
         <link rel="shortcut icon" href="/static/img/favicon.png"  type="image/png">
-        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
         <script src="/static/js/htmx.min.js"></script>
         <script type="text/javascript">
             window.addEventListener("DOMContentLoaded", (event) => {
@@ -42,6 +42,10 @@ templ Base(errMsgs, sucMsgs []string) {
     <body class="bg-gray-100 flex items-center justify-center min-h-screen" id="base">
             { children... }
             // @partials.FlashMessages(errMsgs, sucMsgs)
+            
+                <!-- Error Popup -->
+                @infoMessage("")
+                @errorMessage("")
     </body>
     </html>
 }

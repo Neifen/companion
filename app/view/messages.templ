@@ -1,0 +1,45 @@
+package view
+
+import "github.com/labstack/echo/v4"
+
+func ErrorHTML(c echo.Context, message string) error {
+	return RenderView(c, errorMessage(message))
+}
+
+func InfoHTML(c echo.Context, message string) error {
+	return RenderView(c, infoMessage(message))
+}
+
+templ errorMessage(message string) {
+	<!-- Error Popup -->
+	<div
+		class={ "fixed bottom-5 left-1/2 transform -translate-x-1/2 w-4/5 max-w-md p-4 text-white bg-red-500 rounded-lg",
+		"shadow-lg transition-all duration-300 ease-in-out z-50 ",
+		"has-checked:hidden" }
+		hx-swap-oob="outerHTML#err-messages"
+		id="err-messages"
+	>
+		>
+		{{ checked := len(message) == 0 }}
+		<input type="checkbox" id="error-popup" class="hidden" checked?={ checked }/>
+		{ message }
+		<label for="error-popup" class="absolute top-2 right-3 text-white font-bold cursor-pointer">X</label>
+	</div>
+}
+
+templ infoMessage(message string) {
+	<!-- Info Popup -->
+	<div
+		class={ "fixed bottom-5 left-1/2 transform -translate-x-1/2 w-4/5 max-w-md p-4 text-white bg-green-500 rounded-lg",
+  		"shadow-lg transition-all duration-300 ease-in-out z-50 ",
+  		"has-checked:hidden" }
+		hx-swap-oob="outerHTML#info-messages"
+		id="info-messages"
+	>
+		>
+		{{ checked := len(message) == 0 }}
+		<input type="checkbox" id="info-popup" class="hidden" checked?={ checked }/>
+		{ message }
+		<label for="info-popup" class="absolute top-2 right-3 text-white font-bold cursor-pointer">X</label>
+	</div>
+}

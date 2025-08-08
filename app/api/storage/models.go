@@ -9,7 +9,7 @@ import (
 )
 
 type UserModel struct {
-	id    int
+	Id    int
 	Uid   string
 	Name  string
 	Email string

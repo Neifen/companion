@@ -1,16 +1,29 @@
 package entities
 
-type Bible struct {
-	Books [66]*Book
+type TrackedBible struct {
+	TrackedGroups []*TrackedGroup
 }
 
-type Book struct {
-	Title    string
-	Chapters []*Chapter
+func NewTrackedBible() *TrackedBible {
+	return &TrackedBible{[]*TrackedGroup{}}
 }
 
-type Chapter struct {
-	Number    int16
-	ID        int16
-	WordCount int16
+type TrackedGroup struct {
+	Title        string
+	TrackedItems []*TrackedItem
+}
+
+func NewTrackedGroup(title string, items []*TrackedItem) *TrackedGroup {
+	return &TrackedGroup{title, items}
+}
+
+type TrackedItem struct {
+	Id        int64
+	Read      bool
+	Title     string // BookName + Chapter + Verses (opt)
+	ChapterId int16
+}
+
+func NewTrackedItem(id int64, read bool, title string, chapterId int16) *TrackedItem {
+	return &TrackedItem{id, read, title, chapterId}
 }

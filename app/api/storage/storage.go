@@ -2,8 +2,8 @@ package storage
 
 import (
 	"database/sql"
-	"errors"
 	"fmt"
+	"github.com/pkg/errors"
 	"os"
 	"time"
 
@@ -22,6 +22,8 @@ type Storage interface {
 	DeleteRefreshTokenByToken(token string) error
 	ReadRefreshTokenByToken(token string) (*RefreshTokenModel, error)
 
+	CheckTracked(userId int, trackerId int64, checked bool) error
+	ReadTrackerFromUserId(userId int) ([]*TrackerModel, error)
 	ReadChaptersFromPlan(planId int) ([]*ChapterModel, error)
 	ReadAllChapters() ([]*ChapterModel, error)
 }
@@ -48,50 +50,22 @@ func NewPostGresStore() (*PostgresStore, error) {
 		return nil, err
 	}
 
-	_, err = db.Query("CREATE EXTENSION IF NOT EXISTS citext;")
-	if err != nil {
-		return nil, errors.New("error 132: could not initialize db")
-	}
+	sqlFiles := []string{"auth.sql", "chapters.sql", "verses.sql", "bible.sql"}
 
-	_, err = db.Query(`
-	CREATE TABLE 
-	IF NOT EXISTS 
-	users(
-	id SERIAL PRIMARY KEY,
-	name varchar not null,
-	email citext not null unique,
-	pw bytea not null,
-	uid varchar not null,
-	created_at timestamptz not null default now(),
-	updated_at timestamptz not null default now()
-	)
-	`)
-	if err != nil {
-		fmt.Println(err)
-		return nil, errors.New("error 133a: could not initialize db")
-	}
+	for _, file := range sqlFiles {
+		path := "app/sql/" + file
+		authSql, err := os.ReadFile(path)
+		if err != nil {
+			return nil, errors.Wrapf(err, "error reading %s", file)
+		}
 
-	_, err = db.Query(`
-	CREATE TABLE 
-	IF NOT EXISTS 
-	refresh_tokens(
-	id SERIAL PRIMARY KEY,
-	user_uid varchar not null,
-	token varchar not null,
-	remember boolean DEFAULT false,
-	expires timestamptz not null,
-	created_at timestamptz not null default now(),
-	updated_at timestamptz not null default now()
-	)
-	`)
-	if err != nil {
-		fmt.Println(err)
-		return nil, errors.New("error 133b: could not initialize db")
-	}
-
-	_, err = db.Query("CREATE UNIQUE INDEX IF NOT EXISTS users_unique_lower_email_idx ON users (lower(email));")
-	if err != nil {
-		return nil, errors.New("error 134: could not initialize db")
+		res, err := db.Exec(string(authSql))
+		if err != nil {
+			return nil, errors.Wrapf(err, "error initializing %s", file)
+		}
+		aff, _ := res.RowsAffected()
+		affId, _ := res.LastInsertId()
+		fmt.Printf("created %s tables, affected Rows: %v, Last affected Id: %v \n", file, aff, affId)
 	}
 
 	return &PostgresStore{db: db}, nil
@@ -137,7 +111,7 @@ func (pg *PostgresStore) ReadUserByEmail(req string) (*UserModel, error) {
 	}
 
 	return &UserModel{
-		id:    id,
+		Id:    id,
 		Email: email,
 		Pw:    pw,
 		Name:  name,
@@ -160,7 +134,7 @@ func (pg *PostgresStore) ReadUserByUid(uid string) (*UserModel, error) {
 	}
 
 	return &UserModel{
-		id:    id,
+		Id:    id,
 		Email: email,
 		Pw:    pw,
 		Name:  name,

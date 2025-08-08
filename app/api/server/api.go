@@ -36,17 +36,17 @@ func (api *APIServer) Run() {
 	e := echo.New()
 
 	e.Use(middleware.Logger())
-	e.Static("/static", "assets")
+	e.Static("/static", "app/assets")
 
 	s := NewHanderSession(api.store)
 
 	// home
+	e.GET("/", s.handleGetHome, pasetoMiddleOpt())
+	e.POST("/check-trackeditem/:itemId/:checked", s.handleCheckTrackeItem, pasetoMiddleOpt())
+
 	e.GET("/welcome", s.handleGetHome)
-	e.GET("/", s.handleGetHome)
 	e.GET("/details-verse/:verseId", s.handleGetHome) //?planId=
 	e.GET("/details-book/:bookId", s.handleGetHome)   //?planId=
-
-	e.POST("/read-verse/:verseId", s.handleGetHome)
 
 	e.GET("/start-plan", s.handleGetHome)
 	e.POST("/start-plan/:planId", s.handleGetHome)
@@ -82,8 +82,29 @@ func (api *APIServer) Run() {
 func pasetoMiddle() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
-			//todo twice?
-			u := userFromToken(c)
+			u, err := userFromToken(c)
+
+			//todo there needs to be a difference between simply not logged in / token invalid and refresh token invalid
+			if err != nil || !u.isLoggedIn {
+				return redirectToTokenRefresh(c)
+			}
+
+			c.Set("u", u)
+			fmt.Printf("Middleware, user %s is logged in, continue\n", u.name)
+			return next(c)
+		}
+	}
+}
+
+func pasetoMiddleOpt() echo.MiddlewareFunc {
+	return func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c echo.Context) error {
+			u, err := userFromToken(c)
+
+			if err != nil {
+				return redirectToTokenRefresh(c)
+			}
+
 			//todo there needs to be a difference between simply not logged in / token invalid and refresh token invalid
 			if u.isLoggedIn {
 				c.Set("u", u)
@@ -91,6 +112,7 @@ func pasetoMiddle() echo.MiddlewareFunc {
 				return next(c)
 			}
 
+			fmt.Println("Middleware, no user is logged in, continue")
 			return redirectToTokenRefresh(c)
 		}
 	}

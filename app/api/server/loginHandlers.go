@@ -25,7 +25,7 @@ func NewHanderSession(store storage.Storage) *HandlerSession {
 }
 
 func (s *HandlerSession) handleGetLogin(c echo.Context) error {
-	if u := userFromToken(c); u.isLoggedIn {
+	if u, _ := userFromToken(c); u.isLoggedIn {
 		return s.redirectToHome(c, u)
 	}
 
@@ -34,7 +34,7 @@ func (s *HandlerSession) handleGetLogin(c echo.Context) error {
 }
 
 func (s *HandlerSession) handlePostLogin(c echo.Context) error {
-	if u := userFromToken(c); u.isLoggedIn {
+	if u, _ := userFromToken(c); u.isLoggedIn {
 		return s.redirectToHome(c, u)
 	}
 
@@ -63,7 +63,8 @@ func (s *HandlerSession) handleTokenRefresh(c echo.Context) error {
 	err := s.subHandleTokenRefresh(c)
 	if err != nil {
 		fmt.Println(err)
-		s.redirectToLogin(c)
+		//todo is return here correct?
+		return s.redirectToLogin(c)
 	}
 
 	return err
@@ -196,7 +197,7 @@ func clearCookie(name, path string, c echo.Context) {
 }
 
 func (s *HandlerSession) handleGetRecovery(c echo.Context) error {
-	if u := userFromToken(c); u.isLoggedIn {
+	if u, _ := userFromToken(c); u.isLoggedIn {
 		return s.redirectToHome(c, u)
 	}
 
@@ -205,7 +206,7 @@ func (s *HandlerSession) handleGetRecovery(c echo.Context) error {
 }
 
 func (s *HandlerSession) handleGetSignup(c echo.Context) error {
-	if u := userFromToken(c); u.isLoggedIn {
+	if u, _ := userFromToken(c); u.isLoggedIn {
 		return s.redirectToHome(c, u)
 	}
 
@@ -214,7 +215,7 @@ func (s *HandlerSession) handleGetSignup(c echo.Context) error {
 }
 
 func (s *HandlerSession) handlePostSignup(c echo.Context) error {
-	if u := userFromToken(c); u.isLoggedIn {
+	if u, _ := userFromToken(c); u.isLoggedIn {
 		return s.redirectToHome(c, u)
 	}
 

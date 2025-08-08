@@ -4,15 +4,30 @@ import "github.com/labstack/echo/v4"
 import "fmt"
 import "github.com/neifen/htmx-login/app/entities"
 
-func HomeHTMLReplace(c echo.Context, bible *entities.Bible) error {
+func HomeHTMLReplace(c echo.Context, bible *entities.TrackedBible) error {
 	return ReplaceUrl("/", c, home(bible))
 }
 
-func HomeHTML(c echo.Context, bible *entities.Bible) error {
+func HomeHTML(c echo.Context, bible *entities.TrackedBible) error {
 	return RenderView(c, home(bible))
 }
 
-templ home(bible *entities.Bible) {
+func TrackerCheckHTML(c echo.Context, itemId int64, checked bool) error {
+	return RenderView(c, trackerCheck(itemId, checked))
+}
+
+func TrackerCheckHTMLError(c echo.Context, itemId int64, checked bool, err string) error {
+	return RenderViews(c, trackerCheck(itemId, checked), errorMessage(err))
+}
+
+templ trackerCheck(itemId int64, checked bool) {
+	{{
+	url := fmt.Sprintf(`/check-trackeditem/%d/%v`, itemId, !checked)
+	}}
+	<input autocomplete="off" type="checkbox" hx-swap="outerHTML" hx-post={ url } checked?={ checked } class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+}
+
+templ home(bible *entities.TrackedBible) {
 	<div class="bg-gray-100 flex min-h-screen overflow-hidden m-4 ">
 		<!-- Left Sidebar -->
 		<div class="w-2/3 bg-white rounded-lg shadow-lg p-8 flex flex-col h-screen m-2">
@@ -32,19 +47,22 @@ templ home(bible *entities.Bible) {
 			</nav>
 			<!-- Scrollable List -->
 			<div class="overflow-y-auto  p-2">
-				for _, book := range bible.Books {
-					<h1 class="text-2xl font-bold text-gray-800">{ book.Title }</h1>
-					<br>
+				for _, group := range bible.TrackedGroups {
+					<h1 class="text-2xl font-bold text-gray-800">{ group.Title }</h1>
+					<br/>
 					<div class="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-8">
-						for _, chapter := range book.Chapters {
+						for _, item := range group.TrackedItems {
 							<div class="w-full">
-								{{ title := fmt.Sprintf(`%s %v - Word Count: %v`, book.Title, chapter.Number, chapter.WordCount) }} 
-								<input type="checkbox" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
+								{{
+	                                title := fmt.Sprintf(`%s`, item.Title)
+								}}
+								@trackerCheck(item.Id, item.Read)
 								<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center ">{ title }</a>
 							</div>
 						}
 					</div>
-					<br> <br>
+					<br/>
+					<br/>
 				}
 			</div>
 		</div>

@@ -1,8 +1,10 @@
 package storage
 
 import (
-	"github.com/neifen/htmx-login/app/entities"
+	"database/sql"
+	"fmt"
 	"github.com/pkg/errors"
+	"time"
 
 	_ "github.com/lib/pq"
 )
@@ -11,55 +13,69 @@ type ChapterModel struct {
 	ID               int16  `sql:"chapter_id"`
 	BookName         string `sql:"book_name"`
 	BookId           int16  `sql:"book_id"`
-	Chapter          int16  `sql:"chapter"`
+	ChapterNr        int16  `sql:"chapter_nr"`
 	ChapterWordCount int16  `sql:"chapter_word_count"`
 }
 
-func ChapterModelToEntity(model []*ChapterModel) *entities.Bible {
-	var bible [66]*entities.Book
-	lastBookName := ""
-	for _, model := range model {
-		if model.BookName != lastBookName {
-			bible[model.BookId-1] = &entities.Book{Title: model.BookName, Chapters: make([]*entities.Chapter, 0)}
-			lastBookName = model.BookName
-		}
-
-		bible[model.BookId-1].Chapters = append(bible[model.BookId-1].Chapters, &entities.Chapter{ID: model.ID, Number: model.Chapter, WordCount: model.ChapterWordCount})
-	}
-
-	return &entities.Bible{Books: bible}
+type TrackerModel struct {
+	ID        int64     `sql:"chapter_id"`
+	Read      bool      `sql:"read"`
+	ReadBy    time.Time `sql:"read_by_"`
+	BookName  string    `sql:"book_name"`
+	BookId    int16     `sql:"book_id"`
+	ChapterNr int16     `sql:"chapter"`
+	Verses    string    `sql:"verses"`
+	ChapterId int16     `sql:"chapter_id"`
 }
 
-func (pg *PostgresStore) ReadChaptersWithDatedPlan(planId int, days int) ([]*ChapterModel, error) {
+func (pg *PostgresStore) CheckTracked(userId int, trackerId int64, checked bool) error {
+	exec, err := pg.db.Exec(`update public.tracker set read = $1, updated_at = $2 where id= $3 and user_fk = $4`, checked, time.Now(), trackerId, userId)
+	if err != nil {
+		return errors.Wrapf(err, `error updating tracker %d`, trackerId)
+	}
+
+	aff, err := exec.RowsAffected()
+	if aff != 1 || err != nil {
+		fmt.Println("ISSUE WITH CHECKING 1 ROW")
+		return errors.Errorf(`tracker %d not tracked`, trackerId)
+	}
+
+	return nil
+}
+
+func (pg *PostgresStore) ReadTrackerFromUserId(userId int) ([]*TrackerModel, error) {
 	rows, err := pg.db.Query(`
-		select c.id, c.book_name, c.book_id, c.chapter_nr, ceil($2.0 * pb.running_length / p.length) as day_from_start from public.plans p 
-		join public.plans_to_bible pb on pb.plan_fk = p.id
+	select t.id, t.read, t.read_by, c.book_id,c.book_name, c.chapter_nr, pb.verses, c.id from public.tracker t 
+		join plans_to_bible pb on t.plan_to_bible_fk = pb.id
 		join static.chapters c on pb.chapter_fk = c.id
-		where p.id = $1
-		order by pb.id;
-`, planId, days)
+		where t.user_fk = $1
+		order by t.id
+`, userId)
 
 	if err != nil {
-		return nil, errors.Wrapf(err, "ReadChaptersFromPlan(%d) select", planId)
+		return nil, errors.Wrapf(err, "ReadTrackerFromUserId(%d) select", userId)
 	}
 
-	chapters := make([]*ChapterModel, 1189) //1189 chapter in the bible
+	var trackers []*TrackerModel
 	for i := 0; rows.Next(); i++ {
-		var id int16
-		var bookName string
+		var id int64
+		var read bool
+		var readBy time.Time
 		var bookId int16
-		var chapter int16
-		var chapterWordCount int16
+		var bookName string
+		var chapterNr int16
+		var versesNull sql.NullString
+		var chapterId int16
 
-		err := rows.Scan(&id, &bookName, &bookId, &chapter, &chapterWordCount)
+		err := rows.Scan(&id, &read, &readBy, &bookId, &bookName, &chapterNr, &versesNull, &chapterId)
 		if err != nil {
-			return nil, errors.Wrapf(err, "ReadChaptersFromPlan(%d) scan", planId)
+			return nil, errors.Wrapf(err, "ReadTrackerFromUserId(%d) scan", userId)
 		}
 
-		chapters[i] = &ChapterModel{id, bookName, bookId, chapter, chapterWordCount}
+		trackers = append(trackers, &TrackerModel{id, read, readBy, bookName, bookId, chapterNr, versesNull.String, chapterId})
 	}
 
-	return chapters, nil
+	return trackers, nil
 }
 
 func (pg *PostgresStore) ReadChaptersFromPlan(planId int) ([]*ChapterModel, error) {
@@ -75,20 +91,20 @@ func (pg *PostgresStore) ReadChaptersFromPlan(planId int) ([]*ChapterModel, erro
 		return nil, errors.Wrapf(err, "ReadChaptersFromPlan(%d) select", planId)
 	}
 
-	chapters := make([]*ChapterModel, 1189) //1189 chapter in the bible
+	var chapters []*ChapterModel
 	for i := 0; rows.Next(); i++ {
 		var id int16
 		var bookName string
 		var bookId int16
-		var chapter int16
+		var chapterNr int16
 		var chapterWordCount int16
 
-		err := rows.Scan(&id, &bookName, &bookId, &chapter, &chapterWordCount)
+		err := rows.Scan(&id, &bookName, &bookId, &chapterNr, &chapterWordCount)
 		if err != nil {
 			return nil, errors.Wrapf(err, "ReadChaptersFromPlan(%d) scan", planId)
 		}
 
-		chapters[i] = &ChapterModel{id, bookName, bookId, chapter, chapterWordCount}
+		chapters = append(chapters, &ChapterModel{id, bookName, bookId, chapterNr, chapterWordCount})
 	}
 
 	return chapters, nil

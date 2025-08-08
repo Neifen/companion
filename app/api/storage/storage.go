@@ -26,6 +26,8 @@ type Storage interface {
 	ReadTrackerFromUserId(userId int) ([]*TrackerModel, error)
 	ReadChaptersFromPlan(planId int) ([]*ChapterModel, error)
 	ReadAllChapters() ([]*ChapterModel, error)
+	ReadTrackerFromUserIdFrom(userId int, fromDate time.Time) ([]*TrackerModel, bool, error)
+	ReadTrackerFromUserIdUntil(userId int, fromDate time.Time) ([]*TrackerModel, bool, error)
 }
 
 type PostgresStore struct {

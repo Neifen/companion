@@ -42,6 +42,8 @@ func (api *APIServer) Run() {
 
 	// home
 	e.GET("/", s.handleGetHome, pasetoMiddleOpt())
+	e.GET("/track-after/:date", s.handleGetAfterItem, pasetoMiddleOpt())
+	e.GET("/track-before/:date", s.handleGetBeforeItem, pasetoMiddleOpt())
 	e.POST("/check-trackeditem/:itemId/:checked", s.handleCheckTrackeItem, pasetoMiddleOpt())
 
 	e.GET("/welcome", s.handleGetHome)

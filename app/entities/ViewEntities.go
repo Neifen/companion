@@ -2,10 +2,11 @@ package entities
 
 type TrackedBible struct {
 	TrackedGroups []*TrackedGroup
+	HasMore       bool
 }
 
-func NewTrackedBible() *TrackedBible {
-	return &TrackedBible{[]*TrackedGroup{}}
+func NewTrackedBible(hasMore bool) *TrackedBible {
+	return &TrackedBible{[]*TrackedGroup{}, hasMore}
 }
 
 type TrackedGroup struct {

@@ -27,6 +27,59 @@ templ trackerCheck(itemId int64, checked bool) {
 	<input autocomplete="off" type="checkbox" hx-swap="outerHTML" hx-post={ url } checked?={ checked } class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"/>
 }
 
+func PaginateTrackerListAfter(c echo.Context, bible *entities.TrackedBible) error {
+	return RenderView(c, trackerList(bible, false, true))
+}
+
+func PaginateTrackerListBefore(c echo.Context, bible *entities.TrackedBible) error {
+	return RenderView(c, trackerList(bible, true, false))
+}
+
+templ trackerList(bible *entities.TrackedBible, before bool, after bool) {
+    {{fmt.Printf("before %v after %v hasMore %v\n", before, after, bible.HasMore)}}
+	for id, group := range bible.TrackedGroups {
+		{{ 
+		    afterUrl := fmt.Sprintf("/track-after/%s", group.Title) 
+            beforeUrl := fmt.Sprintf("/track-before/%s", group.Title) 
+		}} // title = date
+		<div
+			if id == len(bible.TrackedGroups) - 1 && after && bible.HasMore {
+				hx-get={ afterUrl }
+				hx-trigger="intersect once"
+				hx-swap="afterend"
+			}
+			
+            if id == 0 && before && bible.HasMore {
+                    hx-get={ beforeUrl }
+                    hx-trigger="intersect once"
+                    hx-swap="beforebegin"
+                    hx-on::beforeRequest="preserveScrollPosition()"
+                    hx-on::afterSwap="restoreScrollPosition()"
+            }
+			
+			if group.Title == "Today" {
+			    id="trackerlist-start-here"
+			}
+		>
+			<h1 class="text-2xl font-bold text-gray-800">{ group.Title }</h1>
+			<br/>
+			<div class="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-8">
+				for _, item := range group.TrackedItems {
+					<div class="w-full">
+						{{
+	title := fmt.Sprintf(`%s`, item.Title)
+						}}
+						@trackerCheck(item.Id, item.Read)
+						<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center ">{ title }</a>
+					</div>
+				}
+			</div>
+			<br/>
+			<br/>
+		</div>
+	}
+}
+
 templ home(bible *entities.TrackedBible) {
 	<div class="bg-gray-100 flex min-h-screen overflow-hidden m-4 ">
 		<!-- Left Sidebar -->
@@ -47,24 +100,30 @@ templ home(bible *entities.TrackedBible) {
 			</nav>
 			<!-- Scrollable List -->
 			<div class="overflow-y-auto  p-2">
-				for _, group := range bible.TrackedGroups {
-					<h1 class="text-2xl font-bold text-gray-800">{ group.Title }</h1>
-					<br/>
-					<div class="grid lg:grid-cols-3 md:grid-cols-2 sm:grid-cols-1 gap-8">
-						for _, item := range group.TrackedItems {
-							<div class="w-full">
-								{{
-	                                title := fmt.Sprintf(`%s`, item.Title)
-								}}
-								@trackerCheck(item.Id, item.Read)
-								<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center ">{ title }</a>
-							</div>
-						}
-					</div>
-					<br/>
-					<br/>
-				}
+				@trackerList(bible, true, true)
 			</div>
+			   <script>
+                window.addEventListener('load', () => {
+                    const list = document.getElementById('trackerlist-start-here').scrollIntoView({
+                        block: 'start',
+                        behavior: 'instant'
+                    });
+                });
+                
+                let prevScrollHeight, prevScrollTop;
+                function preserveScrollPosition() {
+                    const el = document.documentElement;
+                    prevScrollHeight = el.scrollHeight;
+                    prevScrollTop = el.scrollTop;
+                }
+                
+                function restoreScrollPosition() {
+                    const el = document.documentElement;
+                    const newScrollHeight = el.scrollHeight;
+                    el.scrollTop = prevScrollTop +  (newScrollHeight - prevScrollHeight);
+                }
+                
+            </script>
 		</div>
 		<!-- Right Section -->
 		<div class="w-1/3 flex flex-col h-screen m-2">

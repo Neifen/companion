@@ -43,14 +43,80 @@ func (pg *PostgresStore) CheckTracked(userId int, trackerId int64, checked bool)
 	return nil
 }
 
+func (pg *PostgresStore) ReadTrackerFromUserIdUntil(userId int, fromTime time.Time) ([]*TrackerModel, bool, error) {
+	const pages = 10
+
+	fromDate := fromTime.AddDate(0, 0, -pages).Format("2006-01-02")
+	toDate := fromTime.Format("2006-01-02")
+
+	return pg.readTrackerPaginate(userId, fromDate, toDate, pages)
+}
+
+func (pg *PostgresStore) ReadTrackerFromUserIdFrom(userId int, fromTime time.Time) ([]*TrackerModel, bool, error) {
+	const pages = 10
+
+	fromDate := fromTime.Format("2006-01-02")
+	toDate := fromTime.AddDate(0, 0, pages).Format("2006-01-02")
+
+	return pg.readTrackerPaginate(userId, fromDate, toDate, pages)
+}
+
+func (pg *PostgresStore) readTrackerPaginate(userId int, fromDate, toDate string, pages int) ([]*TrackerModel, bool, error) {
+	rows, err := pg.db.Query(`
+	select t.id, t.read, t.read_by, c.book_id,c.book_name, c.chapter_nr, pb.verses, c.id from public.tracker t 
+		join plans_to_bible pb on t.plan_to_bible_fk = pb.id
+		join static.chapters c on pb.chapter_fk = c.id
+		where t.user_fk = $1 and t.read_by >= $2 and t.read_by <= $3
+		order by t.id
+`, userId, fromDate, toDate)
+
+	if err != nil {
+		return nil, false, errors.Wrapf(err, "ReadTrackerFromUserId(%d) select", userId)
+	}
+
+	var trackers []*TrackerModel
+	var start time.Time
+	var end time.Time
+	i := 0
+	for ; rows.Next(); i++ {
+		var id int64
+		var read bool
+		var readBy time.Time
+		var bookId int16
+		var bookName string
+		var chapterNr int16
+		var versesNull sql.NullString
+		var chapterId int16
+
+		err := rows.Scan(&id, &read, &readBy, &bookId, &bookName, &chapterNr, &versesNull, &chapterId)
+		if err != nil {
+			return nil, false, errors.Wrapf(err, "ReadTrackerFromUserId(%d) scan", userId)
+		}
+
+		end = readBy
+		if i == 0 {
+			start = readBy
+		}
+		trackers = append(trackers, &TrackerModel{id, read, readBy, bookName, bookId, chapterNr, versesNull.String, chapterId})
+	}
+
+	hasMore := false
+	fmt.Printf("end: %v, start: %v, sub: %v\n", end, start, end.Sub(start))
+	if end.Sub(start).Hours() >= float64(pages*24) {
+		hasMore = true
+	}
+
+	return trackers, hasMore, nil
+}
+
 func (pg *PostgresStore) ReadTrackerFromUserId(userId int) ([]*TrackerModel, error) {
 	rows, err := pg.db.Query(`
 	select t.id, t.read, t.read_by, c.book_id,c.book_name, c.chapter_nr, pb.verses, c.id from public.tracker t 
 		join plans_to_bible pb on t.plan_to_bible_fk = pb.id
 		join static.chapters c on pb.chapter_fk = c.id
-		where t.user_fk = $1
+		where t.user_fk = $1 and t.read_by > $2 and t.read_by < $3
 		order by t.id
-`, userId)
+`, userId, time.Now().AddDate(0, 0, -1), time.Now().AddDate(0, 0, 10))
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "ReadTrackerFromUserId(%d) select", userId)

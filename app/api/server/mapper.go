@@ -8,7 +8,7 @@ import (
 )
 
 func chapterModelToEntity(model []*storage.ChapterModel) *entities.TrackedBible {
-	trackedBible := entities.NewTrackedBible()
+	trackedBible := entities.NewTrackedBible(false)
 	var trackedItems []*entities.TrackedItem
 	lastBookName := ""
 	for _, chapter := range model {
@@ -32,8 +32,8 @@ func chapterModelToEntity(model []*storage.ChapterModel) *entities.TrackedBible 
 	return trackedBible
 }
 
-func trackerModelToEntity(model []*storage.TrackerModel) *entities.TrackedBible {
-	trackedBible := entities.NewTrackedBible()
+func trackerModelToEntity(model []*storage.TrackerModel, hasMore bool) *entities.TrackedBible {
+	trackedBible := entities.NewTrackedBible(hasMore)
 	var trackedItems []*entities.TrackedItem
 	today := time.Now().Format("January 2, 2006")
 	lastDate := time.Time{}

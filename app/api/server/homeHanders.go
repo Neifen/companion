@@ -6,6 +6,7 @@ import (
 	"github.com/neifen/htmx-login/app/view"
 	"net/http"
 	"strconv"
+	"time"
 )
 
 func (s *HandlerSession) handleGetHome(c echo.Context) error {
@@ -21,14 +22,44 @@ func (s *HandlerSession) handleGetHome(c echo.Context) error {
 		return view.HomeHTML(c, bible)
 	}
 
-	tracker, err := s.store.ReadTrackerFromUserId(u.id)
+	tracker, hasMore, err := s.store.ReadTrackerFromUserIdFrom(0, time.Now().AddDate(0, 0, -2))
 	//todo real errors
 	if err != nil {
 		fmt.Println(err)
 		return c.JSON(http.StatusInternalServerError, err) // todo do better
 	}
-	bible := trackerModelToEntity(tracker)
+	bible := trackerModelToEntity(tracker, hasMore)
 	return view.HomeHTML(c, bible)
+}
+
+// e.GET("/track-before/:date", s.handleGetBeforeItem, pasetoMiddleOpt())
+func (s *HandlerSession) handleGetBeforeItem(c echo.Context) error {
+	u := c.Get("u").(*userReq)
+	date, err := time.Parse("January 2, 2006", c.Param("date"))
+
+	tracker, hasMore, err := s.store.ReadTrackerFromUserIdUntil(u.id, date.AddDate(0, 0, -1))
+	//todo real errors
+	if err != nil {
+		fmt.Println(err)
+		return c.JSON(http.StatusInternalServerError, err) // todo do better
+	}
+	bible := trackerModelToEntity(tracker, hasMore)
+	return view.PaginateTrackerListBefore(c, bible)
+}
+
+// e.GET("/track-after/:date", s.handleGetAfterItem, pasetoMiddleOpt())
+func (s *HandlerSession) handleGetAfterItem(c echo.Context) error {
+	u := c.Get("u").(*userReq)
+	date, err := time.Parse("January 2, 2006", c.Param("date"))
+
+	tracker, hasMore, err := s.store.ReadTrackerFromUserIdFrom(u.id, date.AddDate(0, 0, 1))
+	//todo real errors
+	if err != nil {
+		fmt.Println(err)
+		return c.JSON(http.StatusInternalServerError, err) // todo do better
+	}
+	bible := trackerModelToEntity(tracker, hasMore)
+	return view.PaginateTrackerListAfter(c, bible)
 }
 
 // e.POST("/check-trackeditem/:itemId/:checked", s.handleCheckTrackeItem)
@@ -76,11 +107,11 @@ func (s *HandlerSession) redirectToHome(c echo.Context, u *userReq) error {
 		return view.HomeHTML(c, bible)
 	}
 
-	tracker, err := s.store.ReadTrackerFromUserId(u.id)
+	tracker, hasMore, err := s.store.ReadTrackerFromUserIdFrom(u.id, time.Now())
 	//todo real errors
 	if err != nil {
 		return c.JSON(http.StatusInternalServerError, err) // todo do better
 	}
-	bible := trackerModelToEntity(tracker)
+	bible := trackerModelToEntity(tracker, hasMore)
 	return view.HomeHTML(c, bible)
 }

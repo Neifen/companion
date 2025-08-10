@@ -182,7 +182,7 @@ func (s *HandlerSession) handlePostLogout(c echo.Context) error {
 	clearCookie("token", "/", c)
 	clearCookie("refresh", "/token", c)
 
-	return s.redirectToLogin(c)
+	return s.redirectToHome(c, emptyUser())
 }
 
 func clearCookie(name, path string, c echo.Context) {

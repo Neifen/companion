@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"github.com/labstack/echo/v4"
+	"github.com/neifen/htmx-login/app/entities"
 	"github.com/neifen/htmx-login/app/view"
 	"net/http"
 	"strconv"
@@ -19,7 +20,7 @@ func (s *HandlerSession) handleGetHome(c echo.Context) error {
 			return c.JSON(http.StatusInternalServerError, err) // todo do better
 		}
 		bible := chapterModelToEntity(chapters)
-		return view.HomeHTML(c, bible)
+		return view.HomeHTML(c, bible, entities.NewViewUser(u.name, u.isLoggedIn))
 	}
 
 	tracker, hasMore, err := s.store.ReadTrackerFromUserIdFrom(0, time.Now().AddDate(0, 0, -2))
@@ -29,7 +30,7 @@ func (s *HandlerSession) handleGetHome(c echo.Context) error {
 		return c.JSON(http.StatusInternalServerError, err) // todo do better
 	}
 	bible := trackerModelToEntity(tracker, hasMore)
-	return view.HomeHTML(c, bible)
+	return view.HomeHTML(c, bible, entities.NewViewUser(u.name, u.isLoggedIn))
 }
 
 // e.GET("/track-before/:date", s.handleGetBeforeItem, pasetoMiddleOpt())
@@ -104,7 +105,7 @@ func (s *HandlerSession) redirectToHome(c echo.Context, u *userReq) error {
 			return c.JSON(http.StatusInternalServerError, err) // todo do better
 		}
 		bible := chapterModelToEntity(chapters)
-		return view.HomeHTML(c, bible)
+		return view.HomeHTML(c, bible, entities.NewViewUser(u.name, u.isLoggedIn))
 	}
 
 	tracker, hasMore, err := s.store.ReadTrackerFromUserIdFrom(u.id, time.Now())
@@ -113,5 +114,5 @@ func (s *HandlerSession) redirectToHome(c echo.Context, u *userReq) error {
 		return c.JSON(http.StatusInternalServerError, err) // todo do better
 	}
 	bible := trackerModelToEntity(tracker, hasMore)
-	return view.HomeHTML(c, bible)
+	return view.HomeHTML(c, bible, entities.NewViewUser(u.name, u.isLoggedIn))
 }

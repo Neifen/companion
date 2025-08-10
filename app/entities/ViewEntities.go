@@ -1,5 +1,14 @@
 package entities
 
+type ViewUser struct {
+	IsLoggedIn bool
+	Name       string
+}
+
+func NewViewUser(name string, loggedIn bool) *ViewUser {
+	return &ViewUser{loggedIn, name}
+}
+
 type TrackedBible struct {
 	TrackedGroups []*TrackedGroup
 	HasMore       bool

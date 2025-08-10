@@ -1,0 +1,20 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build the Docker image
+      run: |
+        docker login -u swissneifen -p ${{ secrets.DOCKER_HUB_TOKEN }}
+        docker buildx create --use --platform=linux/arm64,linux/amd64 --name multi-platform-builder
+        docker buildx inspect --bootstrap
+        docker buildx build --platform linux/amd64,linux/arm64 --file docker/Dockerfile --push --tag swissneifen/bible-companion:latest .

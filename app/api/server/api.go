@@ -2,7 +2,6 @@ package server
 
 import (
 	"fmt"
-
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/neifen/htmx-login/app/api/storage"
@@ -44,6 +43,7 @@ func (api *APIServer) Run() {
 	e.GET("/", s.handleGetHome, pasetoMiddleOpt())
 	e.GET("/track-after/:date", s.handleGetAfterItem, pasetoMiddleOpt())
 	e.GET("/track-before/:date", s.handleGetBeforeItem, pasetoMiddleOpt())
+
 	e.POST("/check-trackeditem/:itemId/:checked", s.handleCheckTrackeItem, pasetoMiddleOpt())
 
 	e.GET("/welcome", s.handleGetHome)
@@ -53,8 +53,8 @@ func (api *APIServer) Run() {
 	e.GET("/start-plan", s.handleGetHome)
 	e.POST("/start-plan/:planId", s.handleGetHome)
 
-	e.GET("/refresh-plan", s.handleGetHome)
-	e.POST("/refresh-plan/:planId", s.handleGetHome)
+	e.GET("/edit-plan", s.handleEditPlan, pasetoMiddleOpt())
+	e.POST("/reset-plan/:planId", s.handleGetHome)
 
 	// login
 	e.GET(LOGIN_PATH, s.handleGetLogin)
@@ -107,15 +107,14 @@ func pasetoMiddleOpt() echo.MiddlewareFunc {
 				return redirectToTokenRefresh(c)
 			}
 
-			//todo there needs to be a difference between simply not logged in / token invalid and refresh token invalid
+			c.Set("u", u)
 			if u.isLoggedIn {
-				c.Set("u", u)
 				fmt.Printf("Middleware, user %s is logged in, continue\n", u.name)
 				return next(c)
 			}
 
 			fmt.Println("Middleware, no user is logged in, continue")
-			return redirectToTokenRefresh(c)
+			return next(c)
 		}
 	}
 }

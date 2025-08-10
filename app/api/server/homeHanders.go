@@ -12,24 +12,31 @@ import (
 
 func (s *HandlerSession) handleGetHome(c echo.Context) error {
 	u := c.Get("u").(*userReq)
+	return s.viewHome(c, u)
+}
 
+func (s *HandlerSession) viewHome(c echo.Context, u *userReq) error {
+	//might have to push the url
+	c.Response().Header().Set("HX-Replace-Url", "/")
+
+	var bible *entities.TrackedBible
 	if !u.isLoggedIn {
 		chapters, err := s.store.ReadChaptersFromPlan(0)
 		//todo real errors
 		if err != nil {
+			fmt.Println(err)
 			return c.JSON(http.StatusInternalServerError, err) // todo do better
 		}
-		bible := chapterModelToEntity(chapters)
-		return view.HomeHTML(c, bible, entities.NewViewUser(u.name, u.isLoggedIn))
+		bible = chapterModelToEntity(chapters)
+	} else {
+		tracker, hasMore, err := s.store.ReadTrackerFromUserIdFrom(0, time.Now().AddDate(0, 0, -2))
+		if err != nil {
+			fmt.Println(err)
+			return c.JSON(http.StatusInternalServerError, err) // todo do better
+		}
+		bible = trackerModelToEntity(tracker, hasMore)
 	}
 
-	tracker, hasMore, err := s.store.ReadTrackerFromUserIdFrom(0, time.Now().AddDate(0, 0, -2))
-	//todo real errors
-	if err != nil {
-		fmt.Println(err)
-		return c.JSON(http.StatusInternalServerError, err) // todo do better
-	}
-	bible := trackerModelToEntity(tracker, hasMore)
 	return view.HomeHTML(c, bible, entities.NewViewUser(u.name, u.isLoggedIn))
 }
 
@@ -93,26 +100,12 @@ func (s *HandlerSession) handleCheckTrackeItem(c echo.Context) error {
 	return view.TrackerCheckHTML(c, itemId, checked)
 }
 
-func (s *HandlerSession) redirectToHome(c echo.Context, u *userReq) error {
-	//todo why both again?
-	//u := c.Get("u").(*userReq)
-
-	if u == nil || !u.isLoggedIn {
-		chapters, err := s.store.ReadChaptersFromPlan(0)
-		//todo real errors
-		if err != nil {
-			fmt.Println(err)
-			return c.JSON(http.StatusInternalServerError, err) // todo do better
-		}
-		bible := chapterModelToEntity(chapters)
-		return view.HomeHTML(c, bible, entities.NewViewUser(u.name, u.isLoggedIn))
+// e.GET("/edit-plan", s.handleEditPlan, pasetoMiddleOpt())
+func (s *HandlerSession) handleEditPlan(c echo.Context) error {
+	u := c.Get("u").(*userReq)
+	if !u.isLoggedIn {
+		return view.ErrorHTML(c, "not logged in")
 	}
 
-	tracker, hasMore, err := s.store.ReadTrackerFromUserIdFrom(u.id, time.Now())
-	//todo real errors
-	if err != nil {
-		return c.JSON(http.StatusInternalServerError, err) // todo do better
-	}
-	bible := trackerModelToEntity(tracker, hasMore)
-	return view.HomeHTML(c, bible, entities.NewViewUser(u.name, u.isLoggedIn))
+	return view.CurrentPlanHTML(c)
 }

@@ -38,8 +38,8 @@ func PaginateTrackerListBefore(c echo.Context, bible *entities.TrackedBible) err
 templ trackerList(bible *entities.TrackedBible, before bool, after bool) {
 	for id, group := range bible.TrackedGroups {
 		{{
-		afterUrl := fmt.Sprintf("/track-after/%s", group.Title)
-		beforeUrl := fmt.Sprintf("/track-before/%s", group.Title)
+		afterUrl := fmt.Sprintf("/track-after/%s", group.Pagination)
+		beforeUrl := fmt.Sprintf("/track-before/%s", group.Pagination)
 		}} // title = date
 		<div
 			if id == len(bible.TrackedGroups) - 1 && after && bible.HasMore {
@@ -80,11 +80,22 @@ templ trackerList(bible *entities.TrackedBible, before bool, after bool) {
 templ home(bible *entities.TrackedBible, u *entities.ViewUser) {
 	<div class="bg-gray-100 flex min-h-screen overflow-hidden m-4 ">
 		<script>
-            window.addEventListener('load', () => {
+		    function startToday(){
                 const list = document.getElementById('trackerlist-start-here').scrollIntoView({
                     block: 'start',
                     behavior: 'instant'
                 });
+		    }
+		    
+		    function goToday(){
+                const list = document.getElementById('trackerlist-start-here').scrollIntoView({
+                    block: 'start',
+                    behavior: 'smooth'
+                });
+            }
+		
+            window.addEventListener('load', () => {
+                startToday();
             });
             
             let prevScrollHeight, prevScrollTop;
@@ -103,13 +114,32 @@ templ home(bible *entities.TrackedBible, u *entities.ViewUser) {
         </script>
 		<!-- Left Sidebar -->
 		<div class="w-2/3 bg-white rounded-lg shadow-lg p-8 flex flex-col h-screen m-2">
+		    <div id="plan-popup"></div>
 			<!-- Navbar -->
 			<nav class="bg-white text-gray-800 p-4 flex justify-between items-center border-b border-gray-300 mb-6">
 				<h1 class="text-2xl font-bold text-gray-800">Companion</h1>
+				<div class="flex space-x-2">
+					if u.IsLoggedIn {
+				        <button hx-on:click="goToday()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">
+				        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+				        <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+                         </svg>
+                        </button>
+			              <!-- todo -->
+                          <button hx-on:click="goToday()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">
+                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-6">
+                               <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 18.75 7.5-7.5 7.5 7.5" />
+                               <path stroke-linecap="round" stroke-linejoin="round" d="m4.5 12.75 7.5-7.5 7.5 7.5" />
+                             </svg>
+                          </button>
+				    }
+				</div>
 				<div class="flex space-x-4">
 					<div class="flex space-x-2">
-						<button class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Select Plan</button>
+					if u.IsLoggedIn {
+						<button hx-get="edit-plan" hx-swap="none" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Plan Settings</button>
 						<button class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Set Duration</button>
+                    }
 					</div>
 					<div class="flex space-x-2">
 					if u.IsLoggedIn {

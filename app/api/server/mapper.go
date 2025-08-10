@@ -14,7 +14,7 @@ func chapterModelToEntity(model []*storage.ChapterModel) *entities.TrackedBible 
 	for _, chapter := range model {
 		if chapter.BookName != lastBookName {
 			if trackedItems != nil && len(trackedItems) != 0 {
-				book := entities.NewTrackedGroup(lastBookName, trackedItems)
+				book := entities.NewTrackedGroup(lastBookName, lastBookName, trackedItems)
 				trackedBible.TrackedGroups = append(trackedBible.TrackedGroups, book)
 				trackedItems = []*entities.TrackedItem{}
 			}
@@ -41,11 +41,12 @@ func trackerModelToEntity(model []*storage.TrackerModel, hasMore bool) *entities
 		if item.ReadBy != lastDate {
 			if len(trackedItems) != 0 {
 				title := lastDate.Format("January 2, 2006")
+				pagination := title
 				if title == today {
 					title = "Today"
 				}
 
-				trackedDay := entities.NewTrackedGroup(title, trackedItems)
+				trackedDay := entities.NewTrackedGroup(title, pagination, trackedItems)
 				trackedBible.TrackedGroups = append(trackedBible.TrackedGroups, trackedDay)
 				trackedItems = []*entities.TrackedItem{}
 			}

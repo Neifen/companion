@@ -20,11 +20,12 @@ func NewTrackedBible(hasMore bool) *TrackedBible {
 
 type TrackedGroup struct {
 	Title        string
+	Pagination   string
 	TrackedItems []*TrackedItem
 }
 
-func NewTrackedGroup(title string, items []*TrackedItem) *TrackedGroup {
-	return &TrackedGroup{title, items}
+func NewTrackedGroup(title, pagination string, items []*TrackedItem) *TrackedGroup {
+	return &TrackedGroup{title, pagination, items}
 }
 
 type TrackedItem struct {

@@ -10,7 +10,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
-type Storage interface {
+type UserDB interface {
 	CreateUser(u *UserModel) error
 	DeleteUser(u *UserModel) error
 	ReadUserByEmail(email string) (*UserModel, error)
@@ -21,13 +21,10 @@ type Storage interface {
 	DeleteRefreshToken(t *RefreshTokenModel) error
 	DeleteRefreshTokenByToken(token string) error
 	ReadRefreshTokenByToken(token string) (*RefreshTokenModel, error)
-
-	CheckTracked(userId int, trackerId int64, checked bool) error
-	ReadTrackerFromUserId(userId int) ([]*TrackerModel, error)
-	ReadChaptersFromPlan(planId int) ([]*ChapterModel, error)
-	ReadAllChapters() ([]*ChapterModel, error)
-	ReadTrackerFromUserIdFrom(userId int, fromDate time.Time) ([]*TrackerModel, bool, error)
-	ReadTrackerFromUserIdUntil(userId int, fromDate time.Time) ([]*TrackerModel, bool, error)
+}
+type Storage interface {
+	UserDB
+	BibleDB
 }
 
 type PostgresStore struct {

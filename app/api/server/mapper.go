@@ -34,31 +34,31 @@ func chapterModelToEntity(model []*storage.ChapterModel) *entities.TrackedBible 
 
 func trackerModelToEntity(model []*storage.TrackerModel, hasMore bool) *entities.TrackedBible {
 	trackedBible := entities.NewTrackedBible(hasMore)
-	var trackedItems []*entities.TrackedItem
+
 	today := time.Now().Format("January 2, 2006")
 	lastDate := time.Time{}
-	for _, item := range model {
-		if item.ReadBy != lastDate {
-			if len(trackedItems) != 0 {
-				title := lastDate.Format("January 2, 2006")
-				pagination := title
-				if title == today {
-					title = "Today"
-				}
 
-				trackedDay := entities.NewTrackedGroup(title, pagination, trackedItems)
-				trackedBible.TrackedGroups = append(trackedBible.TrackedGroups, trackedDay)
-				trackedItems = []*entities.TrackedItem{}
+	for _, row := range model {
+		// Chapter + Verse if there
+		chapter := fmt.Sprintf("%s %d", row.BookName, row.ChapterNr)
+		if len(row.Verses) != 0 {
+			chapter = fmt.Sprintf("%s:%s", chapter, row.Verses)
+		}
+		trackedItem := entities.NewTrackedItem(row.ID, row.Read, chapter, row.ChapterId)
+		if lastDate != row.ReadBy {
+			lastDate = row.ReadBy
+			day := row.ReadBy.Format("January 2, 2006")
+			pagination := day
+			if day == today {
+				day = "Today"
 			}
 
-			lastDate = item.ReadBy
+			trackedDay := entities.NewTrackedGroup(day, pagination, []*entities.TrackedItem{})
+			trackedBible.TrackedGroups = append(trackedBible.TrackedGroups, trackedDay)
 		}
 
-		title := fmt.Sprintf("%s %d", item.BookName, item.ChapterNr)
-		if len(item.Verses) != 0 {
-			title = fmt.Sprintf("%s:%s", title, item.Verses)
-		}
-		trackedItems = append(trackedItems, entities.NewTrackedItem(item.ID, item.Read, title, item.ChapterId))
+		group := trackedBible.TrackedGroups[len(trackedBible.TrackedGroups)-1]
+		group.TrackedItems = append(group.TrackedItems, trackedItem)
 	}
 
 	return trackedBible

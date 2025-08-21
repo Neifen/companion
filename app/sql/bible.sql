@@ -5,7 +5,7 @@ create table if not exists public.plans
     plan_desc       TEXT,
     includes_verses BOOLEAN     NOT NULL DEFAULT false,
     fix_duration    BOOLEAN     NOT NULL DEFAULT false,
-    bible_canon     SMALLINT    NOT NULL DEFAULT 0,                         -- for catholic and orthodox bible | defaults to null which is the 'normal' bible
+    bible_canon     SMALLINT    NOT NULL DEFAULT 0,      -- for catholic and orthodox bible | defaults to null which is the 'normal' bible
     length          INT         NOT NULL DEFAULT 820847, -- sum of all
     created_at      timestamptz NOT NULL DEFAULT now(),
     updated_at      timestamptz NOT NULL DEFAULT now()
@@ -35,8 +35,9 @@ create table if not exists public.plans_to_bible
     id             BIGSERIAL PRIMARY KEY,
     plan_fk        INT REFERENCES public.plans     NOT NULL,
     chapter_fk     INT2 REFERENCES static.chapters NOT NULL,
-    verse_fks      INT[],                                   --optional
-    verses         VARCHAR(12),                             --might not be needed
+    verse_fks      INT[],                                   -- optional
+    verses         VARCHAR(12),                             -- optional
+    length         INT                             NOT NULL,
     running_length INT                             NOT NULL -- template for tracker
 );
 
@@ -56,24 +57,42 @@ ALTER SEQUENCE plans_to_bible_id_seq RESTART WITH 1189;
 
 create table if not exists public.tracker
 (
-    id               bigserial primary key,
-    user_fk          int                                     NOT NULL REFERENCES public.users,
-    plan_to_bible_fk bigint references public.plans_to_bible NOT NULL,
-    read             boolean                                 NOT NULL default false,
-    read_by          date                                    NOT NULL,
-    created_at       timestamptz                             not null default now(),
-    updated_at       timestamptz                             not null default now()
+    id                 bigserial primary key,
+    user_to_tracker_fk int         NOT NULL REFERENCES public.user_to_tracker,
+    plan_to_bible_fk   bigint      NOT NULL REFERENCES public.plans_to_bible,
+    read               boolean     NOT NULL default false,
+    read_by            date        NOT NULL,
+    created_at         timestamptz not null default now(),
+    updated_at         timestamptz not null default now()
+);
+
+create table if not exists public.user_to_tracker
+(
+    id         bigserial primary key,
+    user_fk    int         NOT NULL REFERENCES public.users,
+    start_date date        NOT NULL,
+    end_date   date        NOT NULL,
+    created_at timestamptz not null default now(),
+    updated_at timestamptz not null default now()
 );
 
 --todo remove this, only for test
-INSERT INTO public.users ("id","name",email,pw,uid,created_at,updated_at) VALUES
-    (0, 'Nate','nate@test.ch',decode('F01799B988381AB571305D974AD97AA52CD6A9D0CAB5FB1EDE4639D8CE9BA914','hex'),'de08c80c-c2cf-4e9c-abab-e60ad435fc3c','2025-08-05 13:59:23.680187-04','2025-08-05 13:59:23.680187-04') ON CONFLICT DO NOTHING;
+INSERT INTO public.users ("id", "name", email, pw, uid, created_at, updated_at)
+VALUES (0, 'Nate', 'nate@test.ch', decode('F01799B988381AB571305D974AD97AA52CD6A9D0CAB5FB1EDE4639D8CE9BA914', 'hex'),
+        'de08c80c-c2cf-4e9c-abab-e60ad435fc3c', '2025-08-05 13:59:23.680187-04', '2025-08-05 13:59:23.680187-04')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO public.user_to_tracker (id, user_fk, start_date, end_date)
+values (0, 0, to_date('2024-10-31', 'YYYY-MM-DD'), to_date('2025-10-31', 'YYYY-MM-DD'))
+ON CONFLICT DO NOTHING;
+
 
 INSERT INTO public.tracker (id, user_fk, plan_to_bible_fk, read_by)
-SELECT id.id as id,
-       0    as user_fk,
-       id.id as plan_to_bible_fk,
-       to_date('2024-10-31', 'YYYY-MM-DD') + interval '1' day * (ceil(365::float * pb.running_length / p.length)-1) as read_by
+SELECT id.id                                                                                       as id,
+       0                                                                                           as user_fk,
+       id.id                                                                                       as plan_to_bible_fk,
+       to_date('2024-10-31', 'YYYY-MM-DD') + interval '1' day *
+                                             (ceil(365::float * pb.running_length / p.length) - 1) as read_by
 FROM generate_series(1, 1189) id
          join public.plans_to_bible pb on pb.id = id.id
          join public.plans p on pb.plan_fk = p.id

@@ -53,8 +53,14 @@ func (api *APIServer) Run() {
 	e.GET("/start-plan", s.handleGetHome)
 	e.POST("/start-plan/:planId", s.handleGetHome)
 
-	e.GET("/edit-plan", s.handleEditPlan, pasetoMiddleOpt())
-	e.POST("/reset-plan/:planId", s.handleGetHome)
+	// plan settings
+	e.GET("/plan-settings", s.handlePlanSettings)
+	e.GET("/move-start-confirm", s.handleConfirmMoveStart)
+	e.GET("/move-start-popup", s.handleMoveStartPopup)
+	e.POST("/move-start", s.moveStart, pasetoMiddle())
+	e.POST("/move-end", s.handleGetHome, pasetoMiddle())
+	e.POST("/move-start-end", s.handleGetHome, pasetoMiddle())
+	e.POST("/move-days", s.handleGetHome, pasetoMiddle())
 
 	// login
 	e.GET(LOGIN_PATH, s.handleGetLogin)

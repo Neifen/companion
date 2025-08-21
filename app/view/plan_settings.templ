@@ -1,0 +1,63 @@
+package view //import github.com/neifen/htmx-login/app/view
+
+import "github.com/labstack/echo/v4"
+
+func PlanSettingsHMTL(c echo.Context) error {
+	return RenderView(c, planSettings())
+}
+
+templ planSettings() {
+	<div id="plan-popup" hx-swap-oob="true">
+		<div id="plan-popup-window" class="fixed inset-0 flex bg-black/50 items-center justify-center z-50" hx-on:click="document.getElementById('plan-popup-window').remove()">
+			<div id="plan-popup-content" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto" hx-on:click="event.stopPropagation()">
+				<!-- Plan Name Section -->
+				<div class="flex items-center justify-between mb-4">
+					<h2 class="text-lg font-semibold text-gray-800">Current Plan: Basic</h2>
+				</div>
+				<!-- Start Date Section -->
+				<div class="flex items-center justify-between mb-4">
+                Start Date
+                <div class="relative max-w-sm">
+                  <div class="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none">
+                    <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/>
+                    </svg>
+                  </div>
+                  <input hx-get="/move-start-popup" hx-trigger="click" hx-target="#plan-popup-content" type="text" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Select date">
+                </div>
+                
+                    <!--
+					<button hx-on:click="document.getElementById('plan-popup-content').innerHTML = document.getElementById('confirm-move-start').innerHTML" class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
+						Reset start and distribute
+					</button>
+					-->
+				</div>
+				<!-- End Date Section -->
+	            <div class="flex items-center justify-between mb-4">
+                Start Date
+                <div class="relative max-w-sm">
+                  <div class="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none">
+                    <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/>
+                    </svg>
+                  </div>
+                  <input hx-get="/move-end-popup" hx-trigger="click" hx-target="#plan-popup-content" type="text" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Select date">
+                </div>
+			</div>
+		</div>
+	</div>
+	<template id="confirm-move-start">
+		<div class="flex items-center justify-between mb-4">
+			<h2 class="text-lg font-semibold text-gray-800">Are you sure you want to reset the plan to start today and distribute the open chapters in the remaining time?</h2>
+		</div>
+		<!-- Start Date Section -->
+		<div class="flex items-center justify-between mb-4">
+			<button hx-post="/move-start" hx-target="#base" class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
+				Yes distribute
+			</button>
+			<button hx-get="plan-settings" class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
+				Cancel
+			</button>
+		</div>
+	</template>
+}

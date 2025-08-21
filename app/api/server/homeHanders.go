@@ -45,7 +45,8 @@ func (s *HandlerSession) handleGetBeforeItem(c echo.Context) error {
 	u := c.Get("u").(*userReq)
 	date, err := time.Parse("January 2, 2006", c.Param("date"))
 
-	tracker, hasMore, err := s.store.ReadTrackerFromUserIdUntil(u.id, date.AddDate(0, 0, -1))
+	tracker, hasMore, err := s.store.ReadTrackerFromUserIdUntil(u.id, date)
+
 	//todo real errors
 	if err != nil {
 		fmt.Println(err)
@@ -90,7 +91,7 @@ func (s *HandlerSession) handleCheckTrackeItem(c echo.Context) error {
 		return nil
 	}
 
-	err = s.store.CheckTracked(u.id, itemId, checked)
+	err = s.store.CheckTracked(itemId, checked)
 	//todo real errors
 	if err != nil {
 		fmt.Println(err)
@@ -100,12 +101,43 @@ func (s *HandlerSession) handleCheckTrackeItem(c echo.Context) error {
 	return view.TrackerCheckHTML(c, itemId, checked)
 }
 
-// e.GET("/edit-plan", s.handleEditPlan, pasetoMiddleOpt())
-func (s *HandlerSession) handleEditPlan(c echo.Context) error {
+// e.GET("/plan-settings", s.handlePlanSettings)
+func (s *HandlerSession) handlePlanSettings(c echo.Context) error {
+	return view.PlanSettingsHMTL(c)
+}
+
+// e.GET("/reset-plan", s.handleConfirmMoveStart)
+func (s *HandlerSession) handleConfirmMoveStart(c echo.Context) error {
+	return view.ConfirmPlanPopup(c)
+}
+
+// e.GET("/move-start-popup", s.handleMoveStartPopup)
+func (s *HandlerSession) handleMoveStartPopup(c echo.Context) error {
+	return view.EditStartPopup(c)
+}
+
+// e.GET("/move-end-popup", s.handleMoveEndPopup)
+func (s *HandlerSession) handleMoveEndPopup(c echo.Context) error {
+	return view.EditEndPopup(c)
+}
+
+// e.GET("/reset-plan", s.moveStart, pasetoMiddle())
+func (s *HandlerSession) moveStart(c echo.Context) error {
 	u := c.Get("u").(*userReq)
-	if !u.isLoggedIn {
-		return view.ErrorHTML(c, "not logged in")
+	today := time.Now()
+
+	err := s.store.MoveTrackerStartDate(u.id, today)
+	if err != nil {
+		fmt.Println(err)
+		return view.ErrorHTML(c, "Something went wrong, contact admin")
 	}
 
-	return view.CurrentPlanHTML(c)
+	tracker, hasMore, err := s.store.ReadTrackerFromUserIdFrom(0, time.Now().AddDate(0, 0, -2))
+	if err != nil {
+		fmt.Println(err)
+		return view.ErrorHTML(c, "Something went wrong, contact admin")
+	}
+	bible := trackerModelToEntity(tracker, hasMore)
+
+	return view.HomeHTML(c, bible, entities.NewViewUser(u.name, u.isLoggedIn))
 }

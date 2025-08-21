@@ -1,0 +1,77 @@
+package view //import github.com/neifen/htmx-login/app/view
+
+import "github.com/labstack/echo/v4"
+
+func EditStartPopup(c echo.Context) error {
+	return RenderView(c, editDatePopup(true))
+}
+
+func EditEndPopup(c echo.Context) error {
+	return RenderView(c, editDatePopup(false))
+}
+
+func ConfirmPlanPopup(c echo.Context) error {
+	return RenderView(c, confirmPlanPopup())
+}
+
+templ editDatePopup(start bool) {
+
+	<!-- Plan Name Section -->
+	<div class="flex flex-col items-center justify-center rounded-xl max-w-md mx-auto">
+      <!-- Datepicker Container -->
+      <div class="w-full mb-4">
+        <div id="inline-datepicker" class="w-full"></div>
+        <script>
+            let dt = new Datepicker(document.getElementById('inline-datepicker'), {
+            inline: true,
+            format: 'mm/dd/yyyy', // Clean date format
+            todayHighlight: true, // Highlight today's date
+            autohide: false // Keep calendar open for inline mode
+          });
+        </script>
+      </div>
+    
+      <!-- Today Button -->
+      <button
+        hx-on:click="dp.setDate(new Date())"
+        class="w-full bg-gradient-to-r bg-green-500 text-white font-semibold px-4 py-2 rounded-lg hover:bg-green-600 transition-all duration-300 mb-4"
+      >
+        Set to Today
+      </button>
+    
+      <!-- Toggle and Cancel Buttons -->
+      <div class="flex items-center justify-between w-full gap-2">
+        <button
+          class="flex-1 bg-gradient-to-r bg-blue-500 text-white font-semibold px-4 py-2 rounded-lg  hover:bg-blue-600 transition-all duration-300"
+        >
+          {{ button := "Change Start" 
+           if !start {
+             button = "Change End" 
+             }
+             }}
+          { button }
+        </button>
+        <button
+          class="flex-1 bg-gray-300 text-gray-800 font-semibold px-4 py-2 rounded-lg hover:bg-gray-400 transition-all duration-300"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
+}
+
+templ confirmPlanPopup() {
+	<!-- Plan Name Section -->
+	<div class="flex items-center justify-between mb-4">
+		<h2 class="text-lg font-semibold text-gray-800">Are you sure you want to reset the plan to start today and distribute the open chapters in the remaining time?</h2>
+		<!-- Start Date Section -->
+		<div class="flex items-center justify-between mb-4">
+			<button hx-post="/move-start" hx-target="#base" class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
+				Yes distribute
+			</button>
+			<button hx-get="plan-settings" class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
+				Cancel
+			</button>
+		</div>
+	</div>
+}

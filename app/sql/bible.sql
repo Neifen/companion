@@ -87,7 +87,7 @@ values (0, 0, to_date('2024-10-31', 'YYYY-MM-DD'), to_date('2025-10-31', 'YYYY-M
 ON CONFLICT DO NOTHING;
 
 
-INSERT INTO public.tracker (id, user_fk, plan_to_bible_fk, read_by)
+INSERT INTO public.tracker (id, user_to_tracker_fk, plan_to_bible_fk, read_by)
 SELECT id.id                                                                                       as id,
        0                                                                                           as user_fk,
        id.id                                                                                       as plan_to_bible_fk,

@@ -103,30 +103,106 @@ func (s *HandlerSession) handleCheckTrackeItem(c echo.Context) error {
 
 // e.GET("/plan-settings", s.handlePlanSettings)
 func (s *HandlerSession) handlePlanSettings(c echo.Context) error {
-	return view.PlanSettingsHMTL(c)
+	u := c.Get("u").(*userReq)
+	if !u.isLoggedIn {
+		return view.ErrorHTML(c, "not logged in")
+	}
+	settings, err := s.store.ReadTrackerSettingsFromUser(u.id)
+	if err != nil {
+		return view.ErrorHTML(c, err.Error())
+	}
+
+	viewSettings := entities.NewViewSettings(settings.FromDate, settings.ToDate)
+	return view.PlanSettingsHMTL(c, viewSettings)
 }
 
-// e.GET("/reset-plan", s.handleConfirmMoveStart)
+// e.GET("/reset-plan", s.handleConfirmMoveStart) + query param start
 func (s *HandlerSession) handleConfirmMoveStart(c echo.Context) error {
-	return view.ConfirmPlanPopup(c)
+	startShort := c.QueryParam("start")
+	moveEndRaw := c.QueryParam("moveEnd")
+	moveEnd, err := strconv.ParseBool(moveEndRaw)
+	if err != nil {
+		fmt.Println("error parsing moveEnd:", err)
+		moveEnd = false
+	}
+
+	start, err := time.Parse("2006-01-02", startShort)
+	if err != nil {
+		fmt.Println("error parsing date:", err)
+	}
+	return view.ConfirmStartPlanPopup(c, start.Format("January 02, 2006"), startShort, moveEnd)
+}
+
+// e.GET("/move-end-confirm", s.handleConfirmMoveEnd) + query param end
+func (s *HandlerSession) handleConfirmMoveEnd(c echo.Context) error {
+	endShort := c.QueryParam("end")
+	resetStartRaw := c.QueryParam("resetStart")
+	resetStart, err := strconv.ParseBool(resetStartRaw)
+	if err != nil {
+		fmt.Println("error parsing resetStart:", err)
+		resetStart = false
+	}
+
+	end, err := time.Parse("2006-01-02", endShort)
+	if err != nil {
+		fmt.Println("error parsing date:", err)
+	}
+	return view.ConfirmEndPlanPopup(c, end.Format("January 02, 2006"), endShort, resetStart)
 }
 
 // e.GET("/move-start-popup", s.handleMoveStartPopup)
 func (s *HandlerSession) handleMoveStartPopup(c echo.Context) error {
-	return view.EditStartPopup(c)
+	start := c.Param("start")
+	moveEndRaw := c.QueryParam("moveEnd")
+	moveEnd, err := strconv.ParseBool(moveEndRaw)
+	if err != nil {
+		fmt.Println("error parsing moveEnd:", err)
+		moveEnd = false
+	}
+
+	return view.EditStartPopup(c, start, moveEnd)
 }
 
 // e.GET("/move-end-popup", s.handleMoveEndPopup)
 func (s *HandlerSession) handleMoveEndPopup(c echo.Context) error {
-	return view.EditEndPopup(c)
+	end := c.Param("end")
+	resetStartRaw := c.QueryParam("resetStart")
+	resetStart, err := strconv.ParseBool(resetStartRaw)
+	if err != nil {
+		fmt.Println("error parsing resetStart:", err)
+		resetStart = false
+	}
+
+	return view.EditEndPopup(c, end, resetStart)
 }
 
 // e.GET("/reset-plan", s.moveStart, pasetoMiddle())
 func (s *HandlerSession) moveStart(c echo.Context) error {
 	u := c.Get("u").(*userReq)
-	today := time.Now()
+	start := c.Param("start")
 
-	err := s.store.MoveTrackerStartDate(u.id, today)
+	err := s.store.MoveTrackerStartDate(u.id, start)
+	if err != nil {
+		fmt.Println(err)
+		return view.ErrorHTML(c, "Something went wrong, contact admin")
+	}
+
+	tracker, hasMore, err := s.store.ReadTrackerFromUserIdFrom(0, time.Now().AddDate(0, 0, -2))
+	if err != nil {
+		fmt.Println(err)
+		return view.ErrorHTML(c, "Something went wrong, contact admin")
+	}
+	bible := trackerModelToEntity(tracker, hasMore)
+
+	return view.HomeHTML(c, bible, entities.NewViewUser(u.name, u.isLoggedIn))
+}
+
+// e.POST("/move-end/:to", s.moveEnd, pasetoMiddle())
+func (s *HandlerSession) moveEnd(c echo.Context) error {
+	u := c.Get("u").(*userReq)
+	end := c.Param("end")
+
+	err := s.store.MoveTrackerEndDate(u.id, end)
 	if err != nil {
 		fmt.Println(err)
 		return view.ErrorHTML(c, "Something went wrong, contact admin")

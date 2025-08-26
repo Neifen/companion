@@ -54,13 +54,14 @@ func (api *APIServer) Run() {
 	e.POST("/start-plan/:planId", s.handleGetHome)
 
 	// plan settings
-	e.GET("/plan-settings", s.handlePlanSettings)
-	e.GET("/move-start-confirm", s.handleConfirmMoveStart)
-	e.GET("/move-start-popup", s.handleMoveStartPopup)
-	e.POST("/move-start", s.moveStart, pasetoMiddle())
-	e.POST("/move-end", s.handleGetHome, pasetoMiddle())
-	e.POST("/move-start-end", s.handleGetHome, pasetoMiddle())
-	e.POST("/move-days", s.handleGetHome, pasetoMiddle())
+	e.GET("/plan-settings", s.handlePlanSettings, pasetoMiddle())
+	e.GET("/move-start-confirm", s.handleConfirmMoveStart) // ?start (because of js) ?moveEnd
+	e.GET("/move-end-confirm", s.handleConfirmMoveEnd)     // ?end (because of js) ?resetStart
+
+	e.GET("/move-start-popup/:start", s.handleMoveStartPopup) // ?moveEnd
+	e.GET("/move-end-popup/:end", s.handleMoveEndPopup)       // ?resetStart
+	e.POST("/move-start/:start", s.moveStart, pasetoMiddle()) //?moveEnd
+	e.POST("/move-end/:end", s.moveEnd, pasetoMiddle())       // ?resetStart
 
 	// login
 	e.GET(LOGIN_PATH, s.handleGetLogin)

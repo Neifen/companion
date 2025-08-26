@@ -15,12 +15,13 @@ type BibleDB interface {
 	CreateTracker(userId, planId int, start, end time.Time) error
 
 	MoveTrackerDates(userId int, days int) error
-	MoveTrackerStartDate(userId int, start time.Time) error
-	MoveTrackerEndDate(userId int, end time.Time) error
+	MoveTrackerStartDate(userId int, start string) error
+	MoveTrackerEndDate(userId int, end string) error
 	MoveTrackerStartEndDate(userId int, start, end time.Time) error
 
 	ReadTrackerFromUserIdFrom(userId int, fromDate time.Time) ([]*TrackerModel, bool, error)
 	ReadTrackerFromUserIdUntil(userId int, fromDate time.Time) ([]*TrackerModel, bool, error)
+	ReadTrackerSettingsFromUser(userid int) (*TrackerSettings, error)
 
 	ReadChaptersFromPlan(planId int) ([]*ChapterModel, error)
 	ReadAllChapters() ([]*ChapterModel, error)
@@ -44,6 +45,12 @@ type TrackerModel struct {
 	ChapterId int16     `sql:"chapter_id"`
 }
 
+type TrackerSettings struct {
+	ID       int64     `sql:"chapter_id"`
+	FromDate time.Time `sql:"from_date"`
+	ToDate   time.Time `sql:"to_date"`
+}
+
 func (pg *PostgresStore) CheckTracked(trackerId int64, checked bool) error {
 	exec, err := pg.db.Exec(`update public.tracker set read = $1, updated_at = $2 where id= $3`, checked, time.Now(), trackerId)
 	if err != nil {
@@ -57,6 +64,21 @@ func (pg *PostgresStore) CheckTracked(trackerId int64, checked bool) error {
 	}
 
 	return nil
+}
+
+func (pg *PostgresStore) ReadTrackerSettingsFromUser(userid int) (*TrackerSettings, error) {
+	var trackerSettings TrackerSettings
+
+	row := pg.db.QueryRow(`
+		SELECT utt.id, utt.start_date, utt.end_date  FROM user_to_tracker utt where user_fk = $1
+	`, userid)
+
+	err := row.Scan(&trackerSettings.ID, &trackerSettings.FromDate, &trackerSettings.ToDate)
+	if err != nil {
+		return nil, errors.Wrapf(err, `error reading tracker settings for user %d`, userid)
+	}
+
+	return &trackerSettings, nil
 }
 
 func (pg *PostgresStore) ReadTrackerFromUserIdUntil(userId int, toTime time.Time) ([]*TrackerModel, bool, error) {
@@ -223,16 +245,14 @@ func (pg *PostgresStore) MoveTrackerDates(userId int, days int) error {
 	return nil
 }
 
-func (pg *PostgresStore) MoveTrackerStartDate(userId int, start time.Time) error {
+func (pg *PostgresStore) MoveTrackerStartDate(userId int, start string) error {
 	// todo maybe in two queries:
 	// one two check end date and one to edit
 	// check: because if end date is behind today
 
-	fStart := start.Format("2006-01-02")
-
 	tx, err := pg.db.Begin()
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartDate(userid: %d, start: %v) ", userId, fStart)
+		return errors.Wrapf(err, "MoveTrackerStartDate(userid: %d, start: %v) ", userId, start)
 	}
 
 	_, err = tx.Exec(`
@@ -260,38 +280,36 @@ func (pg *PostgresStore) MoveTrackerStartDate(userId int, start time.Time) error
 					  )
 	from filtered f
 	where f.id = t.id
-`, userId, fStart)
+`, userId, start)
 
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartDate(userid: %d, start: %s) ", userId, fStart)
+		return errors.Wrapf(err, "MoveTrackerStartDate(userid: %d, start: %s) ", userId, start)
 	}
 
 	//todo check if whole fStart works
 	_, err = tx.Exec(`
 		update public.user_to_tracker set start_date = $2 
 		where user_fk = $1
-	`, userId, fStart)
+	`, userId, start)
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartDate(userid: %d, start: %v) ", userId, fStart)
+		return errors.Wrapf(err, "MoveTrackerStartDate(userid: %d, start: %v) ", userId, start)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartDate(userid: %d, start: %v) ", userId, fStart)
+		return errors.Wrapf(err, "MoveTrackerStartDate(userid: %d, start: %v) ", userId, start)
 	}
 	return nil
 
 }
 
-func (pg *PostgresStore) MoveTrackerEndDate(userId int, end time.Time) error {
+func (pg *PostgresStore) MoveTrackerEndDate(userId int, end string) error {
 	// todo maybe in two queries:
 	// one two check end date and one to edit
 	// check: because if end date is behind today
-	fEnd := end.Format("2006-01-02")
-
 	tx, err := pg.db.Begin()
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerEndDate(userid: %d, end: %s) ", userId, fEnd)
+		return errors.Wrapf(err, "MoveTrackerEndDate(userid: %d, end: %s) ", userId, end)
 	}
 
 	_, err = tx.Exec(`
@@ -319,24 +337,24 @@ func (pg *PostgresStore) MoveTrackerEndDate(userId int, end time.Time) error {
 					  )
 	from filtered f
 	where f.id = t.id
-`, userId, fEnd)
+`, userId, end)
 
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerEndDate(userid: %d, end: %s) ", userId, fEnd)
+		return errors.Wrapf(err, "MoveTrackerEndDate(userid: %d, end: %s) ", userId, end)
 	}
 
 	//todo check if whole fStart works
 	_, err = tx.Exec(`
 		update public.user_to_tracker set end_date = $2 
 		where user_fk = $1
-	`, userId, fEnd)
+	`, userId, end)
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerEndDate(userid: %d, end %v) ", userId, fEnd)
+		return errors.Wrapf(err, "MoveTrackerEndDate(userid: %d, end %v) ", userId, end)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerEndDate(userid: %d, end %v) ", userId, fEnd)
+		return errors.Wrapf(err, "MoveTrackerEndDate(userid: %d, end %v) ", userId, end)
 	}
 	return nil
 }

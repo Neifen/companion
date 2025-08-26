@@ -1,75 +1,176 @@
 package view //import github.com/neifen/htmx-login/app/view
 
 import "github.com/labstack/echo/v4"
+import "strconv"
+import "fmt"
 
-func EditStartPopup(c echo.Context) error {
-	return RenderView(c, editDatePopup(true))
+//move-start-popup
+func EditStartPopup(c echo.Context, start string, moveEnd bool) error {
+	return RenderView(c, editDatePopup(true, start, moveEnd))
 }
 
-func EditEndPopup(c echo.Context) error {
-	return RenderView(c, editDatePopup(false))
+//move-end-popup
+func EditEndPopup(c echo.Context, end string, resetStart bool) error {
+	return RenderView(c, editDatePopup(false, end, resetStart))
 }
 
-func ConfirmPlanPopup(c echo.Context) error {
-	return RenderView(c, confirmPlanPopup())
+//move-start-confirm
+func ConfirmStartPlanPopup(c echo.Context, start, startShort string, moveEnd bool) error {
+	return RenderView(c, confirmStartPlanPopup(start, startShort, moveEnd))
 }
 
-templ editDatePopup(start bool) {
+//move-start-confirm
+func ConfirmEndPlanPopup(c echo.Context, end, endShort string, resetStart bool) error {
+	return RenderView(c, confirmEndPlanPopup(end, endShort, resetStart))
+}
 
+templ editDatePopup(isStart bool, date string, checked bool) {
 	<!-- Plan Name Section -->
 	<div class="flex flex-col items-center justify-center rounded-xl max-w-md mx-auto">
       <!-- Datepicker Container -->
       <div class="w-full mb-4">
         <div id="inline-datepicker" class="w-full"></div>
         <script>
-            let dt = new Datepicker(document.getElementById('inline-datepicker'), {
+            window.dp = new Datepicker(document.getElementById('inline-datepicker'), {
             inline: true,
-            format: 'mm/dd/yyyy', // Clean date format
+            format: 'yyyy-mm-dd', // Clean date format
             todayHighlight: true, // Highlight today's date
             autohide: false // Keep calendar open for inline mode
           });
+          console.log(Date.parse({{date}}));
+          console.log({{date}});
+          window.dp.setDate({{date}});
+          
+          function getFormattedDate() {
+              let date = window.dp.getDate();
+              const year = date.getUTCFullYear();
+              const month = String(date.getUTCMonth() + 1).padStart(2, '0'); // Months are 0-based
+              const day = String(date.getUTCDate()).padStart(2, '0');
+              return `${year}-${month}-${day}`;
+          }
+          
+           function setToday(){
+              dp.setDate(new Date()+1);
+              dp.setDate(new Date())
+           }
         </script>
       </div>
     
+        if isStart {
       <!-- Today Button -->
       <button
-        hx-on:click="dp.setDate(new Date())"
+        hx-on:click="setToday()"
         class="w-full bg-gradient-to-r bg-green-500 text-white font-semibold px-4 py-2 rounded-lg hover:bg-green-600 transition-all duration-300 mb-4"
       >
         Set to Today
       </button>
-    
-      <!-- Toggle and Cancel Buttons -->
-      <div class="flex items-center justify-between w-full gap-2">
-        <button
-          class="flex-1 bg-gradient-to-r bg-blue-500 text-white font-semibold px-4 py-2 rounded-lg  hover:bg-blue-600 transition-all duration-300"
-        >
-          {{ button := "Change Start" 
-           if !start {
-             button = "Change End" 
-             }
-             }}
-          { button }
-        </button>
-        <button
-          class="flex-1 bg-gray-300 text-gray-800 font-semibold px-4 py-2 rounded-lg hover:bg-gray-400 transition-all duration-300"
-        >
-          Cancel
-        </button>
+      
+      <div class="flex space-x-4  mb-4">
+       <label class="relative inline-flex items-center cursor-pointer mr-4">
+              <input type="checkbox" id="move-end" class="sr-only peer" checked?={checked}>
+              <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-600 peer-focus:ring-2 peer-focus:ring-blue-300 transition duration-200"></div>
+              <span class="absolute w-4 h-4 bg-white rounded-full left-1 top-1 peer-checked:translate-x-5 transition duration-200"></span>
+          </label>
+          Move end to keep daily rythm
+          </div>
+          <!-- Toggle and Cancel Buttons -->
+          <div class="flex items-center justify-between w-full gap-2">
+            //todo figure out how to call dp.getDate
+            <button 
+            hx-get="/move-start-confirm"
+            hx-vals="js:{start: getFormattedDate(), moveEnd: document.getElementById('move-end').checked}"
+            hx-target="#plan-popup-content"
+              class="flex-1 bg-gradient-to-r bg-blue-500 text-white font-semibold px-4 py-2 rounded-lg  hover:bg-blue-600 transition-all duration-300"
+            >
+            Change Start
+            </button>
+            <button
+                hx-get="/plan-settings"
+              class="flex-1 bg-gray-300 text-gray-800 font-semibold px-4 py-2 rounded-lg hover:bg-gray-400 transition-all duration-300"
+            >
+              Cancel
+            </button>
+          </div>
+    } else {
+      <div class="flex space-x-4  mb-4">
+       <label class="relative inline-flex items-center cursor-pointer mr-4">
+              <input type="checkbox" id="reset-start" class="sr-only peer" checked?={checked}>
+              <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-blue-600 peer-focus:ring-2 peer-focus:ring-blue-300 transition duration-200"></div>
+              <span class="absolute w-4 h-4 bg-white rounded-full left-1 top-1 peer-checked:translate-x-5 transition duration-200"></span>
+          </label>
+          Reset start to today
       </div>
+      
+            <!-- Toggle and Cancel Buttons -->
+            <div class="flex items-center justify-between w-full gap-2">
+              <button
+                hx-get="/move-end-confirm"
+                hx-vals="js:{end: getFormattedDate(), resetStart: document.getElementById('reset-start').checked}"
+                hx-target="#plan-popup-content"
+                class="flex-1 bg-gradient-to-r bg-blue-500 text-white font-semibold px-4 py-2 rounded-lg  hover:bg-blue-600 transition-all duration-300"
+              >Change End</button>
+              <button
+                  hx-get="/plan-settings"
+                class="flex-1 bg-gray-300 text-gray-800 font-semibold px-4 py-2 rounded-lg hover:bg-gray-400 transition-all duration-300"
+              >
+                Cancel
+              </button>
+            </div>
+    }
+    
     </div>
 }
 
-templ confirmPlanPopup() {
+templ confirmStartPlanPopup(start, startShort string, moveEnd bool) {
 	<!-- Plan Name Section -->
-	<div class="flex items-center justify-between mb-4">
-		<h2 class="text-lg font-semibold text-gray-800">Are you sure you want to reset the plan to start today and distribute the open chapters in the remaining time?</h2>
+	<div class="flex flex-col items-center justify-between">
+	    if moveEnd {
+		    <h3 class="text-lg font-semibold text-gray-800">Are you sure you want to reset the plan to start on {start} and move the end to keep the daily rythm?</h3>
+	    } else {
+		    <h3 class="text-lg font-semibold text-gray-800">Are you sure you want to reset the plan to start on {start} and distribute the open chapters in the remaining time?</h3>
+		}
 		<!-- Start Date Section -->
-		<div class="flex items-center justify-between mb-4">
-			<button hx-post="/move-start" hx-target="#base" class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
+		<div class="flex  items-center justify-between my-4 gap-4">
+		    {{
+		        moveUrl := "/move-start/" +  startShort 
+		        cancelUrl := "/move-start-popup/" + startShort
+		        vals := "{\"moveEnd\":\"" + strconv.FormatBool(moveEnd) + "\"}"
+		        fmt.Println(vals)
+		    }}
+			<button hx-post={moveUrl} hx-target="#base" hx-vals={vals} class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
 				Yes distribute
 			</button>
-			<button hx-get="plan-settings" class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
+			// todo include checkbox
+			<button hx-get={cancelUrl}
+			        hx-target="#plan-popup-content"
+			        hx-vals={vals} 
+                    class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
+				Cancel
+			</button>
+		</div>
+	</div>
+}
+
+templ confirmEndPlanPopup(end, endShort string, resetStart bool) {
+	<!-- Plan Name Section -->
+	<div class="flex flex-col items-center justify-between">
+	    if resetStart {
+		<h3 class="text-lg font-semibold text-gray-800">Are you sure you want the plan to end on {end}, reset the start to today and distribute the open chapters in the remaining time?</h3>
+	    } else {
+		<h3 class="text-lg font-semibold text-gray-800">Are you sure you want the plan to end on {end} and distribute the open chapters in the remaining time?</h3>
+	    }
+		<!-- Start Date Section -->
+		<div class="flex items-center justify-between my-4 gap-4">
+		    {{
+		        moveUrl := "/move-end/" +  endShort 
+		        cancelUrl := "/move-end-popup/" + endShort
+		        vals := "{\"resetStart\":\"" + strconv.FormatBool(resetStart) + "\"}"
+		    }}
+			<button hx-post={moveUrl} hx-target="#base" hx-vals={vals}  class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
+				Yes distribute
+			</button>
+			// todo include checkbox
+			<button hx-get={cancelUrl} hx-target="#plan-popup-content" hx-vals={vals} class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
 				Cancel
 			</button>
 		</div>

@@ -1,5 +1,7 @@
 package entities
 
+import "time"
+
 type ViewUser struct {
 	IsLoggedIn bool
 	Name       string
@@ -7,6 +9,33 @@ type ViewUser struct {
 
 func NewViewUser(name string, loggedIn bool) *ViewUser {
 	return &ViewUser{loggedIn, name}
+}
+
+type ViewSettings struct {
+	From time.Time
+	To   time.Time
+}
+
+func NewViewSettings(from, to time.Time) *ViewSettings {
+	return &ViewSettings{
+		From: from,
+		To:   to,
+	}
+}
+func (v *ViewSettings) ToShort() string {
+	return v.To.Format("2006-01-02")
+}
+
+func (v *ViewSettings) FromShort() string {
+	return v.From.Format("2006-01-02")
+}
+
+func (v *ViewSettings) ToString() string {
+	return v.To.Format("January 02, 2006")
+}
+
+func (v *ViewSettings) FromString() string {
+	return v.From.Format("January 02, 2006")
 }
 
 type TrackedBible struct {

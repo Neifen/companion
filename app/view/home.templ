@@ -93,9 +93,26 @@ templ home(bible *entities.TrackedBible, u *entities.ViewUser) {
                     behavior: 'smooth'
                 });
             }
-		
+            
+		    let isDomReady = false;
+		    let isHtmxReady = false;
+		    let hasInit = false;
+		    
+		    function init() {
+		        if(!isDomReady || !isHtmxReady || hasInit) return;
+		        
+		        hasInit = true;
+		        startToday();
+		    }
+		    
             window.addEventListener('load', () => {
-                startToday();
+                isDomReady = true;
+                init()
+            });
+		    
+            window.addEventListener('htmx:load', () => {
+                isHtmxReady = true;
+                init()
             });
             
             let prevScrollHeight, prevScrollTop;

@@ -2,6 +2,7 @@ package server
 
 import (
 	"fmt"
+
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/neifen/htmx-login/app/api/storage"
@@ -60,7 +61,7 @@ func (api *APIServer) Run() {
 
 	e.GET("/move-start-popup/:start", s.handleMoveStartPopup) // ?moveEnd
 	e.GET("/move-end-popup/:end", s.handleMoveEndPopup)       // ?resetStart
-	e.POST("/move-start/:start", s.moveStart, pasetoMiddle()) //?moveEnd
+	e.POST("/move-start/:start", s.moveStart, pasetoMiddle()) // ?moveEnd
 	e.POST("/move-end/:end", s.moveEnd, pasetoMiddle())       // ?resetStart
 
 	// login

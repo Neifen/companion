@@ -2,7 +2,6 @@ package view //import github.com/neifen/htmx-login/app/view
 
 import "github.com/labstack/echo/v4"
 import "strconv"
-import "fmt"
 
 //move-start-popup
 func EditStartPopup(c echo.Context, start string, moveEnd bool) error {
@@ -37,8 +36,6 @@ templ editDatePopup(isStart bool, date string, checked bool) {
             todayHighlight: true, // Highlight today's date
             autohide: false // Keep calendar open for inline mode
           });
-          console.log(Date.parse({{date}}));
-          console.log({{date}});
           window.dp.setDate({{date}});
           
           function getFormattedDate() {
@@ -132,18 +129,15 @@ templ confirmStartPlanPopup(start, startShort string, moveEnd bool) {
 		<!-- Start Date Section -->
 		<div class="flex  items-center justify-between my-4 gap-4">
 		    {{
-		        moveUrl := "/move-start/" +  startShort 
-		        cancelUrl := "/move-start-popup/" + startShort
-		        vals := "{\"moveEnd\":\"" + strconv.FormatBool(moveEnd) + "\"}"
-		        fmt.Println(vals)
+		        moveUrl := "/move-start/" +  startShort + "?moveEnd=" + strconv.FormatBool(moveEnd)
+		        cancelUrl := "/move-start-popup/" + startShort + "?moveEnd=" + strconv.FormatBool(moveEnd)
 		    }}
-			<button hx-post={moveUrl} hx-target="#base" hx-vals={vals} class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
+			<button hx-post={moveUrl} hx-swap="none" class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
 				Yes distribute
 			</button>
 			// todo include checkbox
 			<button hx-get={cancelUrl}
 			        hx-target="#plan-popup-content"
-			        hx-vals={vals} 
                     class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
 				Cancel
 			</button>
@@ -162,15 +156,14 @@ templ confirmEndPlanPopup(end, endShort string, resetStart bool) {
 		<!-- Start Date Section -->
 		<div class="flex items-center justify-between my-4 gap-4">
 		    {{
-		        moveUrl := "/move-end/" +  endShort 
-		        cancelUrl := "/move-end-popup/" + endShort
-		        vals := "{\"resetStart\":\"" + strconv.FormatBool(resetStart) + "\"}"
+		        moveUrl := "/move-end/" +  endShort  + "?resetStart=" + strconv.FormatBool(resetStart)
+		        cancelUrl := "/move-end-popup/" + endShort + "?resetStart=" + strconv.FormatBool(resetStart)
 		    }}
-			<button hx-post={moveUrl} hx-target="#base" hx-vals={vals}  class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
+			<button hx-post={moveUrl} hx-swap="none" class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
 				Yes distribute
 			</button>
 			// todo include checkbox
-			<button hx-get={cancelUrl} hx-target="#plan-popup-content" hx-vals={vals} class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
+			<button hx-get={cancelUrl} hx-target="#plan-popup-content" class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
 				Cancel
 			</button>
 		</div>

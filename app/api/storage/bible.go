@@ -3,8 +3,9 @@ package storage
 import (
 	"database/sql"
 	"fmt"
-	"github.com/pkg/errors"
 	"time"
+
+	"github.com/pkg/errors"
 
 	_ "github.com/lib/pq"
 )
@@ -17,7 +18,7 @@ type BibleDB interface {
 	MoveTrackerDates(userId int, days int) error
 	MoveTrackerStartDate(userId int, start string) error
 	MoveTrackerEndDate(userId int, end string) error
-	MoveTrackerStartEndDate(userId int, start, end time.Time) error
+	MoveTrackerStartEndDate(userId int, start, end string) error
 
 	ReadTrackerFromUserIdFrom(userId int, fromDate time.Time) ([]*TrackerModel, bool, error)
 	ReadTrackerFromUserIdUntil(userId int, fromDate time.Time) ([]*TrackerModel, bool, error)
@@ -230,14 +231,33 @@ func (pg *PostgresStore) MoveTrackerDates(userId int, days int) error {
 	// todo maybe in two queries:
 	// one two check end date and one to edit
 	// check: because if end date is behind today
+	tx, err := pg.db.Begin()
+	if err != nil {
+		return errors.Wrapf(err, "MoveTrackerDates(userid: %d, days: %d) ", userId, days)
+	}
 
-	_, err := pg.db.Exec(`
+	_, err = tx.Exec(`
 		update public.tracker t
 		set read_by2 = read_by2 + interval '1' day * $2
 		from user_to_tracker ut
-		where ut.user_fk = $1 and t.user_to_tracker_fk = ut.id
+		where ut.user_fk = $1 and t.user_to_tracker_fk = ut.id AND not t.read 
 	`, userId, days)
+	if err != nil {
+		return errors.Wrapf(err, "MoveTrackerDates(userid: %d, days: %d) ", userId, days)
+	}
 
+	//todo check if whole fStart works
+	_, err = tx.Exec(`
+		update public.user_to_tracker 
+		set start_date = start_date + interval '1' day * $2,
+			end_date = end_date + interval '1' day * $2
+		where user_fk = $1
+	`, userId, days)
+	if err != nil {
+		return errors.Wrapf(err, "MoveTrackerDates(userid: %d, days: %d) ", userId, days)
+	}
+
+	err = tx.Commit()
 	if err != nil {
 		return errors.Wrapf(err, "MoveTrackerDates(userid: %d, days: %d) ", userId, days)
 	}
@@ -273,7 +293,7 @@ func (pg *PostgresStore) MoveTrackerStartDate(userId int, start string) error {
 	set read_by2 = to_date($2, 'YYYY-MM-DD') +
 	                  interval '1' day * (
 						-1 + ceil(
-							(f.end_date - to_date($2, 'YYYY-MM-DD')+0.0)
+							(f.end_date - to_date($2, 'YYYY-MM-DD'))::float
 							* f.running_length / 
 							(select sum(length) from filtered)
 							)
@@ -330,7 +350,7 @@ func (pg *PostgresStore) MoveTrackerEndDate(userId int, end string) error {
 	set read_by2 = f.start_date +
 	                  interval '1' day * (
 						-1 + ceil(
-							(to_date($2, 'YYYY-MM-DD')+0.0 - f.start_date)
+							(to_date($2, 'YYYY-MM-DD') - f.start_date)::float
 							* f.running_length / 
 							(select sum(length) from filtered)
 							)
@@ -359,17 +379,10 @@ func (pg *PostgresStore) MoveTrackerEndDate(userId int, end string) error {
 	return nil
 }
 
-func (pg *PostgresStore) MoveTrackerStartEndDate(userId int, start, end time.Time) error {
-	fStart := start.Format("2006-01-02")
-	fEnd := end.Format("2006-01-02")
-
-	if i := end.Compare(start); i <= 0 {
-		return fmt.Errorf("MoveTrackerStartEndDate(%d): start: %s needs to be before end: %s", userId, fStart, fEnd)
-	}
-
+func (pg *PostgresStore) MoveTrackerStartEndDate(userId int, start, end string) error {
 	tx, err := pg.db.Begin()
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartEndDate(userid: %d, start: %v, end %v) ", userId, fStart, fEnd)
+		return errors.Wrapf(err, "MoveTrackerStartEndDate(userid: %d, start: %v, end %v) ", userId, start, end)
 	}
 
 	_, err = tx.Exec(`
@@ -390,31 +403,30 @@ func (pg *PostgresStore) MoveTrackerStartEndDate(userId int, start, end time.Tim
 	set read_by2 = to_date($2, 'YYYY-MM-DD') +
 	                  interval '1' day * (
 						-1 + ceil(
-							(to_date($3, 'YYYY-MM-DD') - to_date($2, 'YYYY-MM-DD')+0.0)
+							(to_date($3, 'YYYY-MM-DD') - to_date($2, 'YYYY-MM-DD'))::float
 							* f.running_length / 
 							(select sum(length) from filtered)
 							)
 					  )
 	from filtered f
 	where f.id = t.id
-`, userId, fStart, fEnd)
+`, userId, start, end)
 
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartEndDate(userid: %d, start: %v, end %v) ", userId, fStart, fEnd)
+		return errors.Wrapf(err, "MoveTrackerStartEndDate(userid: %d, start: %v, end %v) ", userId, start, end)
 	}
 
-	//todo check if whole fStart works
 	_, err = tx.Exec(`
 		update public.user_to_tracker set start_date = $1, end_date = $2 
 		where user_fk = $3
-	`, fStart, fEnd, userId)
+	`, start, end, userId)
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartEndDate(userid: %d, start: %v, end %v) ", userId, fStart, fEnd)
+		return errors.Wrapf(err, "MoveTrackerStartEndDate(userid: %d, start: %v, end %v) ", userId, start, end)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartEndDate(userid: %d, start: %v, end %v) ", userId, fStart, fEnd)
+		return errors.Wrapf(err, "MoveTrackerStartEndDate(userid: %d, start: %v, end %v) ", userId, start, end)
 	}
 
 	return nil

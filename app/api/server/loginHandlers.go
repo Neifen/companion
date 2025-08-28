@@ -2,9 +2,10 @@ package server
 
 import (
 	"fmt"
-	view2 "github.com/neifen/htmx-login/app/view"
 	"net/http"
 	"time"
+
+	view2 "github.com/neifen/htmx-login/app/view"
 
 	"github.com/pkg/errors"
 
@@ -26,7 +27,7 @@ func NewHanderSession(store storage.Storage) *HandlerSession {
 
 func (s *HandlerSession) handleGetLogin(c echo.Context) error {
 	if u, _ := userFromToken(c); u.isLoggedIn {
-		return s.viewHome(c, u)
+		return s.replaceHome(c, u)
 	}
 
 	child := view2.Login()
@@ -35,7 +36,7 @@ func (s *HandlerSession) handleGetLogin(c echo.Context) error {
 
 func (s *HandlerSession) handlePostLogin(c echo.Context) error {
 	if u, _ := userFromToken(c); u.isLoggedIn {
-		return s.viewHome(c, u)
+		return s.replaceHome(c, u)
 	}
 
 	email := c.FormValue("email")
@@ -47,7 +48,7 @@ func (s *HandlerSession) handlePostLogin(c echo.Context) error {
 		err := s.createAndHandleTokens(userReq, c, remember)
 
 		if err == nil {
-			return s.viewHome(c, userReq)
+			return s.replaceHome(c, userReq)
 		} else {
 			fmt.Printf("\n\n auth: %v \n\n", err)
 
@@ -182,7 +183,7 @@ func (s *HandlerSession) handlePostLogout(c echo.Context) error {
 	clearCookie("token", "/", c)
 	clearCookie("refresh", "/token", c)
 
-	return s.viewHome(c, emptyUser())
+	return s.replaceHome(c, emptyUser())
 }
 
 func clearCookie(name, path string, c echo.Context) {
@@ -198,7 +199,7 @@ func clearCookie(name, path string, c echo.Context) {
 
 func (s *HandlerSession) handleGetRecovery(c echo.Context) error {
 	if u, _ := userFromToken(c); u.isLoggedIn {
-		return s.viewHome(c, u)
+		return s.replaceHome(c, u)
 	}
 
 	child := view2.PWRecovery()
@@ -207,7 +208,7 @@ func (s *HandlerSession) handleGetRecovery(c echo.Context) error {
 
 func (s *HandlerSession) handleGetSignup(c echo.Context) error {
 	if u, _ := userFromToken(c); u.isLoggedIn {
-		return s.viewHome(c, u)
+		return s.replaceHome(c, u)
 	}
 
 	child := view2.Signup()
@@ -216,7 +217,7 @@ func (s *HandlerSession) handleGetSignup(c echo.Context) error {
 
 func (s *HandlerSession) handlePostSignup(c echo.Context) error {
 	if u, _ := userFromToken(c); u.isLoggedIn {
-		return s.viewHome(c, u)
+		return s.replaceHome(c, u)
 	}
 
 	email := c.FormValue("email")

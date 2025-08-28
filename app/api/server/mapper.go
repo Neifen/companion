@@ -2,9 +2,10 @@ package server
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/neifen/htmx-login/app/api/storage"
 	"github.com/neifen/htmx-login/app/entities"
-	"time"
 )
 
 func chapterModelToEntity(model []*storage.ChapterModel) *entities.TrackedBible {
@@ -13,7 +14,7 @@ func chapterModelToEntity(model []*storage.ChapterModel) *entities.TrackedBible 
 	lastBookName := ""
 	for _, chapter := range model {
 		if chapter.BookName != lastBookName {
-			if trackedItems != nil && len(trackedItems) != 0 {
+			if len(trackedItems) != 0 {
 				book := entities.NewTrackedGroup(lastBookName, lastBookName, trackedItems)
 				trackedBible.TrackedGroups = append(trackedBible.TrackedGroups, book)
 				trackedItems = []*entities.TrackedItem{}

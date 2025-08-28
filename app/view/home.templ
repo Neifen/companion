@@ -93,29 +93,29 @@ templ home(bible *entities.TrackedBible, u *entities.ViewUser) {
                     behavior: 'smooth'
                 });
             }
+
+			var isDomReady = false;
+			var isHtmxReady = false;
+			var hasInit = false;
+			
+			function init() {
+				if(!isDomReady || !isHtmxReady || hasInit) return;
+				
+				hasInit = true;
+				startToday();
+			}
+			
+			window.addEventListener('load', () => {
+				isDomReady = true;
+				init()
+			});
+			
+			window.addEventListener('htmx:load', () => {
+				isHtmxReady = true;
+				init()
+			});
             
-		    let isDomReady = false;
-		    let isHtmxReady = false;
-		    let hasInit = false;
-		    
-		    function init() {
-		        if(!isDomReady || !isHtmxReady || hasInit) return;
-		        
-		        hasInit = true;
-		        startToday();
-		    }
-		    
-            window.addEventListener('load', () => {
-                isDomReady = true;
-                init()
-            });
-		    
-            window.addEventListener('htmx:load', () => {
-                isHtmxReady = true;
-                init()
-            });
-            
-            let prevScrollHeight, prevScrollTop;
+            var prevScrollHeight, prevScrollTop;
             function preserveScrollPosition() {
                 const el = document.getElementById('scrollbar-tracker');
                 prevScrollHeight = el.scrollHeight;

@@ -8,6 +8,11 @@ func PlanSettingsHMTL(c echo.Context, settings *entities.ViewSettings) error {
 	return RenderView(c, planSettings(settings))
 }
 
+// e.GET("/plan-settings/delete-plan", s.handleDeletePlanConfirm, pasetoMiddle())
+func ConfirmDeletePlan(c echo.Context) error {
+	return RenderView(c, confirmDeletePlan())
+}
+
 templ planSettings(settings *entities.ViewSettings) {
 	<div id="plan-popup" hx-swap-oob="true">
 		<div id="plan-popup-window" class="fixed inset-0 flex bg-black/50 items-center justify-center z-50" hx-on:click="document.getElementById('plan-popup-window').remove()">
@@ -36,19 +41,41 @@ templ planSettings(settings *entities.ViewSettings) {
 					-->
 				</div>
 				<!-- End Date Section -->
-	            <div class="flex items-center justify-between mb-4">
-                End Date
-                <div class="relative max-w-sm ml-4">
-                  <div class="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none">
-                    <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/>
-                    </svg>
-                  </div>
-                  {{toUrl := "/move-end-popup/" + settings.ToShort()}}
-                  <input hx-get={toUrl} hx-trigger="click" hx-target="#plan-popup-content" type="text" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder={settings.ToString()}>
-                </div>
+        <div class="flex items-center justify-between mb-4">
+          End Date
+          <div class="relative max-w-sm ml-4">
+            <div class="absolute inset-y-0 start-0 flex items-center ps-3.5 pointer-events-none">
+              <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"/>
+              </svg>
+            </div>
+            {{toUrl := "/move-end-popup/" + settings.ToShort()}}
+            <input hx-get={toUrl} hx-trigger="click" hx-target="#plan-popup-content" type="text" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder={settings.ToString()}>
+          </div>
 			</div>
+
+				<!-- Change Plan & Delete Plan buttons -->
+      <div class="flex flex-row items-center justify-around mb-4 mt-4">
+        <button hx-get="/new-plan" hx-target="#plan-popup-content" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Change Plan</button>
+        <button hx-get="/plan-settings/delete-plan" hx-target="#plan-popup-content" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Delete Plan</button>
+      </div>
 		</div>
 	</div>
+	</div>
+}
+
+templ confirmDeletePlan() {
+	<div class="flex flex-col items-center justify-between">
+		<div class="text-lg font-semibold text-gray-800">Are you sure you want the delete your plan? All your tracked readings will be lost</div>
+		<!-- Start Date Section -->
+		<div class="flex items-center justify-between my-4 gap-4">
+			<button hx-post="/plan-settings/delete-plan" hx-swap="none" class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
+				Yes delete
+			</button>
+			// todo include checkbox
+			<button hx-get="/plan-settings" hx-target="#plan-popup-content" class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
+				Cancel
+			</button>
+		</div>
 	</div>
 }

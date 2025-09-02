@@ -128,6 +128,93 @@ func (s *HandlerSession) handlePlanSettings(c echo.Context) error {
 	return view.PlanSettingsHMTL(c, viewSettings)
 }
 
+// e.GET("/plan-settings/delete-plan", s.handleDeletePlanConfirm, pasetoMiddle())
+func (s *HandlerSession) handleDeletePlanConfirm(c echo.Context) error {
+	return view.ConfirmDeletePlan(c)
+}
+
+// e.POST("/plan-settings/delete-plan", s.handleDeletePlan, pasetoMiddle())
+func (s *HandlerSession) handleDeletePlan(c echo.Context) error {
+	u := c.Get("u").(*userReq)
+	if !u.isLoggedIn {
+		return view.ErrorHTML(c, "not logged in")
+	}
+	err := s.store.DeleteTracker(u.id)
+	if err != nil {
+		return view.ErrorHTML(c, "Could not delete the plan")
+	}
+
+	c.Response().Header().Add("HX-Retarget", "#base")
+	c.Response().Header().Add("HX-Reswap", "innerHTML")
+	return s.viewHome(c, u)
+}
+
+// e.GET("/new-plan", s.handleNewPlanWindow)
+func (s *HandlerSession) handleNewPlanWindow(c echo.Context) error {
+	return view.NewTracker(c) //todo change
+}
+
+// e.GET("/new-plan/confirm", s.handleNewPlanConfirm)
+func (s *HandlerSession) handleNewPlanConfirm(c echo.Context) error {
+	start := c.QueryParam("start")
+	end := c.QueryParam("end")
+
+	startTime, err := time.Parse("2006-01-02", start)
+	if err != nil {
+		fmt.Println("error parsing time: ", err)
+		return view.ErrorHTML(c, "Error with the time")
+	}
+
+	endTime, err := time.Parse("2006-01-02", end)
+	if err != nil {
+		fmt.Println("error parsing time: ", err)
+		return view.ErrorHTML(c, "Error with the time")
+	}
+
+	return view.ConfirmAddTracker(c, start, end, startTime.Format("January 02, 2006"), endTime.Format("Januar 02, 2006")) //todo change
+}
+
+// e.POST("/new-plan/:planId/:start/:end", s.handleAddNewPlan, pasetoMiddle())
+func (s *HandlerSession) handleAddNewPlan(c echo.Context) error {
+	//todo change all
+	u := c.Get("u").(*userReq)
+	if !u.isLoggedIn {
+		return view.ErrorHTML(c, "not logged in")
+	}
+
+	planIdRaw := c.Param("planId")
+	startRaw := c.Param("start")
+	endRaw := c.Param("end")
+
+	planId, err := strconv.Atoi(planIdRaw)
+	if err != nil {
+		fmt.Println("Could not transform planId to int: ", err)
+		return view.ErrorHTML(c, "Issue creating new Plan")
+	}
+
+	start, err := time.Parse(startRaw, "2006-01-02")
+	if err != nil {
+		fmt.Println("Could not transform start to date: ", err)
+		return view.ErrorHTML(c, "Issue creating new Plan")
+	}
+
+	end, err := time.Parse(endRaw, "2006-01-02")
+	if err != nil {
+		fmt.Println("Could not transform end to date: ", err)
+		return view.ErrorHTML(c, "Issue creating new Plan")
+	}
+
+	err = s.store.CreateTracker(u.id, planId, start, end)
+	if err != nil {
+		fmt.Println("Could not create tracker: ", err)
+		return view.ErrorHTML(c, "Issue creating new Plan")
+	}
+
+	c.Response().Header().Add("HX-Retarget", "#base")
+	c.Response().Header().Add("HX-Reswap", "innerHTML")
+	return s.viewHome(c, u)
+}
+
 // e.GET("/reset-plan", s.handleConfirmMoveStart) + query param start
 func (s *HandlerSession) handleConfirmMoveStart(c echo.Context) error {
 	startShort := c.QueryParam("start")

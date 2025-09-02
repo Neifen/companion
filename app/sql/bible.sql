@@ -58,7 +58,7 @@ ALTER SEQUENCE plans_to_bible_id_seq RESTART WITH 1189;
 create table if not exists public.tracker
 (
     id                 bigserial primary key,
-    user_to_tracker_fk int         NOT NULL REFERENCES public.user_to_tracker,
+    user_to_tracker_fk int         NOT NULL REFERENCES public.user_to_tracker ON DELETE CASCADE,
     plan_to_bible_fk   bigint      NOT NULL REFERENCES public.plans_to_bible,
     read               boolean     NOT NULL default false,
     read_by            date        NOT NULL,
@@ -69,7 +69,7 @@ create table if not exists public.tracker
 create table if not exists public.user_to_tracker
 (
     id         bigserial primary key,
-    user_fk    int         NOT NULL REFERENCES public.users,
+    user_fk    int         NOT NULL REFERENCES public.users ON DELETE CASCADE,
     start_date date        NOT NULL,
     end_date   date        NOT NULL,
     created_at timestamptz not null default now(),

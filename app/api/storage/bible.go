@@ -14,6 +14,7 @@ type BibleDB interface {
 	CheckTracked(trackerId int64, checked bool) error
 
 	CreateTracker(userId, planId int, start, end time.Time) error
+	DeleteTracker(userId int) error
 
 	MoveTrackerDates(userId int, days int) error
 	MoveTrackerStartDate(userId int, start string) error
@@ -177,6 +178,18 @@ func (pg *PostgresStore) readTracker(userId int, rows *sql.Rows, pages int) ([]*
 
 	return trackers, hasMore, nil
 }
+
+func (pg *PostgresStore) DeleteTracker(userId int) error {
+
+	// delete cascate deletes tracker items
+	_, err := pg.db.Exec(`DELETE FROM public.user_to_tracker where user_fk = $1`, userId)
+	if err != nil {
+		return errors.Wrapf(err, "DeleteTracker(userid: %d) ", userId)
+	}
+
+	return nil
+}
+
 func (pg *PostgresStore) CreateTracker(userId, planId int, start, end time.Time) error {
 	fStart := start.Format("2006-01-02")
 	fEnd := end.Format("2006-01-02")
@@ -187,7 +200,7 @@ func (pg *PostgresStore) CreateTracker(userId, planId int, start, end time.Time)
 
 	tx, err := pg.db.Begin()
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartDate(userid: %d, start: %v) ", userId, fStart)
+		return errors.Wrapf(err, "CreateTracker(userid: %d, start: %s, end: %s) ", userId, fStart, fEnd)
 	}
 
 	res, err := tx.Exec(`

@@ -67,3 +67,13 @@ type TrackedItem struct {
 func NewTrackedItem(id int64, read bool, title string, chapterId int16) *TrackedItem {
 	return &TrackedItem{id, read, title, chapterId}
 }
+
+type Plan struct {
+	Id   int
+	Name string
+	Desc string
+}
+
+func NewPlan(id int, name, desc string) *Plan {
+	return &Plan{id, name, desc}
+}

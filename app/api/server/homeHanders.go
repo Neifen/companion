@@ -33,7 +33,6 @@ func (s *HandlerSession) viewHome(c echo.Context, u *userReq) error {
 			return c.JSON(http.StatusInternalServerError, err) // todo do better
 		}
 
-		fmt.Printf("welcome: %v, len: %d\n", welcome, len(tracker))
 		if len(tracker) != 0 {
 			bible = trackerModelToEntity(tracker, hasMore)
 		} else {
@@ -50,7 +49,6 @@ func (s *HandlerSession) viewHome(c echo.Context, u *userReq) error {
 			return c.JSON(http.StatusInternalServerError, err) // todo do better
 		}
 
-		fmt.Printf("welcome: %v, len: %d", welcome, len(chapters))
 		bible = chapterModelToEntity(chapters)
 	}
 
@@ -179,13 +177,27 @@ func (s *HandlerSession) handleJoinPlanWindow(c echo.Context) error {
 		fromSettings = false
 	}
 
-	return view.NewTracker(c, fromSettings) //todo change
+	plansModel, err := s.store.ReadAllPlans()
+	if err != nil {
+		fmt.Println("Could not read all plans: ", err)
+		return view.ErrorHTML(c, "Could not load list of plan")
+	}
+
+	var plans []*entities.Plan
+	for _, planModel := range plansModel {
+		plans = append(plans, entities.NewPlan(planModel.ID, planModel.Name, planModel.PlanDesc))
+	}
+
+	// TODO get all plans
+
+	return view.NewTracker(c, fromSettings, plans) //todo change
 }
 
 // e.GET("/join-plan/confirm", s.handleJoinPlanConfirm)
 func (s *HandlerSession) handleJoinPlanConfirm(c echo.Context) error {
 	start := c.QueryParam("start")
 	end := c.QueryParam("end")
+	plan := c.QueryParam("plan")
 
 	startTime, err := time.Parse("2006-01-02", start)
 	if err != nil {
@@ -199,7 +211,7 @@ func (s *HandlerSession) handleJoinPlanConfirm(c echo.Context) error {
 		return view.ErrorHTML(c, "Error with the time")
 	}
 
-	return view.ConfirmAddTracker(c, start, end, startTime.Format("January 02, 2006"), endTime.Format("January 02, 2006")) //todo change
+	return view.ConfirmAddTracker(c, plan, start, end, startTime.Format("January 02, 2006"), endTime.Format("January 02, 2006")) //todo change
 }
 
 // e.POST("/join-plan/:planId/:start/:end", s.handleJoinPlan, pasetoMiddle())

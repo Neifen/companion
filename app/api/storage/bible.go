@@ -27,7 +27,16 @@ type BibleDB interface {
 
 	ReadChaptersFromPlan(planId int) ([]*ChapterModel, error)
 	ReadAllChapters() ([]*ChapterModel, error)
+
+	ReadAllPlans() ([]*PlanModel, error)
 }
+
+type PlanModel struct {
+	ID       int    `sql:"id"`
+	Name     string `sql:"name"`
+	PlanDesc string `sql:"plan_desc"`
+}
+
 type ChapterModel struct {
 	ID               int16  `sql:"chapter_id"`
 	BookName         string `sql:"book_name"`
@@ -171,7 +180,6 @@ func (pg *PostgresStore) readTracker(userId int, rows *sql.Rows, pages int) ([]*
 	}
 
 	hasMore := true
-	fmt.Printf("end: %v, start: %v, sub: %v\n", end, start, end.Sub(start)/7)
 	if end.Sub(start).Hours() < float64((pages-1)*24) {
 		hasMore = false
 	}
@@ -219,8 +227,6 @@ func (pg *PostgresStore) CreateTracker(userId, planId int, startRaw, endRaw stri
 	if err != nil {
 		return errors.Wrapf(err, "CreateTracker(userId: %d, planId: %d, start: %s, end: %s) ", userId, planId, startRaw, endRaw)
 	}
-
-	fmt.Println("scaned id: ", utId)
 
 	res, err := tx.Exec(`
 		insert into public.tracker (user_to_tracker_fk, plan_to_bible_fk, read_by) 
@@ -516,4 +522,25 @@ func (pg *PostgresStore) ReadAllChapters() ([]*ChapterModel, error) {
 	}
 
 	return chapters, nil
+}
+
+func (pg *PostgresStore) ReadAllPlans() ([]*PlanModel, error) {
+	var id int
+	var name string
+	var plan_desc string
+
+	var planModels []*PlanModel
+	rows, err := pg.db.Query(`select id, name, plan_desc from public.plans`)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not read all plans")
+	}
+
+	for rows.Next() {
+		rows.Scan(&id, &name, &plan_desc)
+
+		planModels = append(planModels, &PlanModel{id, name, plan_desc})
+	}
+
+	return planModels, nil
+
 }

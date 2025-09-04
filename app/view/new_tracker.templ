@@ -3,8 +3,8 @@ package view //import github.com/neifen/htmx-login/app/view
 import "github.com/labstack/echo/v4"
 
 // move-start-popup
-func NewTracker(c echo.Context) error {
-	return RenderView(c, newTracker())
+func NewTracker(c echo.Context, fromSettings bool) error {
+	return RenderView(c, newTracker(fromSettings))
 }
 
 // move-start-confirm
@@ -12,28 +12,31 @@ func ConfirmAddTracker(c echo.Context, start, end, startPretty, endPretty string
 	return RenderView(c, confirmNewTracker(start, end, startPretty, endPretty))
 }
 
-templ newTracker() {
-	<!-- Plan Name Section -->
-	<div class="flex flex-col items-center justify-center rounded-xl max-w-md mx-auto">
-		<div class="flex items-center md-4">
-			<div class="relative">
-				<div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-					<svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
-						<path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"></path>
-					</svg>
-				</div>
-				<input id="datepicker-range-start" name="start" type="text" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Select date start"/>
-			</div>
-			<span class="mx-4 text-gray-500">to</span>
-			<div class="relative">
-				<div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
-					<svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
-						<path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"></path>
-					</svg>
-				</div>
-				<input id="datepicker-range-end" name="end" type="text" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Select date end"/>
-			</div>
-			<script>
+templ newTracker(fromSettings bool) {
+	<div id="plan-popup" hx-swap-oob="true">
+		<div id="plan-popup-window" class="fixed inset-0 flex bg-black/50 items-center justify-center z-50" hx-on:click="document.getElementById('plan-popup-window').remove()">
+			<div id="plan-popup-content" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto" hx-on:click="event.stopPropagation()">
+				<!-- Plan Name Section -->
+				<div class="flex flex-col items-center justify-center rounded-xl max-w-md mx-auto gap-4">
+					<div class="flex items-center md-4">
+						<div class="relative">
+							<div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+								<svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+									<path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"></path>
+								</svg>
+							</div>
+							<input id="datepicker-range-start" name="start" type="text" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Select date start"/>
+						</div>
+						<span class="mx-4 text-gray-500">to</span>
+						<div class="relative">
+							<div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
+								<svg class="w-4 h-4 text-gray-500 dark:text-gray-400" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20">
+									<path d="M20 4a2 2 0 0 0-2-2h-2V1a1 1 0 0 0-2 0v1h-3V1a1 1 0 0 0-2 0v1H6V1a1 1 0 0 0-2 0v1H2a2 2 0 0 0-2 2v2h20V4ZM0 18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8H0v10Zm5-8h10a1 1 0 0 1 0 2H5a1 1 0 0 1 0-2Z"></path>
+								</svg>
+							</div>
+							<input id="datepicker-range-end" name="end" type="text" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full ps-10 p-2.5  dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500" placeholder="Select date end"/>
+						</div>
+						<script>
           window.dpStart = new Datepicker(document.getElementById('datepicker-range-start'), {
             inline: true,
             format: 'yyyy-mm-dd', // Clean date format
@@ -67,24 +70,29 @@ templ newTracker() {
               return `${year}-${month}-${day}`;
           }
         </script>
-		</div>
-		<!-- Toggle and Cancel Buttons -->
-		<div class="flex items-center justify-between w-full gap-2">
-			//todo figure out how to call dp.getDate
-			<button
-				hx-get="/new-plan/confirm"
-				hx-vals="js:{start: getFormattedStart(), end: getFormattedEnd()}"
-				hx-target="#plan-popup-content"
-				class="flex-1 bg-gradient-to-r bg-blue-500 text-white font-semibold px-4 py-2 rounded-lg  hover:bg-blue-600 transition-all duration-300"
-			>
-				Change Start
-			</button>
-			<button
-				hx-get="/plan-settings"
-				class="flex-1 bg-gray-300 text-gray-800 font-semibold px-4 py-2 rounded-lg hover:bg-gray-400 transition-all duration-300"
-			>
-				Cancel
-			</button>
+					</div>
+					<!-- Toggle and Cancel Buttons -->
+					<div class="flex items-center justify-between w-full gap-2">
+						//todo figure out how to call dp.getDate
+						<button
+							hx-get="/join-plan/confirm"
+							hx-vals="js:{start: getFormattedStart(), end: getFormattedEnd()}"
+							hx-target="#plan-popup-content"
+							class="flex-1 bg-gradient-to-r bg-blue-500 text-white font-semibold px-4 py-2 rounded-lg  hover:bg-blue-600 transition-all duration-300"
+						>
+							Join Plan
+						</button>
+						if fromSettings {
+							<button
+								hx-get="/plan-settings"
+								class="flex-1 bg-gray-300 text-gray-800 font-semibold px-4 py-2 rounded-lg hover:bg-gray-400 transition-all duration-300"
+							>
+								Cancel
+							</button>
+						}
+					</div>
+				</div>
+			</div>
 		</div>
 	</div>
 }
@@ -92,15 +100,15 @@ templ newTracker() {
 templ confirmNewTracker(start, end, startPretty, endPretty string) {
 	<!-- Plan Name Section -->
 	<div class="flex flex-col items-center justify-between">
-		<h3 class="text-lg font-semibold text-gray-800">Are you sure you want to create a plan to start on { startPretty } and end on { endPretty }?</h3>
+		<h3 class="text-lg font-semibold text-gray-800">Are you sure you want to create a join a plan which will start on { startPretty } and end on { endPretty }?</h3>
 		<!-- Start Date Section -->
 		<div class="flex  items-center justify-between my-4 gap-4">
 			{{
-		moveUrl := "/new-plan/0" + start + "/" + end
-		cancelUrl := "/new-plan"
+		moveUrl := "/join-plan/0/" + start + "/" + end
+		cancelUrl := "/join-plan"
 			}}
 			<button hx-post={ moveUrl } hx-swap="none" class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
-				Yes distribute
+				Yes join plan
 			</button>
 			// todo include checkbox
 			<button

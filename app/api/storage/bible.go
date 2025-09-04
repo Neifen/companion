@@ -13,8 +13,8 @@ import (
 type BibleDB interface {
 	CheckTracked(trackerId int64, checked bool) error
 
-	CreateTracker(userId, planId int, start, end time.Time) error
-	DeleteTracker(userId int) error
+	CreateTracker(userId, planId int, start, end string) error
+	DeleteTracker(trackerId int64) error
 
 	MoveTrackerDates(userId int, days int) error
 	MoveTrackerStartDate(userId int, start string) error
@@ -48,7 +48,7 @@ type TrackerModel struct {
 }
 
 type TrackerSettings struct {
-	ID       int64     `sql:"chapter_id"`
+	ID       int64     `sql:"id"`
 	FromDate time.Time `sql:"from_date"`
 	ToDate   time.Time `sql:"to_date"`
 }
@@ -89,21 +89,21 @@ func (pg *PostgresStore) ReadTrackerFromUserIdUntil(userId int, toTime time.Time
 	toDate := toTime.Format("2006-01-02")
 	rows, err := pg.db.Query(`
 		WITH prev_dates AS (
-			SELECT DISTINCT t.read_by2
+			SELECT DISTINCT t.read_by
 			FROM tracker t
 			JOIN public.user_to_tracker ut ON t.user_to_tracker_fk = ut.id 
-			 AND ut.user_fk = $1 AND t.read_by2 < $2
-			GROUP BY t.read_by2
-			ORDER BY t.read_by2 DESC
+			 AND ut.user_fk = $1 AND t.read_by < $2
+			GROUP BY t.read_by
+			ORDER BY t.read_by DESC
 			LIMIT $3
 		)
-		SELECT t.id, t.read, t.read_by2, c.book_id,c.book_name, c.chapter_nr, pb.verses, c.id
+		SELECT t.id, t.read, t.read_by, c.book_id,c.book_name, c.chapter_nr, pb.verses, c.id
 		FROM tracker t
 		JOIN public.user_to_tracker ut on ut.id = t.user_to_tracker_fk AND ut.user_fk = $1
-		JOIN prev_dates d ON d.read_by2 = t.read_by2
+		JOIN prev_dates d ON d.read_by = t.read_by
 		join plans_to_bible pb on t.plan_to_bible_fk = pb.id
 		join static.chapters c on pb.chapter_fk = c.id
-		ORDER BY t.read_by2 ASC, t.id ASC;`,
+		ORDER BY t.read_by ASC, t.id ASC;`,
 		userId, toDate, pages)
 
 	if err != nil {
@@ -120,21 +120,21 @@ func (pg *PostgresStore) ReadTrackerFromUserIdFrom(userId int, fromTime time.Tim
 
 	rows, err := pg.db.Query(`
 		WITH next_dates AS (
-			SELECT DISTINCT t.read_by2
+			SELECT DISTINCT t.read_by
 			FROM tracker t
 				JOIN public.user_to_tracker ut ON t.user_to_tracker_fk = ut.id 
-			 AND ut.user_fk = $1 AND t.read_by2 >= $2
-			GROUP BY t.read_by2
-			ORDER BY t.read_by2 ASC
+			 AND ut.user_fk = $1 AND t.read_by >= $2
+			GROUP BY t.read_by
+			ORDER BY t.read_by ASC
 			LIMIT $3
 		)
-		SELECT t.id, t.read, t.read_by2, c.book_id,c.book_name, c.chapter_nr, pb.verses, c.id
+		SELECT t.id, t.read, t.read_by, c.book_id,c.book_name, c.chapter_nr, pb.verses, c.id
 		FROM tracker t
 		JOIN public.user_to_tracker ut on ut.id = t.user_to_tracker_fk AND ut.user_fk = $1
-		JOIN next_dates d ON d.read_by2 = t.read_by2
+		JOIN next_dates d ON d.read_by = t.read_by
 		join plans_to_bible pb on t.plan_to_bible_fk = pb.id
 		join static.chapters c on pb.chapter_fk = c.id
-		ORDER BY t.read_by2 ASC, t.id ASC;`,
+		ORDER BY t.read_by ASC, t.id ASC;`,
 		userId, fromDate, pages)
 	if err != nil {
 		return nil, false, errors.Wrapf(err, "ReadTrackerFromUserId(%d) select", userId)
@@ -179,62 +179,78 @@ func (pg *PostgresStore) readTracker(userId int, rows *sql.Rows, pages int) ([]*
 	return trackers, hasMore, nil
 }
 
-func (pg *PostgresStore) DeleteTracker(userId int) error {
+func (pg *PostgresStore) DeleteTracker(trackerId int64) error {
 
 	// delete cascate deletes tracker items
-	_, err := pg.db.Exec(`DELETE FROM public.user_to_tracker where user_fk = $1`, userId)
+	_, err := pg.db.Exec(`DELETE FROM public.user_to_tracker where id = $1`, trackerId)
 	if err != nil {
-		return errors.Wrapf(err, "DeleteTracker(userid: %d) ", userId)
+		return errors.Wrapf(err, "DeleteTracker(trackerId: %d) ", trackerId)
 	}
 
 	return nil
 }
 
-func (pg *PostgresStore) CreateTracker(userId, planId int, start, end time.Time) error {
-	fStart := start.Format("2006-01-02")
-	fEnd := end.Format("2006-01-02")
+func (pg *PostgresStore) CreateTracker(userId, planId int, startRaw, endRaw string) error {
+	start, err := time.Parse("2006-01-02", startRaw)
+	if err != nil {
+		return errors.Wrapf(err, "createTracker(%d) could not transform start to date", userId)
+	}
+
+	end, err := time.Parse("2006-01-02", endRaw)
+	if err != nil {
+		return errors.Wrapf(err, "createTracker(%d) could not transform end to date", userId)
+	}
 
 	if i := end.Compare(start); i <= 0 {
-		return fmt.Errorf("CreateTracker(%d): start: %s needs to be before end: %s", userId, fStart, fEnd)
+		return fmt.Errorf("CreateTracker(%d): start: %s needs to be before end: %s", userId, startRaw, endRaw)
 	}
 
 	tx, err := pg.db.Begin()
 	if err != nil {
-		return errors.Wrapf(err, "CreateTracker(userid: %d, start: %s, end: %s) ", userId, fStart, fEnd)
+		return errors.Wrapf(err, "CreateTracker(userid: %d, start: %s, end: %s) ", userId, startRaw, endRaw)
 	}
+	defer tx.Rollback()
+
+	var utId int64
+	err = tx.QueryRow(`
+	INSERT INTO public.user_to_tracker (user_fk, start_date, end_date)
+	VALUES ($1, $2, $3)
+	RETURNING id`, userId, start, end).Scan(&utId)
+	if err != nil {
+		return errors.Wrapf(err, "CreateTracker(userId: %d, planId: %d, start: %s, end: %s) ", userId, planId, startRaw, endRaw)
+	}
+
+	fmt.Println("scaned id: ", utId)
 
 	res, err := tx.Exec(`
-	INSERT INTO public.user_to_tracker (user_fk, start_date, end_date)
-	VALUES ($1, $2, $3)`, userId, start, end)
-	if err != nil {
-		return errors.Wrapf(err, "CreateTracker(userId: %d, planId: %d, start: %s, end: %s) ", userId, planId, fStart, fEnd)
-	}
-
-	utId, err := res.LastInsertId()
-	if err != nil {
-		return errors.Wrapf(err, "CreateTracker(userId: %d, planId: %d, start: %s, end: %s) ", userId, planId, fStart, fEnd)
-	}
-	_, err = tx.Exec(`
-		insert into public.tracker (user_to_tracker_fk, plan_to_bible_fk, read_by, read_by2) 
-		select $1 as user_fk, pb.id as plan_to_bible_fk, 
+		insert into public.tracker (user_to_tracker_fk, plan_to_bible_fk, read_by) 
+		select $1 as user_to_tracker_fk, pb.id as plan_to_bible_fk, 
 		       to_date($3, 'YYYY-MM-DD') + interval '1' day * (
 		           -1 + ceil(
-		                (to_date($4, 'YYYY-MM-DD') - to_date($3, 'YYYY-MM-DD') + 0.0)
+		                (to_date($4, 'YYYY-MM-DD') - to_date($3, 'YYYY-MM-DD'))::float
 		                * pb.running_length /
-		                pb.length
+		                pl.length
 		           )
-		       )
-		       from plans_to_bible pb
-				where pb.id = $2
-	`, utId, planId, fStart, fEnd)
-
+		       ) as read_by
+		       from public.plans_to_bible pb
+			   join public.plans pl on pl.id = pb.plan_fk
+				where pb.plan_fk = $2
+	`, utId, planId, startRaw, endRaw)
 	if err != nil {
-		return errors.Wrapf(err, "CreateTracker(userId: %d, planId: %d, start: %s, end: %s) ", userId, planId, fStart, fEnd)
+		return errors.Wrapf(err, "CreateTracker(userId: %d, planId: %d, start: %s, end: %s) ", userId, planId, startRaw, endRaw)
+	}
+	rows, err := res.RowsAffected()
+	if err != nil {
+		return errors.Wrapf(err, "CreateTracker(userId: %d, planId: %d, start: %s, end: %s) rows affected", userId, planId, startRaw, endRaw)
+	}
+
+	if rows < 1 {
+		return fmt.Errorf("CreateTracker(%d): start: %s end: %s, could not insert any tracker rows", userId, startRaw, endRaw)
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return errors.Wrapf(err, "CreateTracker(userId: %d, planId: %d, start: %s, end: %s) ", userId, planId, fStart, fEnd)
+		return errors.Wrapf(err, "CreateTracker(userId: %d, planId: %d, start: %s, end: %s) ", userId, planId, startRaw, endRaw)
 	}
 
 	return nil
@@ -251,7 +267,7 @@ func (pg *PostgresStore) MoveTrackerDates(userId int, days int) error {
 
 	_, err = tx.Exec(`
 		update public.tracker t
-		set read_by2 = read_by2 + interval '1' day * $2
+		set read_by = read_by + interval '1' day * $2
 		from user_to_tracker ut
 		where ut.user_fk = $1 and t.user_to_tracker_fk = ut.id AND not t.read 
 	`, userId, days)
@@ -292,18 +308,18 @@ func (pg *PostgresStore) MoveTrackerStartDate(userId int, start string) error {
 	with filtered as(
 		select
 			t.id, 
-			t.read_by2 , 
+			t.read_by , 
 			pb.length, 
-			(sum(pb.length) over (order by t.read_by2, t.id)) as running_length,
+			(sum(pb.length) over (order by t.read_by, t.id)) as running_length,
 			ut.start_date,
 			ut.end_date
 		from  public.tracker t
 		    join user_to_tracker ut on ut.id = t.user_to_tracker_fk and ut.user_fk = $1 AND not t.read
 			join public.plans_to_bible pb on t.plan_to_bible_fk = pb.id
-			order by t.read_by2, t.id
+			order by t.read_by, t.id
 	)
 	update public.tracker t
-	set read_by2 = to_date($2, 'YYYY-MM-DD') +
+	set read_by = to_date($2, 'YYYY-MM-DD') +
 	                  interval '1' day * (
 						-1 + ceil(
 							(f.end_date - to_date($2, 'YYYY-MM-DD'))::float
@@ -349,18 +365,18 @@ func (pg *PostgresStore) MoveTrackerEndDate(userId int, end string) error {
 	with filtered as(
 		select
 			t.id, 
-			t.read_by2 , 
+			t.read_by , 
 			pb.length, 
-			(sum(pb.length) over (order by t.read_by2, t.id)) as running_length,
+			(sum(pb.length) over (order by t.read_by, t.id)) as running_length,
 			ut.start_date,
 			ut.end_date
 		from  public.tracker t
 		    join user_to_tracker ut on ut.id = t.user_to_tracker_fk and ut.user_fk = $1 AND not t.read
 			join public.plans_to_bible pb on t.plan_to_bible_fk = pb.id
-		order by t.read_by2, t.id
+		order by t.read_by, t.id
 	)
 	update public.tracker t
-	set read_by2 = f.start_date +
+	set read_by = f.start_date +
 	                  interval '1' day * (
 						-1 + ceil(
 							(to_date($2, 'YYYY-MM-DD') - f.start_date)::float
@@ -402,18 +418,18 @@ func (pg *PostgresStore) MoveTrackerStartEndDate(userId int, start, end string) 
 	with filtered as(
 		select
 			t.id, 
-			t.read_by2 , 
+			t.read_by , 
 			pb.length, 
-			(sum(pb.length) over (order by t.read_by2, t.id)) as running_length,
+			(sum(pb.length) over (order by t.read_by, t.id)) as running_length,
 			ut.start_date,
 			ut.end_date
 		from  public.tracker t
 		    join user_to_tracker ut on ut.id = t.user_to_tracker_fk and ut.user_fk = $1 AND not t.read
 			join public.plans_to_bible pb on t.plan_to_bible_fk = pb.id
-		order by t.read_by2, t.id
+		order by t.read_by, t.id
 	)
 	update public.tracker t
-	set read_by2 = to_date($2, 'YYYY-MM-DD') +
+	set read_by = to_date($2, 'YYYY-MM-DD') +
 	                  interval '1' day * (
 						-1 + ceil(
 							(to_date($3, 'YYYY-MM-DD') - to_date($2, 'YYYY-MM-DD'))::float

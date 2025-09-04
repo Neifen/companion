@@ -53,8 +53,8 @@ templ planSettings(settings *entities.ViewSettings) {
 					</div>
 				</div>
 				<!-- Change Plan & Delete Plan buttons -->
-				<div class="flex flex-row items-center justify-around mb-4 mt-4">
-					<button hx-get="/new-plan" hx-target="#plan-popup-content" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Change Plan</button>
+				<div class="flex flex-row items-center justify-around mt-4">
+					<button hx-get="/join-plan" hx-vals="{&quot;fromSettings&quot;:true}" hx-swap="none" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Change Plan</button>
 					<button hx-get="/plan-settings/delete-plan" hx-target="#plan-popup-content" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Delete Plan</button>
 				</div>
 			</div>
@@ -63,10 +63,10 @@ templ planSettings(settings *entities.ViewSettings) {
 }
 
 templ confirmDeletePlan() {
-	<div class="flex flex-col items-center justify-between">
+	<div class="flex flex-col items-center justify-evenly gap-4">
 		<div class="text-lg font-semibold text-gray-800">Are you sure you want the delete your plan? All your tracked readings will be lost</div>
 		<!-- Start Date Section -->
-		<div class="flex items-center justify-between my-4 gap-4">
+		<div class="flex items-center justify-between gap-4">
 			<button hx-post="/plan-settings/delete-plan" hx-swap="none" class="bg-blue-500 text-white px-3 py-1 rounded-md hover:bg-blue-600 transition">
 				Yes delete
 			</button>

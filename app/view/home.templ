@@ -4,12 +4,12 @@ import "github.com/labstack/echo/v4"
 import "fmt"
 import "github.com/neifen/htmx-login/app/entities"
 
-func HomeHTMLReplace(c echo.Context, bible *entities.TrackedBible, u *entities.ViewUser) error {
-	return ReplaceUrl("/", c, home(bible, u))
+func HomeHTMLReplace(c echo.Context, bible *entities.TrackedBible, u *entities.ViewUser, welcome bool) error {
+	return ReplaceUrl("/", c, home(bible, u, welcome))
 }
 
-func HomeHTML(c echo.Context, bible *entities.TrackedBible, u *entities.ViewUser) error {
-	return RenderView(c, home(bible, u))
+func HomeHTML(c echo.Context, bible *entities.TrackedBible, u *entities.ViewUser, welcome bool) error {
+	return RenderView(c, home(bible, u, welcome))
 }
 
 func TrackerCheckHTML(c echo.Context, itemId int64, checked bool) error {
@@ -77,7 +77,7 @@ templ trackerList(bible *entities.TrackedBible, before bool, after bool) {
 	}
 }
 
-templ home(bible *entities.TrackedBible, u *entities.ViewUser) {
+templ home(bible *entities.TrackedBible, u *entities.ViewUser, welcome bool) {
 	<div class="bg-gray-100 flex min-h-screen overflow-hidden m-4 ">
 		<script>
 		    function startToday(){
@@ -154,9 +154,10 @@ templ home(bible *entities.TrackedBible, u *entities.ViewUser) {
 				</div>
 				<div class="flex space-x-4">
 					<div class="flex space-x-2">
-						if u.IsLoggedIn {
+						if u.IsLoggedIn && !welcome {
 							<button hx-get="plan-settings" hx-swap="none" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Plan Settings</button>
-							<button class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Set Duration</button>
+						} else if u.IsLoggedIn && welcome {
+							<button hx-get="join-plan" hx-swap="none" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Join Plan</button>
 						}
 					</div>
 					<div class="flex space-x-2">

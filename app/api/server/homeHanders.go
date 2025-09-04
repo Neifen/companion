@@ -24,24 +24,38 @@ func (s *HandlerSession) replaceHome(c echo.Context, u *userReq) error {
 
 func (s *HandlerSession) viewHome(c echo.Context, u *userReq) error {
 	var bible *entities.TrackedBible
-	if !u.isLoggedIn {
-		chapters, err := s.store.ReadChaptersFromPlan(0)
-		//todo real errors
-		if err != nil {
-			fmt.Println(err)
-			return c.JSON(http.StatusInternalServerError, err) // todo do better
-		}
-		bible = chapterModelToEntity(chapters)
-	} else {
+
+	welcome := !u.isLoggedIn
+	if !welcome {
 		tracker, hasMore, err := s.store.ReadTrackerFromUserIdFrom(0, time.Now().AddDate(0, 0, -2))
 		if err != nil {
 			fmt.Println(err)
 			return c.JSON(http.StatusInternalServerError, err) // todo do better
 		}
-		bible = trackerModelToEntity(tracker, hasMore)
+
+		fmt.Printf("welcome: %v, len: %d\n", welcome, len(tracker))
+		if len(tracker) != 0 {
+			bible = trackerModelToEntity(tracker, hasMore)
+		} else {
+			welcome = true
+		}
 	}
 
-	return view.HomeHTML(c, bible, entities.NewViewUser(u.name, u.isLoggedIn))
+	if welcome {
+		chapters, err := s.store.ReadChaptersFromPlan(0)
+
+		//todo real errors
+		if err != nil {
+			fmt.Println(err)
+			return c.JSON(http.StatusInternalServerError, err) // todo do better
+		}
+
+		fmt.Printf("welcome: %v, len: %d", welcome, len(chapters))
+		bible = chapterModelToEntity(chapters)
+	}
+
+	viewU := entities.NewViewUser(u.name, u.isLoggedIn)
+	return view.HomeHTML(c, bible, viewU, welcome)
 }
 
 // e.GET("/track-before/:date", s.handleGetBeforeItem, pasetoMiddleOpt())
@@ -139,8 +153,16 @@ func (s *HandlerSession) handleDeletePlan(c echo.Context) error {
 	if !u.isLoggedIn {
 		return view.ErrorHTML(c, "not logged in")
 	}
-	err := s.store.DeleteTracker(u.id)
+
+	set, err := s.store.ReadTrackerSettingsFromUser(u.id)
 	if err != nil {
+		fmt.Println("Could not find tracker_to_user: ", err)
+		return view.ErrorHTML(c, "could not find tracker for user")
+	}
+
+	err = s.store.DeleteTracker(set.ID)
+	if err != nil {
+		fmt.Println("Could not delete tracker: ", err)
 		return view.ErrorHTML(c, "Could not delete the plan")
 	}
 
@@ -149,13 +171,19 @@ func (s *HandlerSession) handleDeletePlan(c echo.Context) error {
 	return s.viewHome(c, u)
 }
 
-// e.GET("/new-plan", s.handleNewPlanWindow)
-func (s *HandlerSession) handleNewPlanWindow(c echo.Context) error {
-	return view.NewTracker(c) //todo change
+// e.GET("/join-plan", s.handleJoinPlanWindow)
+func (s *HandlerSession) handleJoinPlanWindow(c echo.Context) error {
+	fromSettingsRaw := c.QueryParam("fromSettings")
+	fromSettings, err := strconv.ParseBool(fromSettingsRaw)
+	if err != nil {
+		fromSettings = false
+	}
+
+	return view.NewTracker(c, fromSettings) //todo change
 }
 
-// e.GET("/new-plan/confirm", s.handleNewPlanConfirm)
-func (s *HandlerSession) handleNewPlanConfirm(c echo.Context) error {
+// e.GET("/join-plan/confirm", s.handleJoinPlanConfirm)
+func (s *HandlerSession) handleJoinPlanConfirm(c echo.Context) error {
 	start := c.QueryParam("start")
 	end := c.QueryParam("end")
 
@@ -171,11 +199,11 @@ func (s *HandlerSession) handleNewPlanConfirm(c echo.Context) error {
 		return view.ErrorHTML(c, "Error with the time")
 	}
 
-	return view.ConfirmAddTracker(c, start, end, startTime.Format("January 02, 2006"), endTime.Format("Januar 02, 2006")) //todo change
+	return view.ConfirmAddTracker(c, start, end, startTime.Format("January 02, 2006"), endTime.Format("January 02, 2006")) //todo change
 }
 
-// e.POST("/new-plan/:planId/:start/:end", s.handleAddNewPlan, pasetoMiddle())
-func (s *HandlerSession) handleAddNewPlan(c echo.Context) error {
+// e.POST("/join-plan/:planId/:start/:end", s.handleJoinPlan, pasetoMiddle())
+func (s *HandlerSession) handleJoinPlan(c echo.Context) error {
 	//todo change all
 	u := c.Get("u").(*userReq)
 	if !u.isLoggedIn {
@@ -192,19 +220,7 @@ func (s *HandlerSession) handleAddNewPlan(c echo.Context) error {
 		return view.ErrorHTML(c, "Issue creating new Plan")
 	}
 
-	start, err := time.Parse(startRaw, "2006-01-02")
-	if err != nil {
-		fmt.Println("Could not transform start to date: ", err)
-		return view.ErrorHTML(c, "Issue creating new Plan")
-	}
-
-	end, err := time.Parse(endRaw, "2006-01-02")
-	if err != nil {
-		fmt.Println("Could not transform end to date: ", err)
-		return view.ErrorHTML(c, "Issue creating new Plan")
-	}
-
-	err = s.store.CreateTracker(u.id, planId, start, end)
+	err = s.store.CreateTracker(u.id, planId, startRaw, endRaw)
 	if err != nil {
 		fmt.Println("Could not create tracker: ", err)
 		return view.ErrorHTML(c, "Issue creating new Plan")

@@ -59,11 +59,11 @@ func (api *APIServer) Run() {
 	e.GET("/plan-settings/delete-plan", s.handleDeletePlanConfirm)
 	e.POST("/plan-settings/delete-plan", s.handleDeletePlan, pasetoMiddle())
 
-	e.GET("/new-plan", s.handleNewPlanWindow)
-	e.GET("/new-plan/confirm", s.handleNewPlanConfirm) // ?start (because of js) ?end
-	e.POST("/new-plan/:planId/:start/:end", s.handleAddNewPlan, pasetoMiddle())
+	e.GET("/join-plan", s.handleJoinPlanWindow)
+	e.GET("/join-plan/confirm", s.handleJoinPlanConfirm) // ?start (because of js) ?end
+	e.POST("/join-plan/:planId/:start/:end", s.handleJoinPlan, pasetoMiddle())
 
-	// /plan-settings/new-plan
+	// /plan-settings/join-plan
 	e.GET("/move-start-confirm", s.handleConfirmMoveStart) // ?start (because of js) ?moveEnd
 	e.GET("/move-end-confirm", s.handleConfirmMoveEnd)     // ?end (because of js) ?resetStart
 

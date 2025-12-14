@@ -17,7 +17,7 @@ const (
 
 func (s *HandlerSession) Authenticate(email, pw string) *userReq {
 
-	u, err := s.store.ReadUserByEmail(email)
+	u, err := s.store.Auth.ReadUserByEmail(email)
 	if err != nil {
 		return emptyUser()
 	}

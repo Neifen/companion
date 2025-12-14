@@ -1,3 +1,4 @@
+// Package server is responsible to expose this application as a REST Server
 package server
 
 import (
@@ -25,10 +26,10 @@ const (
 
 type APIServer struct {
 	apiPath string
-	store   storage.Storage
+	store   *storage.DB
 }
 
-func NewAPIHandler(path string, s storage.Storage) *APIServer {
+func NewAPIHandler(path string, s *storage.DB) *APIServer {
 	return &APIServer{apiPath: path, store: s}
 }
 

@@ -16,7 +16,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	store, err := storage.NewPostGresStore()
+	store, err := storage.NewDB()
 	if err != nil {
 		// need to be able to set up db, otherwise fail
 		log.Fatal(err)

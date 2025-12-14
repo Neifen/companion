@@ -13,13 +13,14 @@ import (
 	"github.com/neifen/htmx-login/app/api/crypto"
 	"github.com/neifen/htmx-login/app/api/logging"
 	"github.com/neifen/htmx-login/app/api/storage"
+	"github.com/neifen/htmx-login/app/api/storage/auth"
 )
 
 type HandlerSession struct {
-	store storage.Storage //interfaces are already pointers?
+	store *storage.DB //interfaces are already pointers?
 }
 
-func NewHanderSession(store storage.Storage) *HandlerSession {
+func NewHanderSession(store *storage.DB) *HandlerSession {
 	return &HandlerSession{
 		store: store,
 	}
@@ -83,7 +84,7 @@ func (s *HandlerSession) subHandleTokenRefresh(c echo.Context) error {
 
 	token, err := crypto.ValidTokenFromCookies(cookie)
 	if err != nil {
-		err = s.store.DeleteRefreshTokenByToken(token.Encrypted)
+		err = s.store.Auth.DeleteRefreshTokenByToken(token.Encrypted)
 		if err != nil {
 			fmt.Printf("could not delete refresh token from db %v\n", err)
 		}
@@ -95,19 +96,19 @@ func (s *HandlerSession) subHandleTokenRefresh(c echo.Context) error {
 	fmt.Printf("cookie expires: %v, token expires: %v\n", cookie.Expires, token.Expiration)
 
 	if exp.Before(time.Now()) {
-		err = s.store.DeleteRefreshTokenByToken(token.Encrypted)
+		err = s.store.Auth.DeleteRefreshTokenByToken(token.Encrypted)
 		if err != nil {
 			fmt.Printf("could not delete refresh token from db %v\n", err)
 		}
 		return fmt.Errorf("refresh token expired")
 	}
 
-	refreshType, err := s.store.ReadRefreshTokenByToken(token.Encrypted)
+	refreshType, err := s.store.Auth.ReadRefreshTokenByToken(token.Encrypted)
 	if err != nil {
 		return errors.Wrapf(err, "could not load refresh token from db")
 	}
 
-	user, err := s.store.ReadUserByUid(refreshType.UserUid)
+	user, err := s.store.Auth.ReadUserByUID(refreshType.UserUID)
 	if err != nil {
 		return errors.Wrapf(err, "user invalid")
 	}
@@ -117,15 +118,15 @@ func (s *HandlerSession) subHandleTokenRefresh(c echo.Context) error {
 		return errors.Wrapf(err, "creating new tokens failed")
 	}
 
-	err = s.store.DeleteRefreshToken(refreshType)
+	err = s.store.Auth.DeleteRefreshToken(refreshType)
 	if err != nil {
 		return errors.Wrapf(err, "could not delete old refresh token")
 	}
 
-	returnUrl := c.QueryParam("return")
-	if returnUrl != "" {
-		fmt.Printf("redirect with return: %s \n", returnUrl)
-		return c.Redirect(http.StatusSeeOther, returnUrl)
+	returnURL := c.QueryParam("return")
+	if returnURL != "" {
+		fmt.Printf("redirect with return: %s \n", returnURL)
+		return c.Redirect(http.StatusSeeOther, returnURL)
 	}
 
 	fmt.Printf("redirect with no return\n")
@@ -155,8 +156,8 @@ func (s *HandlerSession) createAndHandleTokens(user *userReq, c echo.Context, re
 		return errors.Wrap(err, "could not get userid from new refresh token")
 	}
 
-	refreshModel := storage.NewRefreshTokenModel(uid, refresh.Encrypted, refresh.Expiration, remember)
-	err = s.store.CreateRefreshToken(refreshModel)
+	refreshModel := auth.NewRefreshTokenModel(uid, refresh.Encrypted, refresh.Expiration, remember)
+	err = s.store.Auth.CreateRefreshToken(refreshModel)
 	if err != nil {
 		return errors.Wrap(err, "could not write new refresh token to db")
 	}
@@ -174,7 +175,7 @@ func (s *HandlerSession) handlePostLogout(c echo.Context) error {
 	// delete refresh token from db
 	refresh, err := c.Cookie("refresh")
 	if err == nil && refresh != nil {
-		err = s.store.DeleteRefreshTokenByToken(refresh.Value)
+		err = s.store.Auth.DeleteRefreshTokenByToken(refresh.Value)
 		if err != nil {
 			fmt.Printf("did not delete refresh token from db: %v\n", err)
 		}
@@ -224,8 +225,8 @@ func (s *HandlerSession) handlePostSignup(c echo.Context) error {
 	pw := c.FormValue("password")
 	name := c.FormValue("name")
 
-	u := storage.NewUserModel(name, email, pw)
-	err := s.store.CreateUser(u)
+	u := auth.NewUserModel(name, email, pw)
+	err := s.store.Auth.CreateUser(u)
 
 	if err != nil {
 		logging.Error(err)

@@ -28,6 +28,8 @@ type BibleDB interface {
 	ReadChaptersFromPlan(planId int) ([]*ChapterModel, error)
 	ReadAllChapters() ([]*ChapterModel, error)
 
+	ReadCompanionForVerse(planId int64, chapterId int16) (string, error)
+
 	ReadAllPlans() ([]*PlanModel, error)
 }
 
@@ -63,15 +65,15 @@ type TrackerSettings struct {
 }
 
 func (pg *PostgresStore) CheckTracked(trackerId int64, checked bool) error {
-	exec, err := pg.db.Exec(`update public.tracker set read = $1, updated_at = $2 where id= $3`, checked, time.Now(), trackerId)
+	exec, err := pg.db.Exec(`update public.task set read = $1, updated_at = $2 where id= $3`, checked, time.Now(), trackerId)
 	if err != nil {
-		return errors.Wrapf(err, `error updating tracker %d`, trackerId)
+		return errors.Wrapf(err, `error updating task %d`, trackerId)
 	}
 
 	aff, err := exec.RowsAffected()
 	if aff != 1 || err != nil {
 		fmt.Println("ISSUE WITH CHECKING 1 ROW")
-		return errors.Errorf(`tracker %d not tracked`, trackerId)
+		return errors.Errorf(`task %d not tracked`, trackerId)
 	}
 
 	return nil
@@ -81,12 +83,12 @@ func (pg *PostgresStore) ReadTrackerSettingsFromUser(userid int) (*TrackerSettin
 	var trackerSettings TrackerSettings
 
 	row := pg.db.QueryRow(`
-		SELECT utt.id, utt.start_date, utt.end_date  FROM user_to_tracker utt where user_fk = $1
+		SELECT tr.id, tr.start_date, tr.end_date  FROM tracker tr where user_fk = $1
 	`, userid)
 
 	err := row.Scan(&trackerSettings.ID, &trackerSettings.FromDate, &trackerSettings.ToDate)
 	if err != nil {
-		return nil, errors.Wrapf(err, `error reading tracker settings for user %d`, userid)
+		return nil, errors.Wrapf(err, `error reading task settings for user %d`, userid)
 	}
 
 	return &trackerSettings, nil
@@ -98,21 +100,21 @@ func (pg *PostgresStore) ReadTrackerFromUserIdUntil(userId int, toTime time.Time
 	toDate := toTime.Format("2006-01-02")
 	rows, err := pg.db.Query(`
 		WITH prev_dates AS (
-			SELECT DISTINCT t.read_by
-			FROM tracker t
-			JOIN public.user_to_tracker ut ON t.user_to_tracker_fk = ut.id 
-			 AND ut.user_fk = $1 AND t.read_by < $2
-			GROUP BY t.read_by
-			ORDER BY t.read_by DESC
+			SELECT DISTINCT ta.read_by
+			FROM task ta
+			JOIN public.tracker tr ON ta.tracker_fk = tr.id 
+			 AND tr.user_fk = $1 AND ta.read_by < $2
+			GROUP BY ta.read_by
+			ORDER BY ta.read_by DESC
 			LIMIT $3
 		)
-		SELECT t.id, t.read, t.read_by, c.book_id,c.book_name, c.chapter_nr, pb.verses, c.id
-		FROM tracker t
-		JOIN public.user_to_tracker ut on ut.id = t.user_to_tracker_fk AND ut.user_fk = $1
-		JOIN prev_dates d ON d.read_by = t.read_by
-		join plans_to_bible pb on t.plan_to_bible_fk = pb.id
+		SELECT ta.id, ta.read, ta.read_by, c.book_id,c.book_name, c.chapter_nr, pb.verses, c.id
+		FROM task ta
+		JOIN public.tracker tr on tr.id = ta.tracker_fk AND tr.user_fk = $1
+		JOIN prev_dates d ON d.read_by = ta.read_by
+		join plans_to_bible pb on ta.plan_to_bible_fk = pb.id
 		join static.chapters c on pb.chapter_fk = c.id
-		ORDER BY t.read_by ASC, t.id ASC;`,
+		ORDER BY ta.read_by ASC, ta.id ASC;`,
 		userId, toDate, pages)
 
 	if err != nil {
@@ -129,21 +131,21 @@ func (pg *PostgresStore) ReadTrackerFromUserIdFrom(userId int, fromTime time.Tim
 
 	rows, err := pg.db.Query(`
 		WITH next_dates AS (
-			SELECT DISTINCT t.read_by
-			FROM tracker t
-				JOIN public.user_to_tracker ut ON t.user_to_tracker_fk = ut.id 
-			 AND ut.user_fk = $1 AND t.read_by >= $2
-			GROUP BY t.read_by
-			ORDER BY t.read_by ASC
+			SELECT DISTINCT ta.read_by
+			FROM task ta
+				JOIN public.tracker tr ON ta.tracker_fk = tr.id 
+			 AND tr.user_fk = $1 AND ta.read_by >= $2
+			GROUP BY ta.read_by
+			ORDER BY ta.read_by ASC
 			LIMIT $3
 		)
-		SELECT t.id, t.read, t.read_by, c.book_id,c.book_name, c.chapter_nr, pb.verses, c.id
-		FROM tracker t
-		JOIN public.user_to_tracker ut on ut.id = t.user_to_tracker_fk AND ut.user_fk = $1
-		JOIN next_dates d ON d.read_by = t.read_by
-		join plans_to_bible pb on t.plan_to_bible_fk = pb.id
+		SELECT ta.id, ta.read, ta.read_by, c.book_id,c.book_name, c.chapter_nr, pb.verses, c.id
+		FROM task ta
+		JOIN public.tracker tr on tr.id = ta.tracker_fk AND tr.user_fk = $1
+		JOIN next_dates d ON d.read_by = ta.read_by
+		join plans_to_bible pb on ta.plan_to_bible_fk = pb.id
 		join static.chapters c on pb.chapter_fk = c.id
-		ORDER BY t.read_by ASC, t.id ASC;`,
+		ORDER BY ta.read_by ASC, ta.id ASC;`,
 		userId, fromDate, pages)
 	if err != nil {
 		return nil, false, errors.Wrapf(err, "ReadTrackerFromUserId(%d) select", userId)
@@ -189,8 +191,8 @@ func (pg *PostgresStore) readTracker(userId int, rows *sql.Rows, pages int) ([]*
 
 func (pg *PostgresStore) DeleteTracker(trackerId int64) error {
 
-	// delete cascate deletes tracker items
-	_, err := pg.db.Exec(`DELETE FROM public.user_to_tracker where id = $1`, trackerId)
+	// delete cascate deletes task items
+	_, err := pg.db.Exec(`DELETE FROM public.tracker where id = $1`, trackerId)
 	if err != nil {
 		return errors.Wrapf(err, "DeleteTracker(trackerId: %d) ", trackerId)
 	}
@@ -221,7 +223,7 @@ func (pg *PostgresStore) CreateTracker(userId, planId int, startRaw, endRaw stri
 
 	var utId int64
 	err = tx.QueryRow(`
-	INSERT INTO public.user_to_tracker (user_fk, start_date, end_date)
+	INSERT INTO public.tracker (user_fk, start_date, end_date)
 	VALUES ($1, $2, $3)
 	RETURNING id`, userId, start, end).Scan(&utId)
 	if err != nil {
@@ -229,8 +231,8 @@ func (pg *PostgresStore) CreateTracker(userId, planId int, startRaw, endRaw stri
 	}
 
 	res, err := tx.Exec(`
-		insert into public.tracker (user_to_tracker_fk, plan_to_bible_fk, read_by) 
-		select $1 as user_to_tracker_fk, pb.id as plan_to_bible_fk, 
+		insert into public.task (tracker_fk, plan_to_bible_fk, read_by) 
+		select $1 as tracker_fk, pb.id as plan_to_bible_fk, 
 		       to_date($3, 'YYYY-MM-DD') + interval '1' day * (
 		           -1 + ceil(
 		                (to_date($4, 'YYYY-MM-DD') - to_date($3, 'YYYY-MM-DD'))::float
@@ -251,7 +253,7 @@ func (pg *PostgresStore) CreateTracker(userId, planId int, startRaw, endRaw stri
 	}
 
 	if rows < 1 {
-		return fmt.Errorf("CreateTracker(%d): start: %s end: %s, could not insert any tracker rows", userId, startRaw, endRaw)
+		return fmt.Errorf("CreateTracker(%d): start: %s end: %s, could not insert any task rows", userId, startRaw, endRaw)
 	}
 
 	err = tx.Commit()
@@ -272,10 +274,10 @@ func (pg *PostgresStore) MoveTrackerDates(userId int, days int) error {
 	}
 
 	_, err = tx.Exec(`
-		update public.tracker t
+		update public.task ta
 		set read_by = read_by + interval '1' day * $2
-		from user_to_tracker ut
-		where ut.user_fk = $1 and t.user_to_tracker_fk = ut.id AND not t.read 
+		from tracker tr
+		where tr.user_fk = $1 and ta.tracker_fk = tr.id AND not ta.read 
 	`, userId, days)
 	if err != nil {
 		return errors.Wrapf(err, "MoveTrackerDates(userid: %d, days: %d) ", userId, days)
@@ -283,7 +285,7 @@ func (pg *PostgresStore) MoveTrackerDates(userId int, days int) error {
 
 	//todo check if whole fStart works
 	_, err = tx.Exec(`
-		update public.user_to_tracker 
+		update public.tracker 
 		set start_date = start_date + interval '1' day * $2,
 			end_date = end_date + interval '1' day * $2
 		where user_fk = $1
@@ -313,18 +315,18 @@ func (pg *PostgresStore) MoveTrackerStartDate(userId int, start string) error {
 	_, err = tx.Exec(`
 	with filtered as(
 		select
-			t.id, 
-			t.read_by , 
+			ta.id, 
+			ta.read_by , 
 			pb.length, 
-			(sum(pb.length) over (order by t.read_by, t.id)) as running_length,
-			ut.start_date,
-			ut.end_date
-		from  public.tracker t
-		    join user_to_tracker ut on ut.id = t.user_to_tracker_fk and ut.user_fk = $1 AND not t.read
-			join public.plans_to_bible pb on t.plan_to_bible_fk = pb.id
-			order by t.read_by, t.id
+			(sum(pb.length) over (order by ta.read_by, ta.id)) as running_length,
+			tr.start_date,
+			tr.end_date
+		from  public.task ta
+		    join tracker tr on tr.id = ta.tracker_fk and tr.user_fk = $1 AND not ta.read
+			join public.plans_to_bible pb on ta.plan_to_bible_fk = pb.id
+			order by ta.read_by, ta.id
 	)
-	update public.tracker t
+	update public.task ta
 	set read_by = to_date($2, 'YYYY-MM-DD') +
 	                  interval '1' day * (
 						-1 + ceil(
@@ -334,7 +336,7 @@ func (pg *PostgresStore) MoveTrackerStartDate(userId int, start string) error {
 							)
 					  )
 	from filtered f
-	where f.id = t.id
+	where f.id = ta.id
 `, userId, start)
 
 	if err != nil {
@@ -343,7 +345,7 @@ func (pg *PostgresStore) MoveTrackerStartDate(userId int, start string) error {
 
 	//todo check if whole fStart works
 	_, err = tx.Exec(`
-		update public.user_to_tracker set start_date = $2 
+		update public.tracker set start_date = $2 
 		where user_fk = $1
 	`, userId, start)
 	if err != nil {
@@ -370,18 +372,18 @@ func (pg *PostgresStore) MoveTrackerEndDate(userId int, end string) error {
 	_, err = tx.Exec(`
 	with filtered as(
 		select
-			t.id, 
-			t.read_by , 
+			ta.id, 
+			ta.read_by , 
 			pb.length, 
-			(sum(pb.length) over (order by t.read_by, t.id)) as running_length,
-			ut.start_date,
-			ut.end_date
-		from  public.tracker t
-		    join user_to_tracker ut on ut.id = t.user_to_tracker_fk and ut.user_fk = $1 AND not t.read
-			join public.plans_to_bible pb on t.plan_to_bible_fk = pb.id
-		order by t.read_by, t.id
+			(sum(pb.length) over (order by ta.read_by, ta.id)) as running_length,
+			tr.start_date,
+			tr.end_date
+		from  public.task ta
+		    join tracker tr on tr.id = ta.tracker_fk and tr.user_fk = $1 AND not ta.read
+			join public.plans_to_bible pb on ta.plan_to_bible_fk = pb.id
+		order by ta.read_by, ta.id
 	)
-	update public.tracker t
+	update public.task ta
 	set read_by = f.start_date +
 	                  interval '1' day * (
 						-1 + ceil(
@@ -391,7 +393,7 @@ func (pg *PostgresStore) MoveTrackerEndDate(userId int, end string) error {
 							)
 					  )
 	from filtered f
-	where f.id = t.id
+	where f.id = ta.id
 `, userId, end)
 
 	if err != nil {
@@ -400,7 +402,7 @@ func (pg *PostgresStore) MoveTrackerEndDate(userId int, end string) error {
 
 	//todo check if whole fStart works
 	_, err = tx.Exec(`
-		update public.user_to_tracker set end_date = $2 
+		update public.tracker set end_date = $2 
 		where user_fk = $1
 	`, userId, end)
 	if err != nil {
@@ -423,18 +425,18 @@ func (pg *PostgresStore) MoveTrackerStartEndDate(userId int, start, end string) 
 	_, err = tx.Exec(`
 	with filtered as(
 		select
-			t.id, 
-			t.read_by , 
+			ta.id, 
+			ta.read_by , 
 			pb.length, 
-			(sum(pb.length) over (order by t.read_by, t.id)) as running_length,
-			ut.start_date,
-			ut.end_date
-		from  public.tracker t
-		    join user_to_tracker ut on ut.id = t.user_to_tracker_fk and ut.user_fk = $1 AND not t.read
-			join public.plans_to_bible pb on t.plan_to_bible_fk = pb.id
-		order by t.read_by, t.id
+			(sum(pb.length) over (order by ta.read_by, ta.id)) as running_length,
+			tr.start_date,
+			tr.end_date
+		from  public.task ta
+		    join tracker tr on tr.id = ta.tracker_fk and tr.user_fk = $1 AND not ta.read
+			join public.plans_to_bible pb on ta.plan_to_bible_fk = pb.id
+		order by ta.read_by, ta.id
 	)
-	update public.tracker t
+	update public.task ta
 	set read_by = to_date($2, 'YYYY-MM-DD') +
 	                  interval '1' day * (
 						-1 + ceil(
@@ -444,7 +446,7 @@ func (pg *PostgresStore) MoveTrackerStartEndDate(userId int, start, end string) 
 							)
 					  )
 	from filtered f
-	where f.id = t.id
+	where f.id = ta.id
 `, userId, start, end)
 
 	if err != nil {
@@ -452,7 +454,7 @@ func (pg *PostgresStore) MoveTrackerStartEndDate(userId int, start, end string) 
 	}
 
 	_, err = tx.Exec(`
-		update public.user_to_tracker set start_date = $1, end_date = $2 
+		update public.tracker set start_date = $1, end_date = $2 
 		where user_fk = $3
 	`, start, end, userId)
 	if err != nil {
@@ -522,6 +524,45 @@ func (pg *PostgresStore) ReadAllChapters() ([]*ChapterModel, error) {
 	}
 
 	return chapters, nil
+}
+
+func (pg *PostgresStore) ReadCompanionForVerse(planId int64, chapterId int16) (string, error) {
+	rows, err := pg.db.Query(`
+	    select
+			*
+		from
+			companions.companion_base_to_plans cbtp
+		join
+		companions.companion_base cb on
+			cbtp.plan_fk = :plan_id
+			and cb.id = cbtp.companion_base_fk
+		join companions.companion c on
+			:chapter >= c.chapter_start_fk
+			and :chapter <= c.chapter_end_fk
+			and cb.id = c.companion_base_fk;
+`, planId)
+
+	if err != nil {
+		return "", errors.Wrapf(err, "ReadChaptersFromPlan(%d) select", planId)
+	}
+
+	var chapters []*ChapterModel
+	for i := 0; rows.Next(); i++ {
+		var id int16
+		var bookName string
+		var bookId int16
+		var chapterNr int16
+		var chapterWordCount int16
+
+		err := rows.Scan(&id, &bookName, &bookId, &chapterNr, &chapterWordCount)
+		if err != nil {
+			return "", errors.Wrapf(err, "ReadChaptersFromPlan(%d) scan", planId)
+		}
+
+		chapters = append(chapters, &ChapterModel{id, bookName, bookId, chapterNr, chapterWordCount})
+	}
+
+	return "chapters", nil
 }
 
 func (pg *PostgresStore) ReadAllPlans() ([]*PlanModel, error) {

@@ -27,7 +27,7 @@ func (s *HandlerSession) viewHome(c echo.Context, u *userReq) error {
 
 	welcome := !u.isLoggedIn
 	if !welcome {
-		tracker, hasMore, err := s.store.ReadTrackerFromUserIdFrom(0, time.Now().AddDate(0, 0, -2))
+		tracker, hasMore, err := s.store.Tracking.ReadTrackerFromUserIDFrom(0, time.Now().AddDate(0, 0, -2))
 		if err != nil {
 			fmt.Println(err)
 			return c.JSON(http.StatusInternalServerError, err) // todo do better
@@ -41,7 +41,7 @@ func (s *HandlerSession) viewHome(c echo.Context, u *userReq) error {
 	}
 
 	if welcome {
-		chapters, err := s.store.ReadChaptersFromPlan(0)
+		chapters, err := s.store.Bible.ReadPlanChapter(0)
 
 		//todo real errors
 		if err != nil {
@@ -65,7 +65,7 @@ func (s *HandlerSession) handleGetBeforeItem(c echo.Context) error {
 		return view.ErrorHTML(c, "Something went wrong, contact admin")
 	}
 
-	tracker, hasMore, err := s.store.ReadTrackerFromUserIdUntil(u.id, date)
+	tracker, hasMore, err := s.store.Tracking.ReadTrackerFromUserIDUntil(u.id, date)
 
 	//todo real errors
 	if err != nil {
@@ -85,7 +85,7 @@ func (s *HandlerSession) handleGetAfterItem(c echo.Context) error {
 		return view.ErrorHTML(c, "Something went wrong, contact admin")
 	}
 
-	tracker, hasMore, err := s.store.ReadTrackerFromUserIdFrom(u.id, date.AddDate(0, 0, 1))
+	tracker, hasMore, err := s.store.Tracking.ReadTrackerFromUserIDFrom(u.id, date.AddDate(0, 0, 1))
 	//todo real errors
 	if err != nil {
 		fmt.Println(err)
@@ -98,7 +98,7 @@ func (s *HandlerSession) handleGetAfterItem(c echo.Context) error {
 // e.POST("/check-trackeditem/:itemId/:checked", s.handleCheckTrackeItem)
 func (s *HandlerSession) handleCheckTrackeItem(c echo.Context) error {
 	u := c.Get("u").(*userReq)
-	itemId, err := strconv.ParseInt(c.Param("itemId"), 10, 64)
+	itemID, err := strconv.ParseInt(c.Param("itemId"), 10, 64)
 	if err != nil {
 		fmt.Println(err)
 		return c.JSON(http.StatusInternalServerError, err) // todo do better
@@ -107,7 +107,7 @@ func (s *HandlerSession) handleCheckTrackeItem(c echo.Context) error {
 	checked, err := strconv.ParseBool(c.Param("checked"))
 	if err != nil {
 		fmt.Println(err)
-		return view.TrackerCheckHTMLError(c, itemId, !checked, err.Error())
+		return view.TrackerCheckHTMLError(c, itemID, !checked, err.Error())
 	}
 
 	if !u.isLoggedIn {
@@ -115,14 +115,14 @@ func (s *HandlerSession) handleCheckTrackeItem(c echo.Context) error {
 		return nil
 	}
 
-	err = s.store.CheckTracked(itemId, checked)
+	err = s.store.Tracking.CheckTracked(itemID, checked)
 	//todo real errors
 	if err != nil {
 		fmt.Println(err)
-		return view.TrackerCheckHTMLError(c, itemId, !checked, err.Error())
+		return view.TrackerCheckHTMLError(c, itemID, !checked, err.Error())
 	}
 
-	return view.TrackerCheckHTML(c, itemId, checked)
+	return view.TrackerCheckHTML(c, itemID, checked)
 }
 
 // e.GET("/plan-settings", s.handlePlanSettings)
@@ -131,7 +131,7 @@ func (s *HandlerSession) handlePlanSettings(c echo.Context) error {
 	if !u.isLoggedIn {
 		return view.ErrorHTML(c, "not logged in")
 	}
-	settings, err := s.store.ReadTrackerSettingsFromUser(u.id)
+	settings, err := s.store.Tracking.ReadTrackerSettingsFromUser(u.id)
 	if err != nil {
 		return view.ErrorHTML(c, err.Error())
 	}
@@ -152,13 +152,13 @@ func (s *HandlerSession) handleDeletePlan(c echo.Context) error {
 		return view.ErrorHTML(c, "not logged in")
 	}
 
-	set, err := s.store.ReadTrackerSettingsFromUser(u.id)
+	set, err := s.store.Tracking.ReadTrackerSettingsFromUser(u.id)
 	if err != nil {
 		fmt.Println("Could not find tracker_to_user: ", err)
 		return view.ErrorHTML(c, "could not find tracker for user")
 	}
 
-	err = s.store.DeleteTracker(set.ID)
+	err = s.store.Tracking.DeleteTracker(set.ID)
 	if err != nil {
 		fmt.Println("Could not delete tracker: ", err)
 		return view.ErrorHTML(c, "Could not delete the plan")
@@ -177,7 +177,7 @@ func (s *HandlerSession) handleJoinPlanWindow(c echo.Context) error {
 		fromSettings = false
 	}
 
-	plansModel, err := s.store.ReadAllPlans()
+	plansModel, err := s.store.Plans.ReadAllPlans()
 	if err != nil {
 		fmt.Println("Could not read all plans: ", err)
 		return view.ErrorHTML(c, "Could not load list of plan")
@@ -222,17 +222,17 @@ func (s *HandlerSession) handleJoinPlan(c echo.Context) error {
 		return view.ErrorHTML(c, "not logged in")
 	}
 
-	planIdRaw := c.Param("planId")
+	planIDRaw := c.Param("planId")
 	startRaw := c.Param("start")
 	endRaw := c.Param("end")
 
-	planId, err := strconv.Atoi(planIdRaw)
+	planID, err := strconv.Atoi(planIDRaw)
 	if err != nil {
 		fmt.Println("Could not transform planId to int: ", err)
 		return view.ErrorHTML(c, "Issue creating new Plan")
 	}
 
-	err = s.store.CreateTracker(u.id, planId, startRaw, endRaw)
+	err = s.store.Tracking.CreateTracker(u.id, planID, startRaw, endRaw)
 	if err != nil {
 		fmt.Println("Could not create tracker: ", err)
 		return view.ErrorHTML(c, "Issue creating new Plan")
@@ -319,7 +319,7 @@ func (s *HandlerSession) moveStart(c echo.Context) error {
 		fmt.Println("error parsing moveEnd:", err)
 		moveEnd = false
 	}
-	settings, err := s.store.ReadTrackerSettingsFromUser(u.id)
+	settings, err := s.store.Tracking.ReadTrackerSettingsFromUser(u.id)
 	if err != nil {
 		fmt.Println(err)
 		return view.ErrorHTML(c, "Something went wrong, contact admin")
@@ -333,7 +333,7 @@ func (s *HandlerSession) moveStart(c echo.Context) error {
 
 	if moveEnd {
 		diff := start.Sub(settings.FromDate)
-		err = s.store.MoveTrackerDates(u.id, int(diff.Hours())/24)
+		err = s.store.Tracking.MoveTrackerDates(u.id, int(diff.Hours())/24)
 		if err != nil {
 			fmt.Println(err)
 			return view.ErrorHTML(c, "Something went wrong, contact admin")
@@ -343,7 +343,7 @@ func (s *HandlerSession) moveStart(c echo.Context) error {
 		c.Response().Header().Add("HX-Reswap", "innerHTML")
 		return s.viewHome(c, u)
 	} else {
-		err = s.store.MoveTrackerStartDate(u.id, startRaw)
+		err = s.store.Tracking.MoveTrackerStartDate(u.id, startRaw)
 		if err != nil {
 			fmt.Println(err)
 			return view.ErrorHTML(c, "Something went wrong, contact admin")
@@ -370,7 +370,7 @@ func (s *HandlerSession) moveEnd(c echo.Context) error {
 	if resetStart {
 		start = time.Now()
 	} else {
-		settings, err := s.store.ReadTrackerSettingsFromUser(u.id)
+		settings, err := s.store.Tracking.ReadTrackerSettingsFromUser(u.id)
 		if err != nil {
 			fmt.Println(err)
 			return view.ErrorHTML(c, "Something went wrong, contact admin")
@@ -393,7 +393,7 @@ func (s *HandlerSession) moveEnd(c echo.Context) error {
 	}
 
 	if resetStart {
-		err = s.store.MoveTrackerStartEndDate(u.id, startRaw, endRaw)
+		err = s.store.Tracking.MoveTrackerStartEndDate(u.id, startRaw, endRaw)
 		if err != nil {
 			fmt.Println(err)
 			return view.ErrorHTML(c, "Something went wrong, contact admin")
@@ -402,7 +402,7 @@ func (s *HandlerSession) moveEnd(c echo.Context) error {
 		c.Response().Header().Add("HX-Reswap", "innerHTML")
 		return s.viewHome(c, u)
 	} else {
-		err = s.store.MoveTrackerEndDate(u.id, endRaw)
+		err = s.store.Tracking.MoveTrackerEndDate(u.id, endRaw)
 		if err != nil {
 			fmt.Println(err)
 			return view.ErrorHTML(c, "Something went wrong, contact admin")

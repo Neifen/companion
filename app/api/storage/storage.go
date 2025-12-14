@@ -3,9 +3,10 @@ package storage
 import (
 	"database/sql"
 	"fmt"
-	"github.com/pkg/errors"
 	"os"
 	"time"
+
+	"github.com/pkg/errors"
 
 	_ "github.com/lib/pq"
 )
@@ -49,7 +50,7 @@ func NewPostGresStore() (*PostgresStore, error) {
 		return nil, err
 	}
 
-	sqlFiles := []string{"auth.sql", "chapters.sql", "verses.sql", "bible.sql"}
+	sqlFiles := []string{"auth.sql", "chapters.sql", "verses.sql", "bible.sql", "plans.sql", "tracking.sql", "companions.sql"}
 
 	for _, file := range sqlFiles {
 		path := "app/sql/" + file

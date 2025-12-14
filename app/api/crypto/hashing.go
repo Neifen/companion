@@ -1,3 +1,4 @@
+// Package crypto deals with all things security. From Hashing Password to checking tokens.
 package crypto
 
 import (

@@ -3,7 +3,7 @@ package server
 import (
 	"github.com/labstack/echo/v4"
 	"github.com/neifen/htmx-login/app/api/crypto"
-	"github.com/neifen/htmx-login/app/api/storage"
+	"github.com/neifen/htmx-login/app/api/storage/auth"
 	"github.com/pkg/errors"
 )
 
@@ -18,12 +18,12 @@ func emptyUser() *userReq {
 	return new(userReq)
 }
 
-func userFromModel(u *storage.UserModel) *userReq {
+func userFromModel(u *auth.UserModel) *userReq {
 	return &userReq{
 		name:       u.Name,
-		uuid:       u.Uid,
+		uuid:       u.UID,
 		isLoggedIn: true,
-		id:         u.Id,
+		id:         u.ID,
 	}
 }
 

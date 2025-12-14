@@ -69,6 +69,7 @@ func (t *Token) AddToCookie() *http.Cookie {
 
 // For Accesstoken normally use public keys (asymetric encryption) are used so that thirdparties can also verify the token.
 // asymetric is slower but allows verification with public key.
+
 func ValidTokenFromCookies(cookie *http.Cookie) (*Token, error) {
 	if cookie == nil {
 		return nil, fmt.Errorf("cannot validate token from cookie, cookie empty")

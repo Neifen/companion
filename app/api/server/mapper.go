@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/neifen/htmx-login/app/api/storage"
+	"github.com/neifen/htmx-login/app/api/storage/bible"
+	"github.com/neifen/htmx-login/app/api/storage/tracking"
 	"github.com/neifen/htmx-login/app/entities"
 )
 
-func chapterModelToEntity(model []*storage.ChapterModel) *entities.TrackedBible {
+func chapterModelToEntity(model []*bible.ChapterModel) *entities.TrackedBible {
 	trackedBible := entities.NewTrackedBible(false)
 	var trackedItems []*entities.TrackedItem
 	lastBookName := ""
@@ -33,7 +34,7 @@ func chapterModelToEntity(model []*storage.ChapterModel) *entities.TrackedBible 
 	return trackedBible
 }
 
-func trackerModelToEntity(model []*storage.TrackerModel, hasMore bool) *entities.TrackedBible {
+func trackerModelToEntity(model []*tracking.TrackerModel, hasMore bool) *entities.TrackedBible {
 	trackedBible := entities.NewTrackedBible(hasMore)
 
 	today := time.Now().Format("January 2, 2006")
@@ -45,7 +46,7 @@ func trackerModelToEntity(model []*storage.TrackerModel, hasMore bool) *entities
 		if len(row.Verses) != 0 {
 			chapter = fmt.Sprintf("%s:%s", chapter, row.Verses)
 		}
-		trackedItem := entities.NewTrackedItem(row.ID, row.Read, chapter, row.ChapterId)
+		trackedItem := entities.NewTrackedItem(row.ID, row.Read, chapter, row.ChapterID)
 		if lastDate != row.ReadBy {
 			lastDate = row.ReadBy
 			day := row.ReadBy.Format("January 2, 2006")

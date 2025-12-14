@@ -1,3 +1,4 @@
+// Package logging is responsible for logging in the application
 package logging
 
 import (

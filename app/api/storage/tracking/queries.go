@@ -20,16 +20,16 @@ const (
 	chaptersTable = "static.chapters"
 )
 
-func (pg *TrackingStore) CheckTracked(trackerID int64, checked bool) error {
-	exec, err := pg.db.Exec(`update `+tasksTable+` set read = $1, updated_at = $2 where id= $3`, checked, time.Now(), trackerID)
+func (pg *TrackingStore) CheckTask(taskID int64, checked bool) error {
+	exec, err := pg.db.Exec(`update `+tasksTable+` set read = $1, updated_at = $2 where id= $3`, checked, time.Now(), taskID)
 	if err != nil {
-		return errors.Wrapf(err, `error updating task %d`, trackerID)
+		return errors.Wrapf(err, `error updating task %d`, taskID)
 	}
 
 	aff, err := exec.RowsAffected()
 	if aff != 1 || err != nil {
 		fmt.Println("ISSUE WITH CHECKING 1 ROW")
-		return errors.Errorf(`task %d not tracked`, trackerID)
+		return errors.Errorf(`task %d not tracked`, taskID)
 	}
 
 	return nil
@@ -39,7 +39,7 @@ func (pg *TrackingStore) ReadTrackerSettingsFromUser(userID int) (*TrackerSettin
 	var trackerSettings TrackerSettings
 
 	row := pg.db.QueryRow(`
-		SELECT tr.id, tr.start_date, tr.end_date  FROM `+trackersTable+` tr where user_fk = $1
+		SELECT tr.id, tr.start_date, tr.end_date as last_used  FROM `+trackersTable+` tr where user_fk = $1
 	`, userID)
 
 	err := row.Scan(&trackerSettings.ID, &trackerSettings.FromDate, &trackerSettings.ToDate)
@@ -50,7 +50,7 @@ func (pg *TrackingStore) ReadTrackerSettingsFromUser(userID int) (*TrackerSettin
 	return &trackerSettings, nil
 }
 
-func (pg *TrackingStore) ReadTrackerFromUserIDUntil(userID int, toTime time.Time) ([]*TrackerModel, bool, error) {
+func (pg *TrackingStore) ReadTasksUntil(userID int, toTime time.Time) ([]*TrackerModel, bool, error) {
 	const pages = 10
 
 	toDate := toTime.Format("2006-01-02")
@@ -72,15 +72,14 @@ func (pg *TrackingStore) ReadTrackerFromUserIDUntil(userID int, toTime time.Time
 		join `+chaptersTable+` c on pb.chapter_fk = c.id
 		ORDER BY ta.read_by ASC, ta.id ASC;`,
 		userID, toDate, pages)
-
 	if err != nil {
 		return nil, false, errors.Wrapf(err, "ReadTrackerFromuserID(%d) select", userID)
 	}
 
-	return pg.readTracker(userID, rows, pages)
+	return pg.scanTasks(userID, rows, pages)
 }
 
-func (pg *TrackingStore) ReadTrackerFromUserIDFrom(userID int, fromTime time.Time) ([]*TrackerModel, bool, error) {
+func (pg *TrackingStore) ReadTasksFrom(userID int, fromTime time.Time) ([]*TrackerModel, bool, error) {
 	const pages = 10
 
 	fromDate := fromTime.Format("2006-01-02")
@@ -107,10 +106,10 @@ func (pg *TrackingStore) ReadTrackerFromUserIDFrom(userID int, fromTime time.Tim
 		return nil, false, errors.Wrapf(err, "ReadTrackerFromuserID(%d) select", userID)
 	}
 
-	return pg.readTracker(userID, rows, pages)
+	return pg.scanTasks(userID, rows, pages)
 }
 
-func (pg *TrackingStore) readTracker(userID int, rows *sql.Rows, pages int) ([]*TrackerModel, bool, error) {
+func (pg *TrackingStore) scanTasks(userID int, rows *sql.Rows, pages int) ([]*TrackerModel, bool, error) {
 	var trackers []*TrackerModel
 	var start time.Time
 	var end time.Time
@@ -137,16 +136,12 @@ func (pg *TrackingStore) readTracker(userID int, rows *sql.Rows, pages int) ([]*
 		trackers = append(trackers, &TrackerModel{id, read, readBy, bookName, bookID, chapterNr, versesNull.String, chapterID})
 	}
 
-	hasMore := true
-	if end.Sub(start).Hours() < float64((pages-1)*24) {
-		hasMore = false
-	}
+	hasMore := end.Sub(start).Hours() < float64((pages-1)*24)
 
 	return trackers, hasMore, nil
 }
 
-func (pg *TrackingStore) DeleteTracker(trackerID int64) error {
-
+func (pg *TrackingStore) DeleteTask(trackerID int64) error {
 	// delete cascate deletes task items
 	_, err := pg.db.Exec(`DELETE FROM `+trackersTable+` where id = $1`, trackerID)
 	if err != nil {
@@ -156,7 +151,7 @@ func (pg *TrackingStore) DeleteTracker(trackerID int64) error {
 	return nil
 }
 
-func (pg *TrackingStore) CreateTracker(userID, planID int, startRaw, endRaw string) error {
+func (pg *TrackingStore) CreateTask(userID, planID int, startRaw, endRaw string) error {
 	start, err := time.Parse("2006-01-02", startRaw)
 	if err != nil {
 		return errors.Wrapf(err, "createTracker(%d) could not transform start to date", userID)
@@ -220,7 +215,7 @@ func (pg *TrackingStore) CreateTracker(userID, planID int, startRaw, endRaw stri
 	return nil
 }
 
-func (pg *TrackingStore) MoveTrackerDates(userID int, days int) error {
+func (pg *TrackingStore) MoveTaskDays(userID int, days int) error {
 	// todo maybe in two queries:
 	// one two check end date and one to edit
 	// check: because if end date is behind today
@@ -239,7 +234,7 @@ func (pg *TrackingStore) MoveTrackerDates(userID int, days int) error {
 		return errors.Wrapf(err, "MoveTrackerDates(userID: %d, days: %d) ", userID, days)
 	}
 
-	//todo check if whole fStart works
+	// todo check if whole fStart works
 	_, err = tx.Exec(`
 		update `+trackersTable+` 
 		set start_date = start_date + interval '1' day * $2,
@@ -258,7 +253,7 @@ func (pg *TrackingStore) MoveTrackerDates(userID int, days int) error {
 	return nil
 }
 
-func (pg *TrackingStore) MoveTrackerStartDate(userID int, start string) error {
+func (pg *TrackingStore) MoveTaskStartDate(userID int, start string) error {
 	// todo maybe in two queries:
 	// one two check end date and one to edit
 	// check: because if end date is behind today
@@ -294,12 +289,11 @@ func (pg *TrackingStore) MoveTrackerStartDate(userID int, start string) error {
 	from filtered f
 	where f.id = ta.id
 `, userID, start)
-
 	if err != nil {
 		return errors.Wrapf(err, "MoveTrackerStartDate(userID: %d, start: %s) ", userID, start)
 	}
 
-	//todo check if whole fStart works
+	// todo check if whole fStart works
 	_, err = tx.Exec(`
 		update `+trackersTable+` set start_date = $2 
 		where user_fk = $1
@@ -313,10 +307,9 @@ func (pg *TrackingStore) MoveTrackerStartDate(userID int, start string) error {
 		return errors.Wrapf(err, "MoveTrackerStartDate(userID: %d, start: %v) ", userID, start)
 	}
 	return nil
-
 }
 
-func (pg *TrackingStore) MoveTrackerEndDate(userID int, end string) error {
+func (pg *TrackingStore) MoveTaskEndDate(userID int, end string) error {
 	// todo maybe in two queries:
 	// one two check end date and one to edit
 	// check: because if end date is behind today
@@ -351,12 +344,11 @@ func (pg *TrackingStore) MoveTrackerEndDate(userID int, end string) error {
 	from filtered f
 	where f.id = ta.id
 `, userID, end)
-
 	if err != nil {
 		return errors.Wrapf(err, "MoveTrackerEndDate(userID: %d, end: %s) ", userID, end)
 	}
 
-	//todo check if whole fStart works
+	// todo check if whole fStart works
 	_, err = tx.Exec(`
 		update `+trackersTable+` set end_date = $2 
 		where user_fk = $1
@@ -372,7 +364,7 @@ func (pg *TrackingStore) MoveTrackerEndDate(userID int, end string) error {
 	return nil
 }
 
-func (pg *TrackingStore) MoveTrackerStartEndDate(userID int, start, end string) error {
+func (pg *TrackingStore) MoveTaskDates(userID int, start, end string) error {
 	tx, err := pg.db.Begin()
 	if err != nil {
 		return errors.Wrapf(err, "MoveTrackerStartEndDate(userID: %d, start: %v, end %v) ", userID, start, end)
@@ -404,7 +396,6 @@ func (pg *TrackingStore) MoveTrackerStartEndDate(userID int, start, end string) 
 	from filtered f
 	where f.id = ta.id
 `, userID, start, end)
-
 	if err != nil {
 		return errors.Wrapf(err, "MoveTrackerStartEndDate(userID: %d, start: %v, end %v) ", userID, start, end)
 	}
@@ -423,4 +414,15 @@ func (pg *TrackingStore) MoveTrackerStartEndDate(userID int, start, end string) 
 	}
 
 	return nil
+}
+
+func (pg *TrackingStore) ReadLastUncheckedTask(userID int) (int64, error) {
+	var taskID int64
+	row := pg.db.QueryRow("select min(ta.id) from "+tasksTable+" ta where ta.id = $1 and not ta.read", userID)
+	err := row.Scan(&taskID)
+	if err != nil {
+		return -1, err
+	}
+
+	return taskID, nil
 }

@@ -9,21 +9,6 @@ import (
 	"github.com/neifen/htmx-login/app/api/storage"
 )
 
-const (
-	LOGIN_PATH    string = "/login"
-	SIGNUP_PATH   string = "/signup"
-	RECOVERY_PATH string = "/recovery"
-
-	LOGOUT_PATH  string = "/token/logout" //to be able to access refresh token
-	REFRESH_PATH string = "/token/refresh"
-
-	VERIFY_SIGNUP_PATH  string = "/verify_signup"
-	RESET_PASSWORD_PATH string = "/reset_password"
-
-	HOME_PATH           string = "/"
-	HOME_SECONDARY_PATH string = "/home"
-)
-
 type APIServer struct {
 	apiPath string
 	store   *storage.DB
@@ -74,26 +59,26 @@ func (api *APIServer) Run() {
 	e.POST("/move-end/:end", s.moveEnd, pasetoMiddle())       // ?resetStart
 
 	// login
-	e.GET(LOGIN_PATH, s.handleGetLogin)
-	e.POST(LOGIN_PATH, s.handlePostLogin)
+	e.GET("/login", s.handleGetLogin)
+	e.POST("/login", s.handlePostLogin)
 
-	e.GET(SIGNUP_PATH, s.handleGetSignup)
-	e.POST(SIGNUP_PATH, s.handlePostSignup)
-	//e.GET(VERIFY_SIGNUP_PATH, s.handleGetVerifySignup)
+	e.GET("/signup", s.handleGetSignup)
+	e.POST("/signup", s.handlePostSignup)
+	//e.GET("/verify_signup", s.handleGetVerifySignup) // todo
 
-	e.POST(LOGOUT_PATH, s.handlePostLogout)
+	e.POST("/token/logout", s.handlePostLogout) //to be able to access refresh token
 
-	e.GET(RECOVERY_PATH, s.handleGetRecovery)
-	//e.GET(RESET_PASSWORD_PATH, s.handleGetPasswordReset)
-	//e.POST(RESET_PASSWORD_PATH, s.handlePostPasswordReset)
+	e.GET("/recovery", s.handleGetRecovery)
+	// e.GET("/reset_password", s.handleGetPasswordReset) //fixme
+	// e.POST("/reset_password", s.handlePostPasswordReset) //TODO
 
 	// need
-	e.POST(REFRESH_PATH, s.handleTokenRefresh)
-	e.GET(REFRESH_PATH, s.handleTokenRefresh)
+	e.POST("/token/refresh", s.handleTokenRefresh)
+	e.GET("/token/refresh", s.handleTokenRefresh)
 
 	//e.Use(pasetoMiddle())
 	//e.GET(HOME_PATH, s.handleGetHome, pasetoMiddle())
-	e.GET(HOME_SECONDARY_PATH, s.handleGetHome, pasetoMiddle())
+	e.GET("/home", s.handleGetHome, pasetoMiddle())
 
 	e.Logger.Fatal(e.Start(api.apiPath))
 }

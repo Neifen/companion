@@ -268,5 +268,5 @@ func (s *HandlerSession) handlePostSignup(c echo.Context) error {
 
 func (*HandlerSession) redirectToLogin(c echo.Context) error {
 	child := view2.Login()
-	return view2.ReplaceUrl(LOGIN_PATH, c, child)
+	return view2.ReplaceUrl("/login", c, child)
 }

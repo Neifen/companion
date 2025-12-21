@@ -7,14 +7,6 @@ import (
 	"github.com/neifen/htmx-login/app/api/crypto"
 )
 
-const (
-	TEST_USER    string = "nate@test.ch"
-	TEST_PW      string = "pw"
-	TEST_TOKEN   string = "1234"
-	TEST_REFRESH string = "32478"
-	TEST_NAME    string = "nate"
-)
-
 func (s *HandlerSession) Authenticate(email, pw string) *userReq {
 
 	u, err := s.store.Auth.ReadUserByEmail(email)

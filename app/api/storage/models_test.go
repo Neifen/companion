@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/neifen/htmx-login/app/api/crypto"
+	"github.com/neifen/htmx-login/app/api/storage/auth"
 )
 
 func TestNewUserModel(t *testing.T) {
@@ -19,7 +20,7 @@ func TestNewUserModel(t *testing.T) {
 		t.Fatalf("Could not hash pw: %s, error: %v\n", unhashedPw, err)
 	}
 
-	u := NewUserModel(wantName, wantEmail, unhashedPw)
+	u := auth.NewUserModel(wantName, wantEmail, unhashedPw)
 
 	if u.Name != wantName {
 		t.Errorf(`NewUserModel(%q, %q, %q). UserModel.Name should be %q but was %q`, wantName, wantEmail, unhashedPw, wantName, u.Name)
@@ -29,10 +30,10 @@ func TestNewUserModel(t *testing.T) {
 		t.Errorf(`NewUserModel(%q, %q, %q). UserModel.Email should be %q but was %q`, wantName, wantEmail, unhashedPw, wantEmail, u.Email)
 	}
 
-	if u.Uid == "" {
-		t.Errorf(`NewUserModel(%q, %q, %q). UserModel.Uid was empty`, wantName, wantEmail, unhashedPw)
+	if u.UID == "" {
+		t.Errorf(`NewUserModel(%q, %q, %q). UserModel.UID was empty`, wantName, wantEmail, unhashedPw)
 	} else {
-		t.Logf(`Uid successful, was %q`, u.Uid)
+		t.Logf(`UID successful, was %q`, u.UID)
 	}
 
 	if !slices.Equal(u.Pw, hashedPw) {
@@ -50,7 +51,7 @@ func TestNewUserModelEmpty(t *testing.T) {
 		t.Fatalf("Could not hash pw: %s, error: %v\n", unhashedPw, err)
 	}
 
-	u := NewUserModel(wantName, wantEmail, unhashedPw)
+	u := auth.NewUserModel(wantName, wantEmail, unhashedPw)
 
 	if u.Name != wantName {
 		t.Errorf(`NewUserModel(%q, %q, %q). UserModel.Name should be %q but was %q`, wantName, wantEmail, unhashedPw, wantName, u.Name)
@@ -60,10 +61,10 @@ func TestNewUserModelEmpty(t *testing.T) {
 		t.Errorf(`NewUserModel(%q, %q, %q). UserModel.Email should be %q but was %q`, wantName, wantEmail, unhashedPw, wantEmail, u.Email)
 	}
 
-	if u.Uid == "" {
-		t.Errorf(`NewUserModel(%q, %q, %q). UserModel.Uid was empty`, wantName, wantEmail, unhashedPw)
+	if u.UID == "" {
+		t.Errorf(`NewUserModel(%q, %q, %q). UserModel.UID was empty`, wantName, wantEmail, unhashedPw)
 	} else {
-		t.Logf(`Uid successful, was %q`, u.Uid)
+		t.Logf(`UID successful, was %q`, u.UID)
 	}
 
 	if !slices.Equal(u.Pw, hashedPw) {
@@ -72,30 +73,30 @@ func TestNewUserModelEmpty(t *testing.T) {
 }
 
 func TestNewRefreshTokenModel(t *testing.T) {
-	uid := "asdf"
+	UID := "asdf"
 	token := "testToken"
 	exp := time.Now()
 	remember := true
 
-	wantTokenModel := &RefreshTokenModel{UserUid: uid, Token: token, Expiration: exp, Remember: remember}
+	wantTokenModel := &auth.RefreshTokenModel{UserUID: UID, Token: token, Expiration: exp, Remember: remember}
 
-	tokenModel := NewRefreshTokenModel(uid, token, exp, remember)
+	tokenModel := auth.NewRefreshTokenModel(UID, token, exp, remember)
 
 	if !reflect.DeepEqual(tokenModel, wantTokenModel) {
-		t.Errorf(`NewRefreshTokenModel(%q, %q, %q). UserModel.Name should be %+v but was %+v`, uid, token, exp, wantTokenModel, tokenModel)
+		t.Errorf(`auth.NewRefreshTokenModel(%q, %q, %q). UserModel.Name should be %+v but was %+v`, UID, token, exp, wantTokenModel, tokenModel)
 	}
 }
 
 func TestNewRefreshTokenModelEmpty(t *testing.T) {
-	uid := ""
+	UID := ""
 	token := ""
 	exp := time.Now()
 
-	wantTokenModel := &RefreshTokenModel{UserUid: uid, Token: token, Expiration: exp}
+	wantTokenModel := &auth.RefreshTokenModel{UserUID: UID, Token: token, Expiration: exp}
 
-	tokenModel := NewRefreshTokenModel(uid, token, exp, false)
+	tokenModel := auth.NewRefreshTokenModel(UID, token, exp, false)
 
 	if !reflect.DeepEqual(tokenModel, wantTokenModel) {
-		t.Errorf(`NewRefreshTokenModel(%q, %q, %q). UserModel.Name should be %+v but was %+v`, uid, token, exp, wantTokenModel, tokenModel)
+		t.Errorf(`auth.NewRefreshTokenModel(%q, %q, %q). UserModel.Name should be %+v but was %+v`, UID, token, exp, wantTokenModel, tokenModel)
 	}
 }

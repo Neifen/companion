@@ -10,8 +10,7 @@ const (
 )
 
 func (pg *CompanionsStore) ReadChaptersCompanion(planID int64, chapterID int16) (string, error) {
-
-	//todo rows instead of _
+	// todo rows instead of _
 	_, err := pg.db.Query(`
 	    select
 			*
@@ -26,7 +25,6 @@ func (pg *CompanionsStore) ReadChaptersCompanion(planID int64, chapterID int16) 
 			and :chapter <= ci.chapter_end_fk
 			and c.id = ci.companion_fk;
 `, planID)
-
 	if err != nil {
 		return "", errors.Wrapf(err, "ReadChaptersFromPlan(%d) select", planID)
 	}

@@ -1,10 +1,10 @@
-// Package storage deals with everything that has to do with the PostgresDB of this application
 package storage
 
 import (
 	"database/sql"
 	"fmt"
 	"os"
+	"testing"
 
 	"github.com/neifen/htmx-login/app/api/storage/auth"
 	"github.com/neifen/htmx-login/app/api/storage/bible"
@@ -14,21 +14,19 @@ import (
 	"github.com/pkg/errors"
 )
 
-type DB struct {
-	db *sql.DB
+func TestCreateNewDB(t *testing.T) {
+	db, err := newTestDB()
+	if err != nil {
+		t.FailNow()
+	}
 
-	Auth *auth.AuthStore
-
-	Bible      *bible.BibleStore
-	Plans      *plans.PlansStore
-	Tracking   *tracking.TrackingStore
-	Companions *companions.CompanionsStore
+	db.Tracking.CreateTask(0, 0, "2025-12-26 17:53", "2026-12-26 17:54")
 }
 
-func NewDB() (*DB, error) {
+func newTestDB() (*DB, error) {
 	host := os.Getenv("POSTGRES_HOST")
 	port := os.Getenv("POSTGRES_PORT")
-	dbname := os.Getenv("POSTGRES_DB")
+	dbname := "testing"
 	user := os.Getenv("POSTGRES_USER")
 	password := os.Getenv("POSTGRES_PW")
 

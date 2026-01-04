@@ -20,7 +20,6 @@ func (pg *BibleStore) ReadPlanChapter(planID int) ([]*ChapterModel, error) {
 		where p.id = $1
 		order by bp.id;
 `, planID)
-
 	if err != nil {
 		return nil, errors.Wrapf(err, "ReadPlanChapter(%d) select", planID)
 	}
@@ -50,7 +49,7 @@ func (pg *BibleStore) ReadAllChapters() ([]*ChapterModel, error) {
 		return nil, errors.Wrap(err, "ReadAllChapters select")
 	}
 
-	chapters := make([]*ChapterModel, 1189) //1189 chapter in the bible
+	chapters := make([]*ChapterModel, 1189) // 1189 chapter in the bible
 	for i := 0; rows.Next(); i++ {
 		var id int16
 		var bookName string

@@ -2,8 +2,10 @@ package tracking
 
 import "time"
 
+//todo: change TrackerModel to TaskModel
+
 type TrackerModel struct {
-	ID        int64     `sql:"chapter_id"`
+	ID        int64     `sql:"id"`
 	Read      bool      `sql:"read"`
 	ReadBy    time.Time `sql:"read_by_"`
 	BookName  string    `sql:"book_name"`
@@ -13,8 +15,12 @@ type TrackerModel struct {
 	ChapterID int16     `sql:"chapter_id"`
 }
 
+//todo: change fromDate to startDate, and ToDate to EndDate
+//todo: change TrackerSettings to trackerModel
+
 type TrackerSettings struct {
 	ID       int64     `sql:"id"`
-	FromDate time.Time `sql:"from_date"`
-	ToDate   time.Time `sql:"to_date"`
+	UserID   int       `sql:"user_fk"`
+	FromDate time.Time `sql:"start_date"`
+	ToDate   time.Time `sql:"end_date"`
 }

@@ -16,6 +16,7 @@ import (
 
 type DB struct {
 	db *sql.DB
+	//todo use pgx
 
 	Auth *auth.AuthStore
 
@@ -43,7 +44,7 @@ func NewDB() (*DB, error) {
 		return nil, err
 	}
 
-	sqlFiles := []string{"auth.sql", "chapters.sql", "verses.sql", "bible.sql", "plans.sql", "tracking.sql", "companions.sql"}
+	sqlFiles := []string{"auth.sql", "chapters.sql", "verses.sql", "bible.sql", "plans.sql", "tracking.sql", "companions.sql", "data/bible_data.sql", "data/plans_data.sql", "data/companion_data.sql", "test_data/auth_test_data.sql", "test_data/tracking_data.sql"}
 
 	for _, file := range sqlFiles {
 		path := "app/sql/" + file

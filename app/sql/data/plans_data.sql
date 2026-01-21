@@ -23,6 +23,5 @@ WHERE
         WHERE
             id = 1189);
 
-ALTER SEQUENCE plans.bible_plans_id_seq
-    RESTART WITH 1189;
+SELECT setval('plans.bible_plans_id_seq', (SELECT MAX(id) FROM plans.bible_plans));
 

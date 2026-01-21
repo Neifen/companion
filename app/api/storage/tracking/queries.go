@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/pkg/errors"
-
 	_ "github.com/lib/pq"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -171,6 +170,11 @@ func (pg *TrackingStore) CreateTask(userID, planID int, startRaw, endRaw string)
 		return errors.Wrapf(err, "CreateTracker(userID: %d, start: %s, end: %s) ", userID, startRaw, endRaw)
 	}
 	defer tx.Rollback()
+
+	_, err = tx.Exec(`DELETE FROM `+trackersTable+` WHERE user_fk = $1`, userID)
+	if err != nil {
+		return errors.Wrapf(err, "CreateTracker(userID: %d, start: %s, end: %s) could not delete trackers Table", userID, startRaw, endRaw)
+	}
 
 	var utID int64
 	err = tx.QueryRow(`

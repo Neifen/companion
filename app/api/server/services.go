@@ -3,13 +3,14 @@ package server
 import (
 	// "crypto"
 	"bytes"
+	"context"
 
 	"github.com/neifen/htmx-login/app/api/crypto"
 )
 
-func (s *HandlerSession) Authenticate(email, pw string) *userReq {
+func (s *HandlerSession) Authenticate(ctx context.Context, email, pw string) *userReq {
 
-	u, err := s.store.Auth.ReadUserByEmail(email)
+	u, err := s.store.Auth.ReadUserByEmail(ctx, email)
 	if err != nil {
 		return emptyUser()
 	}

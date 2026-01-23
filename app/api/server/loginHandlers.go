@@ -44,7 +44,7 @@ func (s *HandlerSession) handlePostLogin(c echo.Context) error {
 	pw := c.FormValue("password")
 	remember := c.FormValue("remember") == "on"
 
-	userReq := s.Authenticate(email, pw)
+	userReq := s.Authenticate(c.Request().Context(), email, pw)
 	if userReq.isLoggedIn {
 		err := s.createAndHandleTokens(userReq, c, remember)
 
@@ -84,7 +84,7 @@ func (s *HandlerSession) subHandleTokenRefresh(c echo.Context) error {
 
 	token, err := crypto.ValidTokenFromCookies(cookie)
 	if err != nil {
-		err = s.store.Auth.DeleteRefreshTokenByToken(token.Encrypted)
+		err = s.store.Auth.DeleteRefreshTokenByToken(c.Request().Context(), token.Encrypted)
 		if err != nil {
 			fmt.Printf("could not delete refresh token from db %v\n", err)
 		}
@@ -96,19 +96,19 @@ func (s *HandlerSession) subHandleTokenRefresh(c echo.Context) error {
 	fmt.Printf("cookie expires: %v, token expires: %v\n", cookie.Expires, token.Expiration)
 
 	if exp.Before(time.Now()) {
-		err = s.store.Auth.DeleteRefreshTokenByToken(token.Encrypted)
+		err = s.store.Auth.DeleteRefreshTokenByToken(c.Request().Context(), token.Encrypted)
 		if err != nil {
 			fmt.Printf("could not delete refresh token from db %v\n", err)
 		}
 		return fmt.Errorf("refresh token expired")
 	}
 
-	refreshType, err := s.store.Auth.ReadRefreshTokenByToken(token.Encrypted)
+	refreshType, err := s.store.Auth.ReadRefreshTokenByToken(c.Request().Context(), token.Encrypted)
 	if err != nil {
 		return errors.Wrapf(err, "could not load refresh token from db")
 	}
 
-	user, err := s.store.Auth.ReadUserByUID(refreshType.UserUID)
+	user, err := s.store.Auth.ReadUserByUID(c.Request().Context(), refreshType.UserUID)
 	if err != nil {
 		return errors.Wrapf(err, "user invalid")
 	}
@@ -118,7 +118,7 @@ func (s *HandlerSession) subHandleTokenRefresh(c echo.Context) error {
 		return errors.Wrapf(err, "creating new tokens failed")
 	}
 
-	err = s.store.Auth.DeleteRefreshToken(refreshType)
+	err = s.store.Auth.DeleteRefreshToken(c.Request().Context(), refreshType)
 	if err != nil {
 		return errors.Wrapf(err, "could not delete old refresh token")
 	}
@@ -157,7 +157,7 @@ func (s *HandlerSession) createAndHandleTokens(user *userReq, c echo.Context, re
 	}
 
 	refreshModel := auth.NewRefreshTokenModel(uid, refresh.Encrypted, refresh.Expiration, remember)
-	err = s.store.Auth.CreateRefreshToken(refreshModel)
+	err = s.store.Auth.CreateRefreshToken(c.Request().Context(), refreshModel)
 	if err != nil {
 		return errors.Wrap(err, "could not write new refresh token to db")
 	}
@@ -175,7 +175,7 @@ func (s *HandlerSession) handlePostLogout(c echo.Context) error {
 	// delete refresh token from db
 	refresh, err := c.Cookie("refresh")
 	if err == nil && refresh != nil {
-		err = s.store.Auth.DeleteRefreshTokenByToken(refresh.Value)
+		err = s.store.Auth.DeleteRefreshTokenByToken(c.Request().Context(), refresh.Value)
 		if err != nil {
 			fmt.Printf("did not delete refresh token from db: %v\n", err)
 		}
@@ -226,7 +226,7 @@ func (s *HandlerSession) handlePostSignup(c echo.Context) error {
 	name := c.FormValue("name")
 
 	u := auth.NewUserModel(name, email, pw)
-	err := s.store.Auth.CreateUser(u)
+	err := s.store.Auth.CreateUser(c.Request().Context(), u)
 
 	if err != nil {
 		logging.Error(err)

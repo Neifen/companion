@@ -2,10 +2,11 @@
 package storage
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"os"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/neifen/htmx-login/app/api/storage/auth"
 	"github.com/neifen/htmx-login/app/api/storage/bible"
 	"github.com/neifen/htmx-login/app/api/storage/companions"
@@ -15,8 +16,7 @@ import (
 )
 
 type DB struct {
-	db *sql.DB
-	//todo use pgx
+	pgx *pgxpool.Pool
 
 	Auth *auth.AuthStore
 
@@ -35,12 +35,16 @@ func NewDB() (*DB, error) {
 
 	// connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=verify-full", host, port, user, password, dbname)
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-	db, err := sql.Open("postgres", connStr)
+
+	pgx, err := pgxpool.New(context.Background(), connStr)
 	if err != nil {
-		return nil, errors.New("error 130: could not initialize db")
+		return nil, errors.Wrap(err, "Could not initialize pgx")
 	}
 
-	if err := db.Ping(); err != nil {
+	//defering it should only make it call when app shut downs
+	defer pgx.Close()
+
+	if err := pgx.Ping(context.Background()); err != nil {
 		return nil, err
 	}
 
@@ -53,21 +57,20 @@ func NewDB() (*DB, error) {
 			return nil, errors.Wrapf(err, "error reading %s", file)
 		}
 
-		res, err := db.Exec(string(authSQL))
+		res, err := pgx.Exec(context.Background(), string(authSQL))
 		if err != nil {
 			return nil, errors.Wrapf(err, "error initializing %s", file)
 		}
-		aff, _ := res.RowsAffected()
-		affID, _ := res.LastInsertId()
-		fmt.Printf("created %s tables, affected Rows: %v, Last affected Id: %v \n", file, aff, affID)
+		aff := res.RowsAffected()
+		fmt.Printf("created %s tables, affected Rows: %v \n", file, aff)
 	}
 
 	return &DB{
-		db:         db,
-		Auth:       auth.NewAuthStore(db),
-		Bible:      bible.NewBibleStore(db),
-		Plans:      plans.NewPlansStore(db),
-		Tracking:   tracking.NewTrackingStore(db),
-		Companions: companions.NewCompanionsStore(db),
+		pgx:        pgx,
+		Auth:       auth.NewAuthStore(pgx),
+		Bible:      bible.NewBibleStore(pgx),
+		Plans:      plans.NewPlansStore(pgx),
+		Tracking:   tracking.NewTrackingStore(pgx),
+		Companions: companions.NewCompanionsStore(pgx),
 	}, nil
 }

@@ -3,6 +3,8 @@ package services
 
 // here comes the renderer markup -> html (maybe put it in view?)
 import (
+	"context"
+
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
@@ -10,8 +12,8 @@ import (
 	"github.com/neifen/htmx-login/app/api/storage/companions"
 )
 
-func GetCompanion(db *companions.CompanionsStore, planID int64, chapterID int16) {
-	companions, err := db.ReadChaptersCompanion(planID, chapterID)
+func GetCompanion(ctx context.Context, db *companions.CompanionsStore, planID int64, chapterID int16) {
+	companions, err := db.ReadChaptersCompanion(ctx, planID, chapterID)
 	if err != nil {
 		return // todo this should be an error
 	}

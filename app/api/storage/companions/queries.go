@@ -1,6 +1,10 @@
 package companions
 
-import "github.com/pkg/errors"
+import (
+	"context"
+
+	"github.com/pkg/errors"
+)
 
 const (
 	companionsTable      = "companions.companions"
@@ -9,9 +13,9 @@ const (
 	planCompanionsTable  = "companions.plan_companions"
 )
 
-func (pg *CompanionsStore) ReadChaptersCompanion(planID int64, chapterID int16) (string, error) {
+func (pg *CompanionsStore) ReadChaptersCompanion(ctx context.Context, planID int64, chapterID int16) (string, error) {
 	// todo rows instead of _
-	_, err := pg.db.Query(`
+	_, err := pg.db.Query(ctx, `
 	    select
 			*
 		from

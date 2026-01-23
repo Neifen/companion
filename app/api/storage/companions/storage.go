@@ -1,12 +1,14 @@
 // Package companions implements db queries related to the right side of the screen called "companion" with the infos and the images
 package companions
 
-import "database/sql"
+import (
+	"github.com/jackc/pgx/v5/pgxpool"
+)
 
 type CompanionsStore struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
-func NewCompanionsStore(db *sql.DB) *CompanionsStore {
+func NewCompanionsStore(db *pgxpool.Pool) *CompanionsStore {
 	return &CompanionsStore{db}
 }

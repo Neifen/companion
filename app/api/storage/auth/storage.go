@@ -1,12 +1,14 @@
 // Package auth implements all authentication relatied db queries
 package auth
 
-import "database/sql"
+import (
+	"github.com/jackc/pgx/v5/pgxpool"
+)
 
 type AuthStore struct {
-	db *sql.DB
+	db *pgxpool.Pool
 }
 
-func NewAuthStore(db *sql.DB) *AuthStore {
+func NewAuthStore(db *pgxpool.Pool) *AuthStore {
 	return &AuthStore{db}
 }

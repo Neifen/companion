@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"math"
 	"math/rand"
@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
-	"github.com/lib/pq"
 
 	"github.com/neifen/htmx-login/app/api/storage/auth"
 	"github.com/neifen/htmx-login/app/api/storage/bible"
@@ -24,18 +24,15 @@ import (
 )
 
 func clearTrackers(db *DB) error {
-	res, err := db.db.Exec("DELETE FROM tracking.trackers")
+	res, err := db.pgx.Exec(context.Background(), "DELETE FROM tracking.trackers")
 	if err != nil {
 		return errors.Wrap(err, "Could not clean up Trackers table")
 	}
 
-	affected, err := res.RowsAffected()
-	if err != nil {
-		return errors.Wrap(err, "Error getting Rows affected")
-	}
+	affected := res.RowsAffected()
 
 	var count int
-	row := db.db.QueryRow("SELECT count(*) from tracking.tasks")
+	row := db.pgx.QueryRow(context.Background(), "SELECT count(*) from tracking.tasks")
 	row.Scan(&count)
 	if count != 0 {
 		return errors.Errorf("tasks should be emty through delete cascade. Was %d instead", count)
@@ -57,14 +54,14 @@ func TestCreateNewDB(t *testing.T) {
 	}
 
 	userID := 0
-	err = db.Tracking.CreateTask(userID, 0, "2025-12-26", "2026-12-26")
+	err = db.Tracking.CreateTask(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
 	if err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
 	}
 
 	// ----  check tracker -----=
 
-	rows, err := db.db.Query("SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+	rows, err := db.pgx.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
 	if err != nil {
 		t.Fatalf("Error getting Rows from Trackers: %s", err)
 	}
@@ -94,7 +91,7 @@ func TestCreateNewDB(t *testing.T) {
 
 	// ----  check tasks -----=
 
-	rows, err = db.db.Query("SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
+	rows, err = db.pgx.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
 	if err != nil {
 		t.Fatalf("Error getting Rows from Tasks: %s", err)
 	}
@@ -127,7 +124,7 @@ func TestCreateNewDB(t *testing.T) {
 			t.Fatalf("Clearing Trackers failed: %s", err)
 		}
 
-		defer db.db.Close()
+		defer db.pgx.Close()
 	})
 }
 
@@ -142,19 +139,19 @@ func TestCreateNewDBDouble(t *testing.T) {
 	}
 
 	userID := 0
-	err = db.Tracking.CreateTask(userID, 0, "2020-12-26", "2021-12-26")
+	err = db.Tracking.CreateTask(context.Background(), userID, 0, "2020-12-26", "2021-12-26")
 	if err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
 	}
 
-	err = db.Tracking.CreateTask(userID, 0, "2025-12-26", "2026-12-26")
+	err = db.Tracking.CreateTask(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
 	if err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
 	}
 
 	// ----  check tracker -----=
 
-	rows, err := db.db.Query("SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+	rows, err := db.pgx.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
 	if err != nil {
 		t.Fatalf("Error getting Rows from Trackers: %s", err)
 	}
@@ -184,7 +181,7 @@ func TestCreateNewDBDouble(t *testing.T) {
 
 	// ----  check tasks -----=
 
-	rows, err = db.db.Query("SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
+	rows, err = db.pgx.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
 	if err != nil {
 		t.Fatalf("Error getting Rows from Tasks: %s", err)
 	}
@@ -217,7 +214,7 @@ func TestCreateNewDBDouble(t *testing.T) {
 			t.Fatalf("Clearing Trackers failed: %s", err)
 		}
 
-		defer db.db.Close()
+		defer db.pgx.Close()
 	})
 }
 
@@ -234,7 +231,7 @@ func TestCreateNewDBDifferentDays(t *testing.T) {
 
 	userID := 0
 	var planID int
-	err = db.db.QueryRow("select max(id) from plans.plans").Scan(&planID)
+	err = db.pgx.QueryRow(context.Background(), "select max(id) from plans.plans").Scan(&planID)
 	if err != nil {
 		t.Fatalf("Getting max id failed: %s", err)
 	}
@@ -247,14 +244,14 @@ func TestCreateNewDBDifferentDays(t *testing.T) {
 		in100Days := begin.AddDate(0, 0, timeRange)
 		in100DaysString := in100Days.Format("2006-01-02")
 
-		err = db.Tracking.CreateTask(userID, planID, nowString, in100DaysString)
+		err = db.Tracking.CreateTask(context.Background(), userID, planID, nowString, in100DaysString)
 		if err != nil {
 			t.Fatalf("CreateTask failed: %s", err)
 		}
 
 		// ----  check tracker -----=
 
-		rows, err := db.db.Query("SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+		rows, err := db.pgx.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
 		if err != nil {
 			t.Fatalf("Error getting Rows from Trackers: %s", err)
 		}
@@ -283,7 +280,7 @@ func TestCreateNewDBDifferentDays(t *testing.T) {
 		}
 
 		// ----  check tasks -----=
-		rows, err = db.db.Query("SELECT array_agg(id)::varchar, read_by FROM tracking.tasks group by read_by order by read_by")
+		rows, err = db.pgx.Query(context.Background(), "SELECT array_agg(id)::varchar, read_by FROM tracking.tasks group by read_by order by read_by")
 		if err != nil {
 			t.Fatalf("Error getting Rows from Tasks: %s", err)
 		}
@@ -308,7 +305,7 @@ func TestCreateNewDBDifferentDays(t *testing.T) {
 			t.Fatalf("Clearing Trackers failed: %s", err)
 		}
 
-		defer db.db.Close()
+		defer db.pgx.Close()
 	})
 }
 
@@ -344,12 +341,12 @@ func loadEnv() error {
 	return nil
 }
 
-func insertSplitVersesPlan(db *sql.DB) error {
-	tx, err := db.Begin()
+func insertSplitVersesPlan(db *pgxpool.Pool) error {
+	tx, err := db.Begin(context.Background())
 	if err != nil {
 		return errors.Wrap(err, "first insert")
 	}
-	_, err = tx.Exec(`INSERT INTO plans.plans( name, plan_desc)
+	_, err = tx.Exec(context.Background(), `INSERT INTO plans.plans( name, plan_desc)
     VALUES ('split chapters', 'This is like the plan that is shown by default but with long chapters split. Is just a canonical plan')
 ON CONFLICT
     DO NOTHING;`)
@@ -357,21 +354,21 @@ ON CONFLICT
 		return errors.Wrap(err, "first insert")
 	}
 
-	row := tx.QueryRow("select max(id) from plans.plans")
+	row := tx.QueryRow(context.Background(), "select max(id) from plans.plans")
 	var plansID int32
 	err = row.Scan(&plansID)
 	if err != nil {
 		return errors.Wrap(err, "query plans ID")
 	}
 
-	row = tx.QueryRow("select avg(chapter_word_count) from static.chapters")
+	row = tx.QueryRow(context.Background(), "select avg(chapter_word_count) from static.chapters")
 	var avg float32
 	err = row.Scan(&avg)
 	if err != nil {
 		return errors.Wrap(err, "query avg")
 	}
 
-	rows, err := tx.Query(`    
+	rows, err := tx.Query(context.Background(), `    
 	select
 		c.id,
 		c.chapter_word_count as length,
@@ -397,13 +394,11 @@ ON CONFLICT
 	}
 
 	type chapter struct {
-		ID             int
-		length         int
-		bookName       string
-		verseIDSPq     pq.Int32Array
-		verseLenghtsPq pq.Int32Array
-		verseIDS       []int32
-		verseLenghts   []int32
+		ID           int
+		length       int
+		bookName     string
+		verseIDS     []int32
+		verseLenghts []int32
 
 		verseStart int
 		verseStop  int
@@ -412,9 +407,7 @@ ON CONFLICT
 
 	for rows.Next() {
 		var chapter chapter
-		rows.Scan(&chapter.ID, &chapter.length, &chapter.bookName, &chapter.verseIDSPq, &chapter.verseLenghtsPq, &chapter.verseStart, &chapter.verseStop)
-		chapter.verseIDS = []int32(chapter.verseIDSPq)
-		chapter.verseLenghts = []int32(chapter.verseLenghtsPq)
+		rows.Scan(&chapter.ID, &chapter.length, &chapter.bookName, &chapter.verseIDS, &chapter.verseLenghts, &chapter.verseStart, &chapter.verseStop)
 		chapters = append(chapters, chapter)
 	}
 
@@ -460,11 +453,11 @@ ON CONFLICT
 			for insertIter, ids := range versesIDS {
 				sum += versesLengths[insertIter]
 
-				_, err = tx.Exec(`
+				_, err = tx.Exec(context.Background(), `
 			Insert into plans.bible_plans 
 				(plan_fk, chapter_fk, length, running_length, verse_fks, verses) 
 			values ($1, $2, $3, $4, $5, $6)
-			`, plansID, chapter.ID, versesLengths[insertIter], sum, pq.Array(ids), versesDesc[insertIter])
+			`, plansID, chapter.ID, versesLengths[insertIter], sum, ids, versesDesc[insertIter])
 				if err != nil {
 					return errors.Wrap(err, "insert plans.bible_plans")
 				}
@@ -473,7 +466,7 @@ ON CONFLICT
 		} else {
 			sum += int32(chapter.length)
 
-			_, err = tx.Exec(`
+			_, err = tx.Exec(context.Background(), `
 			Insert into plans.bible_plans 
 				(plan_fk, chapter_fk, length, running_length) 
 			values ($1, $2, $3, $4)
@@ -485,7 +478,7 @@ ON CONFLICT
 
 	}
 
-	err = tx.Commit()
+	err = tx.Commit(context.Background())
 	if err != nil {
 		return errors.Wrap(err, "commit")
 	}
@@ -508,38 +501,34 @@ func newTestDB() (*DB, error) {
 
 	// connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=verify-full", host, port, user, password, dbname)
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-	db, err := sql.Open("postgres", connStr)
+	pgx, err := pgxpool.New(context.Background(), connStr)
 	if err != nil {
-		return nil, errors.New("error 130: could not initialize db")
-	}
-
-	if err := db.Ping(); err != nil {
-		return nil, errors.Wrapf(err, "couldnt ping with host %s:%s and user %s", host, port, user)
+		return nil, errors.New("error 131: could not initialize pgx")
 	}
 
 	sqlFiles := []string{"auth.sql", "chapters.sql", "verses.sql", "bible.sql", "plans.sql", "tracking.sql", "companions.sql", "data/bible_data.sql", "data/plans_data.sql", "data/companion_data.sql", "test_data/auth_test_data.sql"}
 
-	err = execScripts(db, sqlFiles)
+	err = execScripts(pgx, sqlFiles)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldnt exec script")
 	}
 
-	err = insertSplitVersesPlan(db)
+	err = insertSplitVersesPlan(pgx)
 	if err != nil {
 		return nil, errors.Wrap(err, "couldnt write split verses")
 	}
 
 	return &DB{
-		db:         db,
-		Auth:       auth.NewAuthStore(db),
-		Bible:      bible.NewBibleStore(db),
-		Plans:      plans.NewPlansStore(db),
-		Tracking:   tracking.NewTrackingStore(db),
-		Companions: companions.NewCompanionsStore(db),
+		pgx:        pgx,
+		Auth:       auth.NewAuthStore(pgx),
+		Bible:      bible.NewBibleStore(pgx),
+		Plans:      plans.NewPlansStore(pgx),
+		Tracking:   tracking.NewTrackingStore(pgx),
+		Companions: companions.NewCompanionsStore(pgx),
 	}, nil
 }
 
-func execScripts(db *sql.DB, sqlFiles []string) error {
+func execScripts(db *pgxpool.Pool, sqlFiles []string) error {
 	for _, file := range sqlFiles {
 		path := getRelativePath("app/sql/" + file)
 		authSQL, err := os.ReadFile(path)
@@ -547,13 +536,12 @@ func execScripts(db *sql.DB, sqlFiles []string) error {
 			return errors.Wrapf(err, "error reading %s", file)
 		}
 
-		res, err := db.Exec(string(authSQL))
+		res, err := db.Exec(context.Background(), string(authSQL))
 		if err != nil {
 			return errors.Wrapf(err, "error initializing %s", file)
 		}
-		aff, _ := res.RowsAffected()
-		affID, _ := res.LastInsertId()
-		fmt.Printf("created %s tables, affected Rows: %v, Last affected Id: %v \n", file, aff, affID)
+		aff := res.RowsAffected()
+		fmt.Printf("created %s tables, affected Rows: %v \n", file, aff)
 	}
 
 	return nil

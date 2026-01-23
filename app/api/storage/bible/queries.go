@@ -1,9 +1,9 @@
 package bible
 
 import (
-	"github.com/pkg/errors"
+	"context"
 
-	_ "github.com/lib/pq"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -12,8 +12,8 @@ const (
 	chaptersTable   = "static.chapters"
 )
 
-func (pg *BibleStore) ReadPlanChapter(planID int) ([]*ChapterModel, error) {
-	rows, err := pg.db.Query(`
+func (pg *BibleStore) ReadPlanChapter(ctx context.Context, planID int) ([]*ChapterModel, error) {
+	rows, err := pg.db.Query(ctx, `
 		select c.id, c.book_name, c.book_id, c.chapter_nr, c.chapter_word_count from `+plansTable+` p 
 		join `+biblePlansTable+` bp on bp.plan_fk = p.id
 		join `+chaptersTable+` c on bp.chapter_fk = c.id
@@ -43,8 +43,8 @@ func (pg *BibleStore) ReadPlanChapter(planID int) ([]*ChapterModel, error) {
 	return chapters, nil
 }
 
-func (pg *BibleStore) ReadAllChapters() ([]*ChapterModel, error) {
-	rows, err := pg.db.Query("SELECT id, book_name, book_id, chapter_nr, chapter_word_count FROM " + chaptersTable + " order by id")
+func (pg *BibleStore) ReadAllChapters(ctx context.Context) ([]*ChapterModel, error) {
+	rows, err := pg.db.Query(ctx, "SELECT id, book_name, book_id, chapter_nr, chapter_word_count FROM "+chaptersTable+" order by id")
 	if err != nil {
 		return nil, errors.Wrap(err, "ReadAllChapters select")
 	}

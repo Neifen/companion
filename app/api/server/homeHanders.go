@@ -232,7 +232,7 @@ func (s *HandlerSession) handleJoinPlan(c echo.Context) error {
 		return view.ErrorHTML(c, "Issue creating new Plan")
 	}
 
-	err = s.store.Tracking.CreateTask(c.Request().Context(), u.id, planID, startRaw, endRaw)
+	err = s.services.CreateTracker(c.Request().Context(), u.id, planID, startRaw, endRaw)
 	if err != nil {
 		fmt.Println("Could not create tracker: ", err)
 		return view.ErrorHTML(c, "Issue creating new Plan")

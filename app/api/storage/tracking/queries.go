@@ -150,42 +150,30 @@ func (pg *TrackingStore) DeleteTask(ctx context.Context, trackerID int64) error 
 	return nil
 }
 
-func (pg *TrackingStore) CreateTask(ctx context.Context, userID, planID int, startRaw, endRaw string) error {
-	start, err := time.Parse("2006-01-02", startRaw)
+func (pg *TrackingStore) DeleteTracker(ctx context.Context, userID int) error {
+	_, err := pg.db.Exec(ctx, `DELETE FROM `+trackersTable+` WHERE user_fk = $1`, userID)
 	if err != nil {
-		return errors.Wrapf(err, "createTracker(%d) could not transform start to date", userID)
+		return errors.Wrapf(err, "Could not delete trackers Table for userID %d", userID)
 	}
 
-	end, err := time.Parse("2006-01-02", endRaw)
-	if err != nil {
-		return errors.Wrapf(err, "createTracker(%d) could not transform end to date", userID)
-	}
+	return nil
+}
 
-	if i := end.Compare(start); i <= 0 {
-		return fmt.Errorf("CreateTracker(%d): start: %s needs to be before end: %s", userID, startRaw, endRaw)
-	}
-
-	tx, err := pg.db.Begin(ctx)
-	if err != nil {
-		return errors.Wrapf(err, "CreateTracker(userID: %d, start: %s, end: %s) ", userID, startRaw, endRaw)
-	}
-	defer tx.Rollback(ctx)
-
-	_, err = tx.Exec(ctx, `DELETE FROM `+trackersTable+` WHERE user_fk = $1`, userID)
-	if err != nil {
-		return errors.Wrapf(err, "CreateTracker(userID: %d, start: %s, end: %s) could not delete trackers Table", userID, startRaw, endRaw)
-	}
-
+func (pg *TrackingStore) CreateTracker(ctx context.Context, userID int, start, end string) (int64, error) {
 	var utID int64
-	err = tx.QueryRow(ctx, `
+	err := pg.db.QueryRow(ctx, `
 	INSERT INTO `+trackersTable+` (user_fk, start_date, end_date)
 	VALUES ($1, $2, $3)
 	RETURNING id`, userID, start, end).Scan(&utID)
 	if err != nil {
-		return errors.Wrapf(err, "CreateTracker(userID: %d, planID: %d, start: %s, end: %s) ", userID, planID, startRaw, endRaw)
+		return -1, errors.Wrapf(err, "Could not create tracker(userID: %d, start: %s, end: %s) ", userID, start, end)
 	}
 
-	res, err := tx.Exec(ctx, `
+	return utID, nil
+}
+
+func (pg *TrackingStore) CreateTasks(ctx context.Context, trackerID int64, planID int, start, end string) error {
+	res, err := pg.db.Exec(ctx, `
 		insert into `+tasksTable+` (tracker_fk, bible_plan_fk, read_by) 
 		select $1 as tracker_fk, pb.id as bible_plan_fk, 
 		       to_date($3, 'YYYY-MM-DD') + interval '1' day * (
@@ -198,21 +186,15 @@ func (pg *TrackingStore) CreateTask(ctx context.Context, userID, planID int, sta
 		       from `+biblePlansTable+` pb
 			   join `+plansTable+` pl on pl.id = pb.plan_fk
 				where pb.plan_fk = $2
-	`, utID, planID, startRaw, endRaw)
+	`, trackerID, planID, start, end)
 	if err != nil {
-		return errors.Wrapf(err, "CreateTracker(userID: %d, planID: %d, start: %s, end: %s) ", userID, planID, startRaw, endRaw)
+		return errors.Wrapf(err, "Could not create task (trackerID: %d, planID: %d, start: %s, end: %s)", trackerID, planID, start, end)
 	}
 
 	rows := res.RowsAffected()
 	if rows < 1 {
-		return fmt.Errorf("CreateTracker(%d): start: %s end: %s, could not insert any task rows", userID, startRaw, endRaw)
+		return errors.Errorf("Could not create task, no rows affected (trackerID: %d, planID: %d, start: %s, end: %s)", trackerID, planID, start, end)
 	}
-
-	err = tx.Commit(ctx)
-	if err != nil {
-		return errors.Wrapf(err, "CreateTracker(userID: %d, planID: %d, start: %s, end: %s) ", userID, planID, startRaw, endRaw)
-	}
-
 	return nil
 }
 

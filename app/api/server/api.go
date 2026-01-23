@@ -6,15 +6,17 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/neifen/htmx-login/app/api/services"
 	"github.com/neifen/htmx-login/app/api/storage"
 )
 
 type APIServer struct {
-	apiPath string
-	store   *storage.DB
+	apiPath  string
+	store    *storage.Storage
+	services *services.Services
 }
 
-func NewAPIHandler(path string, s *storage.DB) *APIServer {
+func NewAPIHandler(path string, s *storage.Storage, serv *services.Services) *APIServer {
 	return &APIServer{apiPath: path, store: s}
 }
 
@@ -24,7 +26,7 @@ func (api *APIServer) Run() {
 	e.Use(middleware.Logger())
 	e.Static("/static", "app/assets")
 
-	s := NewHanderSession(api.store)
+	s := NewHanderSession(api.store, api.services)
 
 	// home
 	e.GET("/", s.handleGetHome, pasetoMiddleOpt())

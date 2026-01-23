@@ -12,17 +12,20 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/neifen/htmx-login/app/api/crypto"
 	"github.com/neifen/htmx-login/app/api/logging"
+	"github.com/neifen/htmx-login/app/api/services"
 	"github.com/neifen/htmx-login/app/api/storage"
 	"github.com/neifen/htmx-login/app/api/storage/auth"
 )
 
 type HandlerSession struct {
-	store *storage.DB //interfaces are already pointers?
+	store    *storage.Storage
+	services *services.Services
 }
 
-func NewHanderSession(store *storage.DB) *HandlerSession {
+func NewHanderSession(store *storage.Storage, services *services.Services) *HandlerSession {
 	return &HandlerSession{
-		store: store,
+		store:    store,
+		services: services,
 	}
 }
 

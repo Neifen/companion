@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/neifen/htmx-login/app/api/storage/auth"
 	"github.com/neifen/htmx-login/app/api/storage/bible"
@@ -15,8 +17,60 @@ import (
 	"github.com/pkg/errors"
 )
 
-type DB struct {
+type DB interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+func (s *Storage) CreateTX(ctx context.Context) error {
+	tx, err := s.pgx.Begin(ctx)
+
+	if err != nil {
+		return errors.Wrapf(err, "Creeating Transaction")
+	}
+	s.db = tx
+	s.tx = tx
+
+	return nil
+}
+
+func (s *Storage) RollbackTX(ctx context.Context) error {
+	if s.tx == nil {
+		return nil
+	}
+
+	err := s.tx.Rollback(ctx)
+	if err != nil {
+		return errors.Wrap(err, "Rolling back tx didn't work out")
+	}
+
+	s.db = s.pgx
+	return nil
+}
+
+func (s *Storage) CommitTX(ctx context.Context) error {
+	if s.tx == nil {
+		return errors.New("No tx started")
+	}
+
+	err := s.tx.Commit(ctx)
+	if err != nil {
+		return errors.Wrap(err, "Commiting tx didn't work out")
+	}
+
+	s.db = s.pgx
+	return nil
+}
+
+func (s *Storage) Close() {
+	s.pgx.Close()
+}
+
+type Storage struct {
 	pgx *pgxpool.Pool
+	tx  pgx.Tx
+	db  DB
 
 	Auth *auth.AuthStore
 
@@ -26,7 +80,7 @@ type DB struct {
 	Companions *companions.CompanionsStore
 }
 
-func NewDB() (*DB, error) {
+func NewDB() (*Storage, *pgxpool.Pool, error) {
 	host := os.Getenv("POSTGRES_HOST")
 	port := os.Getenv("POSTGRES_PORT")
 	dbname := os.Getenv("POSTGRES_DB")
@@ -38,15 +92,25 @@ func NewDB() (*DB, error) {
 
 	pgx, err := pgxpool.New(context.Background(), connStr)
 	if err != nil {
-		return nil, errors.Wrap(err, "Could not initialize pgx")
+		return nil, nil, errors.Wrap(err, "Could not initialize pgx")
 	}
-
-	//defering it should only make it call when app shut downs
-	defer pgx.Close()
 
 	if err := pgx.Ping(context.Background()); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+
+	return &Storage{
+		pgx:        pgx,
+		db:         pgx,
+		Auth:       auth.NewAuthStore(pgx),
+		Bible:      bible.NewBibleStore(pgx),
+		Plans:      plans.NewPlansStore(pgx),
+		Tracking:   tracking.NewTrackingStore(pgx),
+		Companions: companions.NewCompanionsStore(pgx),
+	}, pgx, nil
+}
+
+func (s *Storage) InitDB() error {
 
 	sqlFiles := []string{"auth.sql", "chapters.sql", "verses.sql", "bible.sql", "plans.sql", "tracking.sql", "companions.sql", "data/bible_data.sql", "data/plans_data.sql", "data/companion_data.sql", "test_data/auth_test_data.sql", "test_data/tracking_data.sql"}
 
@@ -54,23 +118,16 @@ func NewDB() (*DB, error) {
 		path := "app/sql/" + file
 		authSQL, err := os.ReadFile(path)
 		if err != nil {
-			return nil, errors.Wrapf(err, "error reading %s", file)
+			return errors.Wrapf(err, "error reading %s", file)
 		}
 
-		res, err := pgx.Exec(context.Background(), string(authSQL))
+		res, err := s.pgx.Exec(context.Background(), string(authSQL))
 		if err != nil {
-			return nil, errors.Wrapf(err, "error initializing %s", file)
+			return errors.Wrapf(err, "error initializing %s", file)
 		}
 		aff := res.RowsAffected()
 		fmt.Printf("created %s tables, affected Rows: %v \n", file, aff)
 	}
 
-	return &DB{
-		pgx:        pgx,
-		Auth:       auth.NewAuthStore(pgx),
-		Bible:      bible.NewBibleStore(pgx),
-		Plans:      plans.NewPlansStore(pgx),
-		Tracking:   tracking.NewTrackingStore(pgx),
-		Companions: companions.NewCompanionsStore(pgx),
-	}, nil
+	return nil
 }

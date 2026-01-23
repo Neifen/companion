@@ -6,6 +6,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/neifen/htmx-login/app/api/server"
+	"github.com/neifen/htmx-login/app/api/services"
 	"github.com/neifen/htmx-login/app/api/storage"
 )
 
@@ -16,13 +17,22 @@ func main() {
 		log.Fatal(err)
 	}
 
-	store, err := storage.NewDB()
+	store, _, err := storage.NewDB()
+	if err != nil {
+		// need to be able to set up db, otherwise fail
+		log.Fatal(err)
+	}
+	defer store.Close()
+
+	err = store.InitDB()
 	if err != nil {
 		// need to be able to set up db, otherwise fail
 		log.Fatal(err)
 	}
 
-	api := server.NewAPIHandler(":1323", store)
+	services := services.NewServices(store)
+
+	api := server.NewAPIHandler(":1323", store, services)
 	api.Run()
 }
 

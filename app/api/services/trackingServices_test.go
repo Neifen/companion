@@ -1,4 +1,4 @@
-package storage
+package services_test
 
 import (
 	"context"
@@ -15,16 +15,14 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 
-	"github.com/neifen/htmx-login/app/api/storage/auth"
-	"github.com/neifen/htmx-login/app/api/storage/bible"
-	"github.com/neifen/htmx-login/app/api/storage/companions"
-	"github.com/neifen/htmx-login/app/api/storage/plans"
+	"github.com/neifen/htmx-login/app/api/services"
+	"github.com/neifen/htmx-login/app/api/storage"
 	"github.com/neifen/htmx-login/app/api/storage/tracking"
 	"github.com/pkg/errors"
 )
 
-func clearTrackers(db *DB) error {
-	res, err := db.pgx.Exec(context.Background(), "DELETE FROM tracking.trackers")
+func clearTrackers(db storage.DB) error {
+	res, err := db.Exec(context.Background(), "DELETE FROM tracking.trackers")
 	if err != nil {
 		return errors.Wrap(err, "Could not clean up Trackers table")
 	}
@@ -32,7 +30,7 @@ func clearTrackers(db *DB) error {
 	affected := res.RowsAffected()
 
 	var count int
-	row := db.pgx.QueryRow(context.Background(), "SELECT count(*) from tracking.tasks")
+	row := db.QueryRow(context.Background(), "SELECT count(*) from tracking.tasks")
 	row.Scan(&count)
 	if count != 0 {
 		return errors.Errorf("tasks should be emty through delete cascade. Was %d instead", count)
@@ -43,7 +41,7 @@ func clearTrackers(db *DB) error {
 }
 
 func TestCreateNewDB(t *testing.T) {
-	db, err := newTestDB()
+	serv, db, err := newTestService()
 	if err != nil {
 		t.Fatalf("Could not Set up db: %s", err)
 	}
@@ -54,14 +52,14 @@ func TestCreateNewDB(t *testing.T) {
 	}
 
 	userID := 0
-	err = db.Tracking.CreateTask(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
+	err = serv.CreateTracker(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
 	if err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
 	}
 
 	// ----  check tracker -----=
 
-	rows, err := db.pgx.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+	rows, err := db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
 	if err != nil {
 		t.Fatalf("Error getting Rows from Trackers: %s", err)
 	}
@@ -91,7 +89,7 @@ func TestCreateNewDB(t *testing.T) {
 
 	// ----  check tasks -----=
 
-	rows, err = db.pgx.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
+	rows, err = db.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
 	if err != nil {
 		t.Fatalf("Error getting Rows from Tasks: %s", err)
 	}
@@ -123,13 +121,12 @@ func TestCreateNewDB(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Clearing Trackers failed: %s", err)
 		}
-
-		defer db.pgx.Close()
+		defer serv.Close()
 	})
 }
 
 func TestCreateNewDBDouble(t *testing.T) {
-	db, err := newTestDB()
+	serv, db, err := newTestService()
 	if err != nil {
 		t.Fatalf("Could not Set up db: %s", err)
 	}
@@ -139,19 +136,19 @@ func TestCreateNewDBDouble(t *testing.T) {
 	}
 
 	userID := 0
-	err = db.Tracking.CreateTask(context.Background(), userID, 0, "2020-12-26", "2021-12-26")
+	err = serv.CreateTracker(context.Background(), userID, 0, "2020-12-26", "2021-12-26")
 	if err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
 	}
 
-	err = db.Tracking.CreateTask(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
+	err = serv.CreateTracker(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
 	if err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
 	}
 
 	// ----  check tracker -----=
 
-	rows, err := db.pgx.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+	rows, err := db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
 	if err != nil {
 		t.Fatalf("Error getting Rows from Trackers: %s", err)
 	}
@@ -181,7 +178,7 @@ func TestCreateNewDBDouble(t *testing.T) {
 
 	// ----  check tasks -----=
 
-	rows, err = db.pgx.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
+	rows, err = db.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
 	if err != nil {
 		t.Fatalf("Error getting Rows from Tasks: %s", err)
 	}
@@ -214,12 +211,12 @@ func TestCreateNewDBDouble(t *testing.T) {
 			t.Fatalf("Clearing Trackers failed: %s", err)
 		}
 
-		defer db.pgx.Close()
+		defer serv.Close()
 	})
 }
 
 func TestCreateNewDBDifferentDays(t *testing.T) {
-	db, err := newTestDB()
+	serv, db, err := newTestService()
 	if err != nil {
 		t.Fatalf("Could not Set up db: %s", err)
 	}
@@ -231,7 +228,7 @@ func TestCreateNewDBDifferentDays(t *testing.T) {
 
 	userID := 0
 	var planID int
-	err = db.pgx.QueryRow(context.Background(), "select max(id) from plans.plans").Scan(&planID)
+	err = db.QueryRow(context.Background(), "select max(id) from plans.plans").Scan(&planID)
 	if err != nil {
 		t.Fatalf("Getting max id failed: %s", err)
 	}
@@ -244,14 +241,14 @@ func TestCreateNewDBDifferentDays(t *testing.T) {
 		in100Days := begin.AddDate(0, 0, timeRange)
 		in100DaysString := in100Days.Format("2006-01-02")
 
-		err = db.Tracking.CreateTask(context.Background(), userID, planID, nowString, in100DaysString)
+		err = serv.CreateTracker(context.Background(), userID, planID, nowString, in100DaysString)
 		if err != nil {
 			t.Fatalf("CreateTask failed: %s", err)
 		}
 
 		// ----  check tracker -----=
 
-		rows, err := db.pgx.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+		rows, err := db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
 		if err != nil {
 			t.Fatalf("Error getting Rows from Trackers: %s", err)
 		}
@@ -280,7 +277,7 @@ func TestCreateNewDBDifferentDays(t *testing.T) {
 		}
 
 		// ----  check tasks -----=
-		rows, err = db.pgx.Query(context.Background(), "SELECT array_agg(id)::varchar, read_by FROM tracking.tasks group by read_by order by read_by")
+		rows, err = db.Query(context.Background(), "SELECT array_agg(id)::varchar, read_by FROM tracking.tasks group by read_by order by read_by")
 		if err != nil {
 			t.Fatalf("Error getting Rows from Tasks: %s", err)
 		}
@@ -305,7 +302,7 @@ func TestCreateNewDBDifferentDays(t *testing.T) {
 			t.Fatalf("Clearing Trackers failed: %s", err)
 		}
 
-		defer db.pgx.Close()
+		defer serv.Close()
 	})
 }
 
@@ -316,7 +313,7 @@ func TestCreateNewDBDifferentDays(t *testing.T) {
 // 		log.Fatal(err)
 // 		os.Exit(1)
 // 	}
-// 	defer db.db.Close()
+// 	deferdb.db.Close()
 
 // 	exitCode := m.Run()
 // 	os.Exit(exitCode)
@@ -486,46 +483,31 @@ ON CONFLICT
 
 }
 
-func newTestDB() (*DB, error) {
-
+func newTestService() (*services.Services, storage.DB, error) {
 	err := loadEnv()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	host := os.Getenv("POSTGRES_HOST")
-	port := os.Getenv("POSTGRES_PORT")
-	dbname := "testing"
-	user := os.Getenv("POSTGRES_USER")
-	password := os.Getenv("POSTGRES_PW")
-
-	// connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=verify-full", host, port, user, password, dbname)
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable", host, port, user, password, dbname)
-	pgx, err := pgxpool.New(context.Background(), connStr)
+	os.Setenv("POSTGRES_DB", "testing")
+	store, db, err := storage.NewDB()
 	if err != nil {
-		return nil, errors.New("error 131: could not initialize pgx")
+		return nil, nil, errors.Wrap(err, "couldnt create new db")
 	}
 
 	sqlFiles := []string{"auth.sql", "chapters.sql", "verses.sql", "bible.sql", "plans.sql", "tracking.sql", "companions.sql", "data/bible_data.sql", "data/plans_data.sql", "data/companion_data.sql", "test_data/auth_test_data.sql"}
 
-	err = execScripts(pgx, sqlFiles)
+	err = execScripts(db, sqlFiles)
 	if err != nil {
-		return nil, errors.Wrap(err, "couldnt exec script")
+		return nil, nil, errors.Wrap(err, "couldnt exec script")
 	}
 
-	err = insertSplitVersesPlan(pgx)
+	err = insertSplitVersesPlan(db)
 	if err != nil {
-		return nil, errors.Wrap(err, "couldnt write split verses")
+		return nil, nil, errors.Wrap(err, "couldnt write split verses")
 	}
 
-	return &DB{
-		pgx:        pgx,
-		Auth:       auth.NewAuthStore(pgx),
-		Bible:      bible.NewBibleStore(pgx),
-		Plans:      plans.NewPlansStore(pgx),
-		Tracking:   tracking.NewTrackingStore(pgx),
-		Companions: companions.NewCompanionsStore(pgx),
-	}, nil
+	return services.NewServices(store), db, nil
 }
 
 func execScripts(db *pgxpool.Pool, sqlFiles []string) error {

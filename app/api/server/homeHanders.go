@@ -136,7 +136,7 @@ func (s *HandlerSession) handlePlanSettings(c echo.Context) error {
 		return view.ErrorHTML(c, err.Error())
 	}
 
-	viewSettings := entities.NewViewSettings(settings.FromDate, settings.ToDate)
+	viewSettings := entities.NewViewSettings(settings.StartDate, settings.EndDate)
 	return view.PlanSettingsHMTL(c, viewSettings)
 }
 
@@ -325,15 +325,15 @@ func (s *HandlerSession) moveStart(c echo.Context) error {
 		return view.ErrorHTML(c, "Something went wrong, contact admin")
 	}
 
-	if !moveEnd && settings.ToDate.Compare(start) <= 0 {
-		errstr := fmt.Sprintf("Start date (%s) needs to be before end date (%s)", start.Format("2006-01-02"), settings.ToDate.Format("2006-01-02"))
+	if !moveEnd && settings.EndDate.Compare(start) <= 0 {
+		errstr := fmt.Sprintf("Start date (%s) needs to be before end date (%s)", start.Format("2006-01-02"), settings.EndDate.Format("2006-01-02"))
 		fmt.Println(errstr)
 		return view.ErrorHTML(c, errstr)
 	}
 
 	if moveEnd {
-		diff := start.Sub(settings.FromDate)
-		err = s.store.Tracking.MoveTaskDays(c.Request().Context(), u.id, int(diff.Hours())/24)
+		diff := start.Sub(settings.StartDate)
+		err = s.services.MoveTrackerDays(c.Request().Context(), u.id, int(diff.Hours())/24)
 		if err != nil {
 			fmt.Println(err)
 			return view.ErrorHTML(c, "Something went wrong, contact admin")
@@ -343,7 +343,7 @@ func (s *HandlerSession) moveStart(c echo.Context) error {
 		c.Response().Header().Add("HX-Reswap", "innerHTML")
 		return s.viewHome(c, u)
 	} else {
-		err = s.store.Tracking.MoveTaskStartDate(c.Request().Context(), u.id, startRaw)
+		err = s.services.MoveTracker(c.Request().Context(), u.id, startRaw, "")
 		if err != nil {
 			fmt.Println(err)
 			return view.ErrorHTML(c, "Something went wrong, contact admin")
@@ -376,7 +376,7 @@ func (s *HandlerSession) moveEnd(c echo.Context) error {
 			return view.ErrorHTML(c, "Something went wrong, contact admin")
 		}
 
-		start = settings.FromDate
+		start = settings.StartDate
 	}
 
 	end, err := time.Parse("2006-01-02", endRaw)
@@ -393,7 +393,7 @@ func (s *HandlerSession) moveEnd(c echo.Context) error {
 	}
 
 	if resetStart {
-		err = s.store.Tracking.MoveTaskDates(c.Request().Context(), u.id, startRaw, endRaw)
+		err = s.services.MoveTracker(c.Request().Context(), u.id, startRaw, endRaw)
 		if err != nil {
 			fmt.Println(err)
 			return view.ErrorHTML(c, "Something went wrong, contact admin")
@@ -402,7 +402,7 @@ func (s *HandlerSession) moveEnd(c echo.Context) error {
 		c.Response().Header().Add("HX-Reswap", "innerHTML")
 		return s.viewHome(c, u)
 	} else {
-		err = s.store.Tracking.MoveTaskEndDate(c.Request().Context(), u.id, endRaw)
+		err = s.services.MoveTracker(c.Request().Context(), u.id, "", endRaw)
 		if err != nil {
 			fmt.Println(err)
 			return view.ErrorHTML(c, "Something went wrong, contact admin")

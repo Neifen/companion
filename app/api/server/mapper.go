@@ -34,7 +34,7 @@ func chapterModelToEntity(model []*bible.ChapterModel) *entities.TrackedBible {
 	return trackedBible
 }
 
-func trackerModelToEntity(model []*tracking.TrackerModel, hasMore bool) *entities.TrackedBible {
+func trackerModelToEntity(model []*tracking.TaskModel, hasMore bool) *entities.TrackedBible {
 	trackedBible := entities.NewTrackedBible(hasMore)
 
 	today := time.Now().Format("January 2, 2006")

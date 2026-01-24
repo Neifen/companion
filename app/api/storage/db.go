@@ -7,21 +7,15 @@ import (
 	"os"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/neifen/htmx-login/app/api/storage/auth"
 	"github.com/neifen/htmx-login/app/api/storage/bible"
 	"github.com/neifen/htmx-login/app/api/storage/companions"
+	"github.com/neifen/htmx-login/app/api/storage/db"
 	"github.com/neifen/htmx-login/app/api/storage/plans"
 	"github.com/neifen/htmx-login/app/api/storage/tracking"
 	"github.com/pkg/errors"
 )
-
-type DB interface {
-	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
-	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
-	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
-}
 
 func (s *Storage) CreateTX(ctx context.Context) error {
 	tx, err := s.pgx.Begin(ctx)
@@ -70,7 +64,7 @@ func (s *Storage) Close() {
 type Storage struct {
 	pgx *pgxpool.Pool
 	tx  pgx.Tx
-	db  DB
+	db  db.DB
 
 	Auth *auth.AuthStore
 

@@ -17,11 +17,12 @@ import (
 
 	"github.com/neifen/htmx-login/app/api/services"
 	"github.com/neifen/htmx-login/app/api/storage"
+	"github.com/neifen/htmx-login/app/api/storage/db"
 	"github.com/neifen/htmx-login/app/api/storage/tracking"
 	"github.com/pkg/errors"
 )
 
-func clearTrackers(db storage.DB) error {
+func clearTrackers(db db.DB) error {
 	res, err := db.Exec(context.Background(), "DELETE FROM tracking.trackers")
 	if err != nil {
 		return errors.Wrap(err, "Could not clean up Trackers table")
@@ -40,7 +41,7 @@ func clearTrackers(db storage.DB) error {
 	return nil
 }
 
-func TestCreateNewDB(t *testing.T) {
+func TestCreateTracker(t *testing.T) {
 	serv, db, err := newTestService()
 	if err != nil {
 		t.Fatalf("Could not Set up db: %s", err)
@@ -67,7 +68,7 @@ func TestCreateNewDB(t *testing.T) {
 	var trackers []tracking.TrackerSettings
 	for rows.Next() {
 		var tracker tracking.TrackerSettings
-		rows.Scan(&tracker.ID, &tracker.UserID, &tracker.FromDate, &tracker.ToDate)
+		rows.Scan(&tracker.ID, &tracker.UserID, &tracker.StartDate, &tracker.EndDate)
 		trackers = append(trackers, tracker)
 	}
 
@@ -76,8 +77,8 @@ func TestCreateNewDB(t *testing.T) {
 	}
 
 	singleTracker := trackers[0]
-	from := singleTracker.FromDate
-	to := singleTracker.ToDate
+	from := singleTracker.StartDate
+	to := singleTracker.EndDate
 
 	if from.Year() != 2025 && from.Month() != 12 && from.Day() != 26 {
 		t.Errorf("From Date is %s, should be 2025-12-26", from)
@@ -88,15 +89,14 @@ func TestCreateNewDB(t *testing.T) {
 	}
 
 	// ----  check tasks -----=
-
 	rows, err = db.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
 	if err != nil {
 		t.Fatalf("Error getting Rows from Tasks: %s", err)
 	}
 
-	var tasks []tracking.TrackerModel
+	var tasks []tracking.TaskModel
 	for rows.Next() {
-		var task tracking.TrackerModel
+		var task tracking.TaskModel
 		rows.Scan(&task.ID, &task.Read, &task.ReadBy, &task.ChapterID)
 		tasks = append(tasks, task)
 	}
@@ -125,7 +125,7 @@ func TestCreateNewDB(t *testing.T) {
 	})
 }
 
-func TestCreateNewDBDouble(t *testing.T) {
+func TestCreateTrackerDouble(t *testing.T) {
 	serv, db, err := newTestService()
 	if err != nil {
 		t.Fatalf("Could not Set up db: %s", err)
@@ -156,7 +156,7 @@ func TestCreateNewDBDouble(t *testing.T) {
 	var trackers []tracking.TrackerSettings
 	for rows.Next() {
 		var tracker tracking.TrackerSettings
-		rows.Scan(&tracker.ID, &tracker.UserID, &tracker.FromDate, &tracker.ToDate)
+		rows.Scan(&tracker.ID, &tracker.UserID, &tracker.StartDate, &tracker.EndDate)
 		trackers = append(trackers, tracker)
 	}
 
@@ -165,8 +165,8 @@ func TestCreateNewDBDouble(t *testing.T) {
 	}
 
 	singleTracker := trackers[0]
-	from := singleTracker.FromDate
-	to := singleTracker.ToDate
+	from := singleTracker.StartDate
+	to := singleTracker.EndDate
 
 	if from.Year() != 2025 && from.Month() != 12 && from.Day() != 26 {
 		t.Errorf("From Date is %s, should be 2025-12-26", from)
@@ -183,9 +183,9 @@ func TestCreateNewDBDouble(t *testing.T) {
 		t.Fatalf("Error getting Rows from Tasks: %s", err)
 	}
 
-	var tasks []tracking.TrackerModel
+	var tasks []tracking.TaskModel
 	for rows.Next() {
-		var task tracking.TrackerModel
+		var task tracking.TaskModel
 		rows.Scan(&task.ID, &task.Read, &task.ReadBy, &task.ChapterID)
 		tasks = append(tasks, task)
 	}
@@ -215,7 +215,7 @@ func TestCreateNewDBDouble(t *testing.T) {
 	})
 }
 
-func TestCreateNewDBDifferentDays(t *testing.T) {
+func TestCreateTrackerDifferentDays(t *testing.T) {
 	serv, db, err := newTestService()
 	if err != nil {
 		t.Fatalf("Could not Set up db: %s", err)
@@ -256,7 +256,7 @@ func TestCreateNewDBDifferentDays(t *testing.T) {
 		var trackers []tracking.TrackerSettings
 		for rows.Next() {
 			var tracker tracking.TrackerSettings
-			rows.Scan(&tracker.ID, &tracker.UserID, &tracker.FromDate, &tracker.ToDate)
+			rows.Scan(&tracker.ID, &tracker.UserID, &tracker.StartDate, &tracker.EndDate)
 			trackers = append(trackers, tracker)
 		}
 
@@ -265,8 +265,8 @@ func TestCreateNewDBDifferentDays(t *testing.T) {
 		}
 
 		singleTracker := trackers[0]
-		from := singleTracker.FromDate
-		to := singleTracker.ToDate
+		from := singleTracker.StartDate
+		to := singleTracker.EndDate
 
 		if from.Year() != begin.Year() && from.Month() != begin.Month() && from.Day() != begin.Day() {
 			t.Errorf("From Date is %s, should be %s", from, begin)
@@ -302,6 +302,99 @@ func TestCreateNewDBDifferentDays(t *testing.T) {
 			t.Fatalf("Clearing Trackers failed: %s", err)
 		}
 
+		defer serv.Close()
+	})
+}
+
+func TestMoveTrackersParallel(t *testing.T) {
+	serv, db, err := newTestService()
+	if err != nil {
+		t.Fatalf("Could not Set up db: %s", err)
+	}
+
+	if err := clearTrackers(db); err != nil {
+		t.Fatalf("Clearing Trackers failed: %s", err)
+	}
+
+	userID := 0
+	start := time.Now().AddDate(0, 0, rand.Intn(500))
+	startString := start.Format("2006-01-02")
+	stop := start.AddDate(0, 0, 100)
+	stopString := stop.Format("2006-01-02")
+	if err := serv.CreateTracker(context.Background(), userID, 0, startString, stopString); err != nil {
+		t.Fatalf("CreateTask failed: %s", err)
+	}
+
+	if err := serv.MoveTrackerDays(context.Background(), userID, 100); err != nil {
+		t.Fatalf("CreateTask failed: %s", err)
+	}
+
+	// ----  check tracker -----=
+	rows, err := db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+	if err != nil {
+		t.Fatalf("Error getting Rows from Trackers: %s", err)
+	}
+
+	var trackers []tracking.TrackerSettings
+	for rows.Next() {
+		var tracker tracking.TrackerSettings
+		rows.Scan(&tracker.ID, &tracker.UserID, &tracker.StartDate, &tracker.EndDate)
+		trackers = append(trackers, tracker)
+	}
+
+	if len(trackers) != 1 {
+		t.Errorf("There should be only one Tracker, instead was %d", len(trackers))
+	}
+
+	singleTracker := trackers[0]
+	from := singleTracker.StartDate
+	to := singleTracker.EndDate
+
+	start = start.AddDate(0, 0, 100)
+	stop = stop.AddDate(0, 0, 100)
+
+	if from.Year() != start.Year() && from.Month() != start.Month() && from.Day() != start.Day() {
+		t.Errorf("From Date is %s, should be %s", from, start)
+	}
+
+	if to.Year() != stop.Year() && to.Month() != stop.Month() && to.Day() != stop.Day() {
+		t.Errorf("To Date is %s, should be %s", to, stop)
+	}
+
+	// ----  check tasks -----=
+
+	rows, err = db.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
+	if err != nil {
+		t.Fatalf("Error getting Rows from Tasks: %s", err)
+	}
+
+	var tasks []tracking.TaskModel
+	for rows.Next() {
+		var task tracking.TaskModel
+		rows.Scan(&task.ID, &task.Read, &task.ReadBy, &task.ChapterID)
+		tasks = append(tasks, task)
+	}
+
+	if len(tasks) != 1189 {
+		t.Errorf("There should be 1189, instead was %d", len(tasks))
+	}
+
+	first := tasks[0].ReadBy
+	last := tasks[len(tasks)-1].ReadBy
+
+	if first.Year() != start.Year() && first.Month() != start.Month() && first.Day() != start.Day() {
+		t.Errorf("First ReadyBy Date is %s, should be %s", first, start)
+	}
+
+	if last.Year() != stop.Year() && last.Month() != stop.Month() && last.Day() != stop.Day() {
+		t.Errorf("Last ReadyBy Date is %s, should be %s", last, stop)
+	}
+
+	t.Cleanup(func() {
+		err = clearTrackers(db)
+		if err != nil {
+			t.Fatalf("Clearing Trackers failed: %s", err)
+		}
 		defer serv.Close()
 	})
 }
@@ -483,7 +576,7 @@ ON CONFLICT
 
 }
 
-func newTestService() (*services.Services, storage.DB, error) {
+func newTestService() (*services.Services, db.DB, error) {
 	err := loadEnv()
 	if err != nil {
 		return nil, nil, err

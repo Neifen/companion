@@ -41,7 +41,7 @@ func (pg *TrackingStore) ReadTrackerSettingsFromUser(ctx context.Context, userID
 		SELECT tr.id, tr.start_date, tr.end_date as last_used  FROM `+trackersTable+` tr where user_fk = $1
 	`, userID)
 
-	err := row.Scan(&trackerSettings.ID, &trackerSettings.FromDate, &trackerSettings.ToDate)
+	err := row.Scan(&trackerSettings.ID, &trackerSettings.StartDate, &trackerSettings.EndDate)
 	if err != nil {
 		return nil, errors.Wrapf(err, `error reading task settings for user %d`, userID)
 	}
@@ -49,7 +49,7 @@ func (pg *TrackingStore) ReadTrackerSettingsFromUser(ctx context.Context, userID
 	return &trackerSettings, nil
 }
 
-func (pg *TrackingStore) ReadTasksUntil(ctx context.Context, userID int, toTime time.Time) ([]*TrackerModel, bool, error) {
+func (pg *TrackingStore) ReadTasksUntil(ctx context.Context, userID int, toTime time.Time) ([]*TaskModel, bool, error) {
 	const pages = 10
 
 	toDate := toTime.Format("2006-01-02")
@@ -78,7 +78,7 @@ func (pg *TrackingStore) ReadTasksUntil(ctx context.Context, userID int, toTime 
 	return pg.scanTasks(userID, rows, pages)
 }
 
-func (pg *TrackingStore) ReadTasksFrom(ctx context.Context, userID int, fromTime time.Time) ([]*TrackerModel, bool, error) {
+func (pg *TrackingStore) ReadTasksFrom(ctx context.Context, userID int, fromTime time.Time) ([]*TaskModel, bool, error) {
 	const pages = 10
 
 	fromDate := fromTime.Format("2006-01-02")
@@ -108,8 +108,8 @@ func (pg *TrackingStore) ReadTasksFrom(ctx context.Context, userID int, fromTime
 	return pg.scanTasks(userID, rows, pages)
 }
 
-func (pg *TrackingStore) scanTasks(userID int, rows pgx.Rows, pages int) ([]*TrackerModel, bool, error) {
-	var trackers []*TrackerModel
+func (pg *TrackingStore) scanTasks(userID int, rows pgx.Rows, pages int) ([]*TaskModel, bool, error) {
+	var trackers []*TaskModel
 	var start time.Time
 	var end time.Time
 	i := 0
@@ -132,7 +132,7 @@ func (pg *TrackingStore) scanTasks(userID int, rows pgx.Rows, pages int) ([]*Tra
 		if i == 0 {
 			start = readBy
 		}
-		trackers = append(trackers, &TrackerModel{id, read, readBy, bookName, bookID, chapterNr, versesNull, chapterID})
+		trackers = append(trackers, &TaskModel{id, read, readBy, bookName, bookID, chapterNr, versesNull, chapterID})
 	}
 
 	hasMore := end.Sub(start).Hours() < float64((pages-1)*24)
@@ -198,28 +198,8 @@ func (pg *TrackingStore) CreateTasks(ctx context.Context, trackerID int64, planI
 	return nil
 }
 
-func (pg *TrackingStore) MoveTaskDays(ctx context.Context, userID int, days int) error {
-	// todo maybe in two queries:
-	// one two check end date and one to edit
-	// check: because if end date is behind today
-	tx, err := pg.db.Begin(ctx)
-	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerDates(userID: %d, days: %d) ", userID, days)
-	}
-	defer tx.Rollback(ctx)
-
-	_, err = tx.Exec(ctx, `
-		update `+tasksTable+` ta
-		set read_by = read_by + interval '1' day * $2
-		from `+trackersTable+` tr
-		where tr.user_fk = $1 and ta.tracker_fk = tr.id AND not ta.read 
-	`, userID, days)
-	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerDates(userID: %d, days: %d) ", userID, days)
-	}
-
-	// todo check if whole fStart works
-	_, err = tx.Exec(ctx, `
+func (pg *TrackingStore) MoveTrackerDays(ctx context.Context, userID, days int) error {
+	_, err := pg.db.Exec(ctx, `
 		update `+trackersTable+` 
 		set start_date = start_date + interval '1' day * $2,
 			end_date = end_date + interval '1' day * $2
@@ -229,7 +209,16 @@ func (pg *TrackingStore) MoveTaskDays(ctx context.Context, userID int, days int)
 		return errors.Wrapf(err, "MoveTrackerDates(userID: %d, days: %d) ", userID, days)
 	}
 
-	err = tx.Commit(ctx)
+	return nil
+}
+
+func (pg *TrackingStore) MoveTaskDays(ctx context.Context, userID int, days int) error {
+	_, err := pg.db.Exec(ctx, `
+		update `+tasksTable+` ta
+		set read_by = read_by + interval '1' day * $2
+		from `+trackersTable+` tr
+		where tr.user_fk = $1 and ta.tracker_fk = tr.id AND not ta.read 
+	`, userID, days)
 	if err != nil {
 		return errors.Wrapf(err, "MoveTrackerDates(userID: %d, days: %d) ", userID, days)
 	}
@@ -237,74 +226,38 @@ func (pg *TrackingStore) MoveTaskDays(ctx context.Context, userID int, days int)
 	return nil
 }
 
-func (pg *TrackingStore) MoveTaskStartDate(ctx context.Context, userID int, start string) error {
-	// todo maybe in two queries:
-	// one two check end date and one to edit
-	// check: because if end date is behind today
-
-	tx, err := pg.db.Begin(ctx)
-	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartDate(userID: %d, start: %v) ", userID, start)
-	}
-	defer tx.Rollback(ctx)
-
-	_, err = tx.Exec(ctx, `
-	with filtered as(
-		select
-			ta.id, 
-			ta.read_by , 
-			pb.length, 
-			(sum(pb.length) over (order by ta.read_by, ta.id)) as running_length,
-			tr.start_date,
-			tr.end_date
-		from  `+tasksTable+` ta
-		    join `+trackersTable+` tr on tr.id = ta.tracker_fk and tr.user_fk = $1 AND not ta.read
-			join `+biblePlansTable+` pb on ta.bible_plan_fk = pb.id
-			order by ta.read_by, ta.id
-	)
-	update `+tasksTable+` ta
-	set read_by = to_date($2, 'YYYY-MM-DD') +
+func (pg *TrackingStore) MoveTrackers(ctx context.Context, userID int, start, end string) error {
+	var setDateStmt string
+	if start != "" && end != "" {
+		setDateStmt = fmt.Sprintf(`set read_by = to_date($%s, 'YYYY-MM-DD') +
 	                  interval '1' day * (
 						-1 + ceil(
-							(f.end_date - to_date($2, 'YYYY-MM-DD'))::float
+							(to_date(%s, 'YYYY-MM-DD') - to_date(%s, 'YYYY-MM-DD'))::float
 							* f.running_length / 
 							(select sum(length) from filtered)
 							)
-					  )
-	from filtered f
-	where f.id = ta.id
-`, userID, start)
-	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartDate(userID: %d, start: %s) ", userID, start)
+					  )`, start, end, start)
+	} else if start != "" {
+		setDateStmt = fmt.Sprintf(`set read_by = to_date(%s, 'YYYY-MM-DD') +
+	                  interval '1' day * (
+						-1 + ceil(
+							(f.end_date - to_date(%s, 'YYYY-MM-DD'))::float
+							* f.running_length / 
+							(select sum(length) from filtered)
+							)
+					  )`, start, start)
+	} else {
+		setDateStmt = fmt.Sprintf(`set read_by = f.start_date +
+	                  interval '1' day * (
+						-1 + ceil(
+							(to_date(%s, 'YYYY-MM-DD') - f.start_date)::float
+							* f.running_length / 
+							(select sum(length) from filtered)
+							)
+					  )`, end)
 	}
 
-	// todo check if whole fStart works
-	_, err = tx.Exec(ctx, `
-		update `+trackersTable+` set start_date = $2 
-		where user_fk = $1
-	`, userID, start)
-	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartDate(userID: %d, start: %v) ", userID, start)
-	}
-
-	err = tx.Commit(ctx)
-	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartDate(userID: %d, start: %v) ", userID, start)
-	}
-	return nil
-}
-
-func (pg *TrackingStore) MoveTaskEndDate(ctx context.Context, userID int, end string) error {
-	// todo maybe in two queries:
-	// one two check end date and one to edit
-	// check: because if end date is behind today
-	tx, err := pg.db.Begin(ctx)
-	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerEndDate(userID: %d, end: %s) ", userID, end)
-	}
-	defer tx.Rollback(ctx)
-
-	_, err = tx.Exec(ctx, `
+	_, err := pg.db.Exec(ctx, `
 	with filtered as(
 		select
 			ta.id, 
@@ -318,84 +271,33 @@ func (pg *TrackingStore) MoveTaskEndDate(ctx context.Context, userID int, end st
 			join `+biblePlansTable+` pb on ta.bible_plan_fk = pb.id
 		order by ta.read_by, ta.id
 	)
-	update `+tasksTable+` ta
-	set read_by = f.start_date +
-	                  interval '1' day * (
-						-1 + ceil(
-							(to_date($2, 'YYYY-MM-DD') - f.start_date)::float
-							* f.running_length / 
-							(select sum(length) from filtered)
-							)
-					  )
-	from filtered f
+	update `+tasksTable+` ta `+
+		setDateStmt+
+		`from filtered f
 	where f.id = ta.id
-`, userID, end)
+`, userID)
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerEndDate(userID: %d, end: %s) ", userID, end)
+		return errors.Wrapf(err, "MoveTrackerStartEndDate(userID: %d, start: %v, end %v) ", userID, start, end)
 	}
 
-	// todo check if whole fStart works
-	_, err = tx.Exec(ctx, `
-		update `+trackersTable+` set end_date = $2 
-		where user_fk = $1
-	`, userID, end)
-	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerEndDate(userID: %d, end %v) ", userID, end)
-	}
-
-	err = tx.Commit(ctx)
-	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerEndDate(userID: %d, end %v) ", userID, end)
-	}
 	return nil
 }
 
-func (pg *TrackingStore) MoveTaskDates(ctx context.Context, userID int, start, end string) error {
-	tx, err := pg.db.Begin(ctx)
-	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartEndDate(userID: %d, start: %v, end %v) ", userID, start, end)
-	}
-	defer tx.Rollback(ctx)
+func (pg *TrackingStore) MoveTask(ctx context.Context, userID int, start, end string) error {
 
-	_, err = tx.Exec(ctx, `
-	with filtered as(
-		select
-			ta.id, 
-			ta.read_by , 
-			pb.length, 
-			(sum(pb.length) over (order by ta.read_by, ta.id)) as running_length,
-			tr.start_date,
-			tr.end_date
-		from  `+tasksTable+` ta
-		    join `+trackersTable+` tr on tr.id = ta.tracker_fk and tr.user_fk = $1 AND not ta.read
-			join `+biblePlansTable+` pb on ta.bible_plan_fk = pb.id
-		order by ta.read_by, ta.id
-	)
-	update `+tasksTable+` ta
-	set read_by = to_date($2, 'YYYY-MM-DD') +
-	                  interval '1' day * (
-						-1 + ceil(
-							(to_date($3, 'YYYY-MM-DD') - to_date($2, 'YYYY-MM-DD'))::float
-							* f.running_length / 
-							(select sum(length) from filtered)
-							)
-					  )
-	from filtered f
-	where f.id = ta.id
-`, userID, start, end)
-	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartEndDate(userID: %d, start: %v, end %v) ", userID, start, end)
+	var setDateStmt string
+	if start != "" && end != "" {
+		setDateStmt = fmt.Sprintf("set start_date = %s, end_date = %s ", start, end)
+	} else if start != "" {
+		setDateStmt = fmt.Sprintf("set start_date = %s ", start)
+	} else {
+		setDateStmt = fmt.Sprintf("set end_date = %s ", end)
 	}
 
-	_, err = tx.Exec(ctx, `
-		update `+trackersTable+` set start_date = $1, end_date = $2 
-		where user_fk = $3
-	`, start, end, userID)
-	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartEndDate(userID: %d, start: %v, end %v) ", userID, start, end)
-	}
-
-	err = tx.Commit(ctx)
+	_, err := pg.db.Exec(ctx, `
+		update `+trackersTable+" "+setDateStmt+`
+		where user_fk = $1
+	`, userID)
 	if err != nil {
 		return errors.Wrapf(err, "MoveTrackerStartEndDate(userID: %d, start: %v, end %v) ", userID, start, end)
 	}

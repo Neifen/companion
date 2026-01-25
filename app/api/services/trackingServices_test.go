@@ -399,6 +399,141 @@ func TestMoveTrackersParallel(t *testing.T) {
 	})
 }
 
+func TestMoveTrackers(t *testing.T) {
+	serv, db, err := newTestService()
+	if err != nil {
+		t.Fatalf("Could not Set up db: %s", err)
+	}
+
+	if err := clearTrackers(db); err != nil {
+		t.Fatalf("Clearing Trackers failed: %s", err)
+	}
+
+	userID := 0
+
+	start := time.Now().AddDate(0, 0, rand.Intn(500))
+	startString := start.Format("2006-01-02")
+	stop := start.AddDate(0, 0, 100)
+	stopString := stop.Format("2006-01-02")
+	if err := serv.CreateTracker(context.Background(), userID, 0, startString, stopString); err != nil {
+		t.Fatalf("CreateTask failed: %s", err)
+	}
+
+	type testEnv struct {
+		start string
+		end   string
+		diff  int
+
+		err bool
+	}
+
+	testMatrix := []testEnv{
+		{"2026-01-01", "2027-01-01", 365, false},
+		{"", "2026-02-01", 31, false},
+		{"", "2025-12-31", -1, true},
+		{"2027-01-01", "", -1, true},
+		{"2017-13-1", "", -1, true},
+		{"", "2030-02-30", -1, true},
+		{"2025-02-01", "", 365, false},
+		{"2030-01-01", "", -1, true},
+	}
+
+	for _, test := range testMatrix {
+
+		if err := serv.MoveTracker(context.Background(), userID, test.start, test.end); err != nil {
+			if !test.err {
+				t.Fatalf("CreateTask failed: %s", err)
+			} else {
+				fmt.Printf("expected error: %s \n", err)
+				continue
+			}
+		}
+
+		if test.err {
+			t.Fatalf("Error was expected for %s, %s, didn't happen", start, stop)
+		}
+
+		// ----  check tracker -----=
+		rows, err := db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+		if err != nil {
+			t.Fatalf("Error getting Rows from Trackers: %s", err)
+		}
+
+		var trackers []tracking.TrackerSettings
+		for rows.Next() {
+			var tracker tracking.TrackerSettings
+			rows.Scan(&tracker.ID, &tracker.UserID, &tracker.StartDate, &tracker.EndDate)
+			trackers = append(trackers, tracker)
+		}
+
+		if len(trackers) != 1 {
+			t.Errorf("There should be only one Tracker, instead was %d", len(trackers))
+		}
+
+		singleTracker := trackers[0]
+		from := singleTracker.StartDate
+		to := singleTracker.EndDate
+
+		if test.start != "" {
+			start, err = time.Parse("2006-01-02", test.start)
+			if err != nil {
+				t.Errorf("Error parsing start: %s", err)
+			}
+		}
+		if test.end != "" {
+			stop, err = time.Parse("2006-01-02", test.end)
+			if err != nil {
+				t.Errorf("Error parsing start: %s", err)
+			}
+		}
+
+		if from.Year() != start.Year() && from.Month() != start.Month() && from.Day() != start.Day() {
+			t.Errorf("From Date is %s, should be %s", from, start)
+		}
+
+		if to.Year() != stop.Year() && to.Month() != stop.Month() && to.Day() != stop.Day() {
+			t.Errorf("To Date is %s, should be %s", to, stop)
+		}
+
+		// ----  check tasks -----=
+
+		rows, err = db.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
+		if err != nil {
+			t.Fatalf("Error getting Rows from Tasks: %s", err)
+		}
+
+		var tasks []tracking.TaskModel
+		for rows.Next() {
+			var task tracking.TaskModel
+			rows.Scan(&task.ID, &task.Read, &task.ReadBy, &task.ChapterID)
+			tasks = append(tasks, task)
+		}
+
+		if len(tasks) != 1189 {
+			t.Errorf("There should be 1189, instead was %d", len(tasks))
+		}
+
+		first := tasks[0].ReadBy
+		last := tasks[len(tasks)-1].ReadBy
+
+		if first.Year() != start.Year() && first.Month() != start.Month() && first.Day() != start.Day() {
+			t.Errorf("First ReadBy Date is %s, should be %s", first, start)
+		}
+
+		if last.Year() != stop.Year() && last.Month() != stop.Month() && last.Day() != stop.Day() {
+			t.Errorf("Last ReadBy Date is %s, should be %s", last, stop)
+		}
+	}
+
+	t.Cleanup(func() {
+		err = clearTrackers(db)
+		if err != nil {
+			t.Fatalf("Clearing Trackers failed: %s", err)
+		}
+		defer serv.Close()
+	})
+}
+
 // func TestMain(m *testing.M) {
 // 	var err error
 // 	db, err = newTestDB()

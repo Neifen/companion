@@ -178,7 +178,7 @@ func (pg *TrackingStore) CreateTasks(ctx context.Context, trackerID int64, planI
 		select $1 as tracker_fk, pb.id as bible_plan_fk, 
 		       to_date($3, 'YYYY-MM-DD') + interval '1' day * (
 		           -1 + ceil(
-		                (to_date($4, 'YYYY-MM-DD') - to_date($3, 'YYYY-MM-DD'))::float
+		                ((to_date($4, 'YYYY-MM-DD') - to_date($3, 'YYYY-MM-DD'))::float+1)
 		                * pb.running_length /
 		                pl.length
 		           )
@@ -206,7 +206,7 @@ func (pg *TrackingStore) MoveTrackerDays(ctx context.Context, userID, days int) 
 		where user_fk = $1
 	`, userID, days)
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerDates(userID: %d, days: %d) ", userID, days)
+		return errors.Wrapf(err, "MoveTrackerDays(userID: %d, days: %d) ", userID, days)
 	}
 
 	return nil
@@ -220,28 +220,28 @@ func (pg *TrackingStore) MoveTaskDays(ctx context.Context, userID int, days int)
 		where tr.user_fk = $1 and ta.tracker_fk = tr.id AND not ta.read 
 	`, userID, days)
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerDates(userID: %d, days: %d) ", userID, days)
+		return errors.Wrapf(err, "MoveTaskDays(userID: %d, days: %d) ", userID, days)
 	}
 
 	return nil
 }
 
-func (pg *TrackingStore) MoveTrackers(ctx context.Context, userID int, start, end string) error {
+func (pg *TrackingStore) MoveTasks(ctx context.Context, userID int, start, end string) error {
 	var setDateStmt string
 	if start != "" && end != "" {
-		setDateStmt = fmt.Sprintf(`set read_by = to_date($%s, 'YYYY-MM-DD') +
+		setDateStmt = fmt.Sprintf(`set read_by = ('%s'::DATE) +
 	                  interval '1' day * (
 						-1 + ceil(
-							(to_date(%s, 'YYYY-MM-DD') - to_date(%s, 'YYYY-MM-DD'))::float
+							(('%s'::DATE - '%s'::DATE)::float+1)
 							* f.running_length / 
 							(select sum(length) from filtered)
 							)
 					  )`, start, end, start)
 	} else if start != "" {
-		setDateStmt = fmt.Sprintf(`set read_by = to_date(%s, 'YYYY-MM-DD') +
+		setDateStmt = fmt.Sprintf(`set read_by = ('%s'::DATE) +
 	                  interval '1' day * (
 						-1 + ceil(
-							(f.end_date - to_date(%s, 'YYYY-MM-DD'))::float
+							((f.end_date - '%s'::DATE)::float+1)
 							* f.running_length / 
 							(select sum(length) from filtered)
 							)
@@ -250,7 +250,7 @@ func (pg *TrackingStore) MoveTrackers(ctx context.Context, userID int, start, en
 		setDateStmt = fmt.Sprintf(`set read_by = f.start_date +
 	                  interval '1' day * (
 						-1 + ceil(
-							(to_date(%s, 'YYYY-MM-DD') - f.start_date)::float
+							(('%s'::DATE - f.start_date)::float+1)
 							* f.running_length / 
 							(select sum(length) from filtered)
 							)
@@ -277,21 +277,49 @@ func (pg *TrackingStore) MoveTrackers(ctx context.Context, userID int, start, en
 	where f.id = ta.id
 `, userID)
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartEndDate(userID: %d, start: %v, end %v) ", userID, start, end)
+		return errors.Wrapf(err, "db: MoveTasks(userID: %d, start: %v, end %v) ", userID, start, end)
 	}
 
 	return nil
 }
 
-func (pg *TrackingStore) MoveTask(ctx context.Context, userID int, start, end string) error {
+func (pg *TrackingStore) GetTrackerStart(ctx context.Context, userID int) (time.Time, error) {
+
+	var start time.Time
+	err := pg.db.QueryRow(ctx, `
+		select start_date from `+trackersTable+`
+		where user_fk = $1
+	`, userID).Scan(&start)
+	if err != nil {
+		return time.Time{}, errors.Wrapf(err, "db: GetTrackerStart(userID: %d) ", userID)
+	}
+
+	return start, nil
+}
+
+func (pg *TrackingStore) GetTrackerEnd(ctx context.Context, userID int) (time.Time, error) {
+
+	var end time.Time
+	err := pg.db.QueryRow(ctx, `
+		select end_date from `+trackersTable+`
+		where user_fk = $1
+	`, userID).Scan(&end)
+	if err != nil {
+		return time.Time{}, errors.Wrapf(err, "db: GetTrackerEnd(userID: %d) ", userID)
+	}
+
+	return end, nil
+}
+
+func (pg *TrackingStore) MoveTracker(ctx context.Context, userID int, start, end string) error {
 
 	var setDateStmt string
 	if start != "" && end != "" {
-		setDateStmt = fmt.Sprintf("set start_date = %s, end_date = %s ", start, end)
+		setDateStmt = fmt.Sprintf("set start_date = '%s', end_date = '%s' ", start, end)
 	} else if start != "" {
-		setDateStmt = fmt.Sprintf("set start_date = %s ", start)
+		setDateStmt = fmt.Sprintf("set start_date = '%s' ", start)
 	} else {
-		setDateStmt = fmt.Sprintf("set end_date = %s ", end)
+		setDateStmt = fmt.Sprintf("set end_date = '%s' ", end)
 	}
 
 	_, err := pg.db.Exec(ctx, `
@@ -299,7 +327,7 @@ func (pg *TrackingStore) MoveTask(ctx context.Context, userID int, start, end st
 		where user_fk = $1
 	`, userID)
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerStartEndDate(userID: %d, start: %v, end %v) ", userID, start, end)
+		return errors.Wrapf(err, "db: MoveTracker(userID: %d, start: %v, end %v) ", userID, start, end)
 	}
 
 	return nil

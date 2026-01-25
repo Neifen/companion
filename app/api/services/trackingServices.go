@@ -27,16 +27,54 @@ func (s *Services) MoveTrackerDays(ctx context.Context, userID int, days int) er
 }
 
 func (s *Services) MoveTracker(ctx context.Context, userID int, start, end string) error {
+	if start == "" && end == "" {
+		return errors.New("Both start and end are empty")
+	}
+
 	if err := s.store.CreateTX(ctx); err != nil {
 		return errors.Wrapf(err, "MoveTracker(uid: %d, start: %s, end: %s)", userID, start, end)
 	}
 	defer s.store.RollbackTX(ctx)
 
-	if err := s.store.Tracking.MoveTask(ctx, userID, start, end); err != nil {
+	var (
+		startTime time.Time
+		endTime   time.Time
+		err       error
+	)
+
+	if start != "" {
+		startTime, err = time.Parse("2006-01-02", start)
+		if err != nil {
+			return errors.Wrapf(err, "MoveTracker(uid: %d, start: %s, end: %s)", userID, start, end)
+		}
+	} else {
+		startTime, err = s.store.Tracking.GetTrackerStart(ctx, userID)
+		if err != nil {
+			return errors.Wrapf(err, "MoveTracker(uid: %d, start: %s, end: %s)", userID, start, end)
+		}
+	}
+
+	if end != "" {
+		endTime, err = time.Parse("2006-01-02", end)
+		if err != nil {
+			return errors.Wrapf(err, "MoveTracker(uid: %d, start: %s, end: %s)", userID, start, end)
+		}
+	} else {
+		endTime, err = s.store.Tracking.GetTrackerEnd(ctx, userID)
+		if err != nil {
+			return errors.Wrapf(err, "MoveTracker(uid: %d, start: %s, end: %s)", userID, start, end)
+		}
+	}
+
+	if endTime.Before(startTime) {
+		return errors.Errorf("End %s was after Start %s", end, start)
+	}
+
+	if err := s.store.Tracking.MoveTracker(ctx, userID, start, end); err != nil {
 		return errors.Wrapf(err, "MoveTracker(uid: %d, start: %s, end: %s)", userID, start, end)
 	}
 
-	if err := s.store.Tracking.MoveTrackers(ctx, userID, start, end); err != nil {
+	if err := s.store.Tracking.MoveTasks(ctx, userID, start, end); err != nil {
 		return errors.Wrapf(err, "MoveTracker(uid: %d, start: %s, end: %s)", userID, start, end)
 	}
 

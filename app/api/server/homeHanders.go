@@ -27,7 +27,7 @@ func (s *HandlerSession) viewHome(c echo.Context, u *userReq) error {
 
 	welcome := !u.isLoggedIn
 	if !welcome {
-		tracker, hasMore, err := s.store.Tracking.ReadTasksFrom(c.Request().Context(), 0, time.Now().AddDate(0, 0, -2))
+		tracker, hasMore, err := s.store.Tracking.ReadTasksFrom(c.Request().Context(), u.id, time.Now().AddDate(0, 0, -2))
 		if err != nil {
 			fmt.Println(err)
 			return c.JSON(http.StatusInternalServerError, err) // todo do better
@@ -131,7 +131,7 @@ func (s *HandlerSession) handlePlanSettings(c echo.Context) error {
 	if !u.isLoggedIn {
 		return view.ErrorHTML(c, "not logged in")
 	}
-	settings, err := s.store.Tracking.ReadTrackerSettingsFromUser(c.Request().Context(), u.id)
+	settings, err := s.services.ReadUserTracker(c.Request().Context(), u.id)
 	if err != nil {
 		return view.ErrorHTML(c, err.Error())
 	}
@@ -151,15 +151,7 @@ func (s *HandlerSession) handleDeletePlan(c echo.Context) error {
 	if !u.isLoggedIn {
 		return view.ErrorHTML(c, "not logged in")
 	}
-
-	set, err := s.store.Tracking.ReadTrackerSettingsFromUser(c.Request().Context(), u.id)
-	if err != nil {
-		fmt.Println("Could not find tracker_to_user: ", err)
-		return view.ErrorHTML(c, "could not find tracker for user")
-	}
-
-	err = s.store.Tracking.DeleteTask(c.Request().Context(), set.ID)
-	if err != nil {
+	if err := s.services.DeleteUserTracker(c.Request().Context(), u.id); err != nil {
 		fmt.Println("Could not delete tracker: ", err)
 		return view.ErrorHTML(c, "Could not delete the plan")
 	}
@@ -306,12 +298,7 @@ func (s *HandlerSession) handleMoveEndPopup(c echo.Context) error {
 // e.GET("/reset-plan", s.moveStart, pasetoMiddle())?moveEnd
 func (s *HandlerSession) moveStart(c echo.Context) error {
 	u := c.Get("u").(*userReq)
-	startRaw := c.Param("start")
-	start, err := time.Parse("2006-01-02", startRaw)
-	if err != nil {
-		fmt.Println("error parsing start:", err)
-		return view.ErrorHTML(c, "Something went wrong, contact admin")
-	}
+	start := c.Param("start")
 
 	moveEndRaw := c.QueryParam("moveEnd")
 	moveEnd, err := strconv.ParseBool(moveEndRaw)
@@ -319,46 +306,22 @@ func (s *HandlerSession) moveStart(c echo.Context) error {
 		fmt.Println("error parsing moveEnd:", err)
 		moveEnd = false
 	}
-	settings, err := s.store.Tracking.ReadTrackerSettingsFromUser(c.Request().Context(), u.id)
+
+	err = s.services.MoveTrackerStart(c.Request().Context(), u.id, start, moveEnd)
 	if err != nil {
 		fmt.Println(err)
 		return view.ErrorHTML(c, "Something went wrong, contact admin")
 	}
 
-	if !moveEnd && settings.EndDate.Compare(start) <= 0 {
-		errstr := fmt.Sprintf("Start date (%s) needs to be before end date (%s)", start.Format("2006-01-02"), settings.EndDate.Format("2006-01-02"))
-		fmt.Println(errstr)
-		return view.ErrorHTML(c, errstr)
-	}
-
-	if moveEnd {
-		diff := start.Sub(settings.StartDate)
-		err = s.services.MoveTrackerDays(c.Request().Context(), u.id, int(diff.Hours())/24)
-		if err != nil {
-			fmt.Println(err)
-			return view.ErrorHTML(c, "Something went wrong, contact admin")
-		}
-
-		c.Response().Header().Add("HX-Retarget", "#base")
-		c.Response().Header().Add("HX-Reswap", "innerHTML")
-		return s.viewHome(c, u)
-	} else {
-		err = s.services.MoveTracker(c.Request().Context(), u.id, startRaw, "")
-		if err != nil {
-			fmt.Println(err)
-			return view.ErrorHTML(c, "Something went wrong, contact admin")
-		}
-
-		c.Response().Header().Add("HX-Retarget", "#base")
-		c.Response().Header().Add("HX-Reswap", "innerHTML")
-		return s.viewHome(c, u)
-	}
+	c.Response().Header().Add("HX-Retarget", "#base")
+	c.Response().Header().Add("HX-Reswap", "innerHTML")
+	return s.viewHome(c, u)
 }
 
 // e.POST("/move-end/:end", s.moveEnd, pasetoMiddle())?resetStart
 func (s *HandlerSession) moveEnd(c echo.Context) error {
 	u := c.Get("u").(*userReq)
-	endRaw := c.Param("end")
+	end := c.Param("end")
 	resetStartRaw := c.QueryParam("resetStart")
 	resetStart, err := strconv.ParseBool(resetStartRaw)
 	if err != nil && resetStartRaw != "" {
@@ -366,50 +329,12 @@ func (s *HandlerSession) moveEnd(c echo.Context) error {
 		resetStart = false
 	}
 
-	var start time.Time
-	if resetStart {
-		start = time.Now()
-	} else {
-		settings, err := s.store.Tracking.ReadTrackerSettingsFromUser(c.Request().Context(), u.id)
-		if err != nil {
-			fmt.Println(err)
-			return view.ErrorHTML(c, "Something went wrong, contact admin")
-		}
-
-		start = settings.StartDate
-	}
-
-	end, err := time.Parse("2006-01-02", endRaw)
+	err = s.services.MoveTrackerEnd(c.Request().Context(), u.id, end, resetStart)
 	if err != nil {
 		fmt.Println(err)
 		return view.ErrorHTML(c, "Something went wrong, contact admin")
 	}
-
-	startRaw := start.Format("2006-01-02")
-	if end.Compare(start) <= 0 {
-		errstr := fmt.Sprintf("Start date (%s) needs to be before end date (%s)", startRaw, endRaw)
-		fmt.Println(errstr)
-		return view.ErrorHTML(c, errstr)
-	}
-
-	if resetStart {
-		err = s.services.MoveTracker(c.Request().Context(), u.id, startRaw, endRaw)
-		if err != nil {
-			fmt.Println(err)
-			return view.ErrorHTML(c, "Something went wrong, contact admin")
-		}
-		c.Response().Header().Add("HX-Retarget", "#base")
-		c.Response().Header().Add("HX-Reswap", "innerHTML")
-		return s.viewHome(c, u)
-	} else {
-		err = s.services.MoveTracker(c.Request().Context(), u.id, "", endRaw)
-		if err != nil {
-			fmt.Println(err)
-			return view.ErrorHTML(c, "Something went wrong, contact admin")
-		}
-
-		c.Response().Header().Add("HX-Retarget", "#base")
-		c.Response().Header().Add("HX-Reswap", "innerHTML")
-		return s.viewHome(c, u)
-	}
+	c.Response().Header().Add("HX-Retarget", "#base")
+	c.Response().Header().Add("HX-Reswap", "innerHTML")
+	return s.viewHome(c, u)
 }

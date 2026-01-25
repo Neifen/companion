@@ -34,8 +34,8 @@ func (pg *TrackingStore) CheckTask(ctx context.Context, taskID int64, checked bo
 	return nil
 }
 
-func (pg *TrackingStore) ReadTrackerSettingsFromUser(ctx context.Context, userID int) (*TrackerSettings, error) {
-	var trackerSettings TrackerSettings
+func (pg *TrackingStore) ReadUserTracker(ctx context.Context, userID int) (*TrackerModel, error) {
+	var trackerSettings TrackerModel
 
 	row := pg.db.QueryRow(ctx, `
 		SELECT tr.id, tr.start_date, tr.end_date as last_used  FROM `+trackersTable+` tr where user_fk = $1
@@ -140,17 +140,7 @@ func (pg *TrackingStore) scanTasks(userID int, rows pgx.Rows, pages int) ([]*Tas
 	return trackers, hasMore, nil
 }
 
-func (pg *TrackingStore) DeleteTask(ctx context.Context, trackerID int64) error {
-	// delete cascate deletes task items
-	_, err := pg.db.Exec(ctx, `DELETE FROM `+trackersTable+` where id = $1`, trackerID)
-	if err != nil {
-		return errors.Wrapf(err, "DeleteTracker(trackerId: %d) ", trackerID)
-	}
-
-	return nil
-}
-
-func (pg *TrackingStore) DeleteTracker(ctx context.Context, userID int) error {
+func (pg *TrackingStore) DeleteUserTracker(ctx context.Context, userID int) error {
 	_, err := pg.db.Exec(ctx, `DELETE FROM `+trackersTable+` WHERE user_fk = $1`, userID)
 	if err != nil {
 		return errors.Wrapf(err, "Could not delete trackers Table for userID %d", userID)
@@ -176,9 +166,9 @@ func (pg *TrackingStore) CreateTasks(ctx context.Context, trackerID int64, planI
 	res, err := pg.db.Exec(ctx, `
 		insert into `+tasksTable+` (tracker_fk, bible_plan_fk, read_by) 
 		select $1 as tracker_fk, pb.id as bible_plan_fk, 
-		       to_date($3, 'YYYY-MM-DD') + interval '1' day * (
+		       $3::DATE + interval '1' day * (
 		           -1 + ceil(
-		                ((to_date($4, 'YYYY-MM-DD') - to_date($3, 'YYYY-MM-DD'))::float+1)
+		                (($4::DATE - $3::DATE)::float+1)
 		                * pb.running_length /
 		                pl.length
 		           )

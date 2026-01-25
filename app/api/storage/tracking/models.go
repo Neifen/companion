@@ -13,9 +13,7 @@ type TaskModel struct {
 	ChapterID int16     `sql:"chapter_id"`
 }
 
-//todo: change TrackerSettings to trackerModel
-
-type TrackerSettings struct {
+type TrackerModel struct {
 	ID        int64     `sql:"id"`
 	UserID    int       `sql:"user_fk"`
 	StartDate time.Time `sql:"start_date"`

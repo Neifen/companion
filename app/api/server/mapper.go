@@ -34,7 +34,7 @@ func chapterModelToEntity(model []*bible.ChapterModel) *entities.TrackedBible {
 	return trackedBible
 }
 
-func trackerModelToEntity(model []*tracking.TaskModel, hasMore bool) *entities.TrackedBible {
+func trackerModelToEntity(model []tracking.TaskModel, hasMore bool) *entities.TrackedBible {
 	trackedBible := entities.NewTrackedBible(hasMore)
 
 	today := time.Now().Format("January 2, 2006")
@@ -43,8 +43,8 @@ func trackerModelToEntity(model []*tracking.TaskModel, hasMore bool) *entities.T
 	for _, row := range model {
 		// Chapter + Verse if there
 		chapter := fmt.Sprintf("%s %d", row.BookName, row.ChapterNr)
-		if len(row.Verses) != 0 {
-			chapter = fmt.Sprintf("%s:%s", chapter, row.Verses)
+		if row.Verses != nil && len(*row.Verses) != 0 {
+			chapter = fmt.Sprintf("%s:%s", chapter, *row.Verses)
 		}
 		trackedItem := entities.NewTrackedItem(row.ID, row.Read, chapter, row.ChapterID)
 		if lastDate != row.ReadBy {

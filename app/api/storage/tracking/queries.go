@@ -49,9 +49,7 @@ func (pg *TrackingStore) ReadUserTracker(ctx context.Context, userID int) (*Trac
 	return &trackerSettings, nil
 }
 
-func (pg *TrackingStore) ReadTasksUntil(ctx context.Context, userID int, toTime time.Time) ([]*TaskModel, bool, error) {
-	const pages = 10
-
+func (pg *TrackingStore) ReadTasksUntil(ctx context.Context, userID, pages int, toTime time.Time) ([]TaskModel, error) {
 	toDate := toTime.Format("2006-01-02")
 	rows, err := pg.db.Query(ctx, `
 		WITH prev_dates AS (
@@ -63,7 +61,7 @@ func (pg *TrackingStore) ReadTasksUntil(ctx context.Context, userID int, toTime 
 			ORDER BY ta.read_by DESC
 			LIMIT $3
 		)
-		SELECT ta.id, ta.read, ta.read_by, c.book_id,c.book_name, c.chapter_nr, pb.verses, c.id
+		SELECT ta.id as id, ta.read, ta.read_by, c.book_id,c.book_name, c.chapter_nr, pb.verses, c.id as chapter_id, (select count(*) from prev_dates) as dates_counter
 		FROM `+tasksTable+` ta
 		JOIN `+trackersTable+` tr on tr.id = ta.tracker_fk AND tr.user_fk = $1
 		JOIN prev_dates d ON d.read_by = ta.read_by
@@ -72,15 +70,13 @@ func (pg *TrackingStore) ReadTasksUntil(ctx context.Context, userID int, toTime 
 		ORDER BY ta.read_by ASC, ta.id ASC;`,
 		userID, toDate, pages)
 	if err != nil {
-		return nil, false, errors.Wrapf(err, "ReadTrackerFromuserID(%d) select", userID)
+		return nil, errors.Wrapf(err, "ReadTrackerFromuserID(%d) select", userID)
 	}
 
 	return pg.scanTasks(userID, rows, pages)
 }
 
-func (pg *TrackingStore) ReadTasksFrom(ctx context.Context, userID int, fromTime time.Time) ([]*TaskModel, bool, error) {
-	const pages = 10
-
+func (pg *TrackingStore) ReadTasksFrom(ctx context.Context, userID, pages int, fromTime time.Time) ([]TaskModel, error) {
 	fromDate := fromTime.Format("2006-01-02")
 
 	rows, err := pg.db.Query(ctx, `
@@ -93,7 +89,7 @@ func (pg *TrackingStore) ReadTasksFrom(ctx context.Context, userID int, fromTime
 			ORDER BY ta.read_by ASC
 			LIMIT $3
 		)
-		SELECT ta.id, ta.read, ta.read_by, c.book_id,c.book_name, c.chapter_nr, pb.verses, c.id
+		SELECT ta.id as id, ta.read, ta.read_by, c.book_id,c.book_name, c.chapter_nr, pb.verses, c.id as chapter_id, (select count(*) from next_dates) as dates_counter
 		FROM `+tasksTable+` ta
 		JOIN `+trackersTable+` tr on tr.id = ta.tracker_fk AND tr.user_fk = $1
 		JOIN next_dates d ON d.read_by = ta.read_by
@@ -102,42 +98,21 @@ func (pg *TrackingStore) ReadTasksFrom(ctx context.Context, userID int, fromTime
 		ORDER BY ta.read_by ASC, ta.id ASC;`,
 		userID, fromDate, pages)
 	if err != nil {
-		return nil, false, errors.Wrapf(err, "ReadTrackerFromuserID(%d) select", userID)
+		return nil, errors.Wrapf(err, "ReadTrackerFromuserID(%d) select", userID)
 	}
 
 	return pg.scanTasks(userID, rows, pages)
 }
 
-func (pg *TrackingStore) scanTasks(userID int, rows pgx.Rows, pages int) ([]*TaskModel, bool, error) {
-	var trackers []*TaskModel
-	var start time.Time
-	var end time.Time
-	i := 0
-	for ; rows.Next(); i++ {
-		var id int64
-		var read bool
-		var readBy time.Time
-		var bookID int16
-		var bookName string
-		var chapterNr int16
-		var versesNull string
-		var chapterID int16
+func (pg *TrackingStore) scanTasks(userID int, rows pgx.Rows, pages int) ([]TaskModel, error) {
+	var trackers []TaskModel
 
-		err := rows.Scan(&id, &read, &readBy, &bookID, &bookName, &chapterNr, &versesNull, &chapterID)
-		if err != nil {
-			return nil, false, errors.Wrapf(err, "ReadTrackerFromuserID(%d) scan", userID)
-		}
-
-		end = readBy
-		if i == 0 {
-			start = readBy
-		}
-		trackers = append(trackers, &TaskModel{id, read, readBy, bookName, bookID, chapterNr, versesNull, chapterID})
+	trackers, err := pgx.CollectRows(rows, pgx.RowToStructByName[TaskModel])
+	if err != nil {
+		return nil, errors.Wrapf(err, "ReadTrackerFromuserID(%d) scan", userID)
 	}
 
-	hasMore := end.Sub(start).Hours() < float64((pages-1)*24)
-
-	return trackers, hasMore, nil
+	return trackers, nil
 }
 
 func (pg *TrackingStore) DeleteUserTracker(ctx context.Context, userID int) error {

@@ -27,7 +27,7 @@ func (s *HandlerSession) viewHome(c echo.Context, u *userReq) error {
 
 	welcome := !u.isLoggedIn
 	if !welcome {
-		tracker, hasMore, err := s.store.Tracking.ReadTasksFrom(c.Request().Context(), u.id, time.Now().AddDate(0, 0, -2))
+		tracker, hasMore, err := s.services.ReadTasksFrom(c.Request().Context(), u.id, time.Now().AddDate(0, 0, -2))
 		if err != nil {
 			fmt.Println(err)
 			return c.JSON(http.StatusInternalServerError, err) // todo do better
@@ -66,7 +66,7 @@ func (s *HandlerSession) handleGetBeforeItem(c echo.Context) error {
 		return view.ErrorHTML(c, "Something went wrong, contact admin")
 	}
 
-	tracker, hasMore, err := s.store.Tracking.ReadTasksUntil(c.Request().Context(), u.id, date)
+	tracker, hasMore, err := s.services.ReadTasksUntil(c.Request().Context(), u.id, date)
 	// todo real errors
 	if err != nil {
 		fmt.Println(err)
@@ -85,7 +85,7 @@ func (s *HandlerSession) handleGetAfterItem(c echo.Context) error {
 		return view.ErrorHTML(c, "Something went wrong, contact admin")
 	}
 
-	tracker, hasMore, err := s.store.Tracking.ReadTasksFrom(c.Request().Context(), u.id, date.AddDate(0, 0, 1))
+	tracker, hasMore, err := s.services.ReadTasksFrom(c.Request().Context(), u.id, date.AddDate(0, 0, 1))
 	// todo real errors
 	if err != nil {
 		fmt.Println(err)
@@ -115,9 +115,8 @@ func (s *HandlerSession) handleCheckTrackeItem(c echo.Context) error {
 		return nil
 	}
 
-	err = s.store.Tracking.CheckTask(c.Request().Context(), itemID, checked)
-	// todo real errors
-	if err != nil {
+	if err = s.services.CheckTask(c.Request().Context(), itemID, checked); err != nil {
+		// todo real errors
 		fmt.Println(err)
 		return view.TrackerCheckHTMLError(c, itemID, !checked, err.Error())
 	}

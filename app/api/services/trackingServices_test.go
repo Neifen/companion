@@ -125,6 +125,250 @@ func TestCreateTracker(t *testing.T) {
 	})
 }
 
+func TestReadTracker(t *testing.T) {
+	serv, db, err := newTestService()
+	if err != nil {
+		t.Fatalf("Could not Set up db: %s", err)
+	}
+
+	err = clearTrackers(db)
+	if err != nil {
+		t.Fatalf("Clearing Trackers failed: %s", err)
+	}
+
+	userID := 0
+	err = serv.CreateTracker(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
+	if err != nil {
+		t.Fatalf("CreateTask failed: %s", err)
+	}
+
+	// ----  check tracker -----=
+	tracker, err := serv.ReadUserTracker(context.Background(), userID)
+	if err != nil {
+		t.Fatalf("Error getting Rows from Trackers: %s", err)
+	}
+
+	from := tracker.StartDate
+	to := tracker.EndDate
+
+	if from.Year() != 2025 && from.Month() != 12 && from.Day() != 26 {
+		t.Errorf("From Date is %s, should be 2025-12-26", from)
+	}
+
+	if to.Year() != 2026 && to.Month() != 12 && to.Day() != 26 {
+		t.Errorf("To Date is %s, should be 2026-12-26", to)
+	}
+
+	t.Cleanup(func() {
+		err = clearTrackers(db)
+		if err != nil {
+			t.Fatalf("Clearing Trackers failed: %s", err)
+		}
+		defer serv.Close()
+	})
+}
+
+func TestPaginateAndCheckTask(t *testing.T) {
+	serv, db, err := newTestService()
+	if err != nil {
+		t.Fatalf("Could not Set up db: %s", err)
+	}
+
+	err = clearTrackers(db)
+	if err != nil {
+		t.Fatalf("Clearing Trackers failed: %s", err)
+	}
+
+	userID := 0
+	fromRaw := "2025-12-26"
+	from, _ := time.Parse("2006-01-02", fromRaw)
+
+	toRaw := "2026-12-26"
+	to, _ := time.Parse("2006-01-02", toRaw)
+
+	err = serv.CreateTracker(context.Background(), userID, 0, fromRaw, toRaw)
+	if err != nil {
+		t.Fatalf("CreateTask failed: %s", err)
+	}
+
+	if err != nil {
+		t.Fatalf("Parse failed: %s", err)
+	}
+
+	models, moreAfter, err := serv.ReadTasksFrom(context.Background(), userID, from)
+	if err != nil {
+		t.Fatalf("ReadTasksFrom failed: %s", err)
+	}
+	if !moreAfter {
+		t.Fatalf("Should have more Tasks")
+	}
+	if len(models) != 31 {
+		t.Fatalf("ReadTaskFrom Length should be 10, was %d", len(models))
+	}
+
+	models, moreBefore, err := serv.ReadTasksUntil(context.Background(), userID, to)
+	if err != nil {
+		t.Fatalf("ReadTasksFrom failed: %s", err)
+	}
+	if !moreBefore {
+		t.Fatalf("Should have more Tasks")
+	}
+	if len(models) != 45 {
+		t.Fatalf("ReadTaskFrom Length should be 45, was %d", len(models))
+	}
+
+	models, moreAfter, err = serv.ReadTasksFrom(context.Background(), userID, to)
+	if err != nil {
+		t.Fatalf("ReadTasksFrom failed: %s", err)
+	}
+	if moreAfter {
+		t.Fatalf("Should have no more Tasks")
+	}
+	if len(models) != 4 {
+		t.Fatalf("ReadTaskFrom Length should be 4, was %d", len(models))
+	}
+
+	models, moreBefore, err = serv.ReadTasksUntil(context.Background(), userID, from.AddDate(0, 0, 1))
+	if err != nil {
+		t.Fatalf("ReadTasksUntil failed: %s", err)
+	}
+	if moreBefore {
+		t.Fatalf("Should have no more Tasks (TasksUntil)")
+	}
+	if len(models) != 3 {
+		t.Fatalf("ReadTaskTo Length should be 0, was %d", len(models))
+	}
+	for id, task := range models {
+		if task.Read {
+			t.Fatalf("Model nr %d should not be read but was", id)
+		}
+	}
+
+	serv.CheckTask(context.Background(), models[0].ID, true)
+	serv.CheckTask(context.Background(), models[2].ID, true)
+	models, moreBefore, err = serv.ReadTasksUntil(context.Background(), userID, from.AddDate(0, 0, 1))
+
+	if err != nil {
+		t.Fatalf("ReadTasksUntil failed: %s", err)
+	}
+	if moreBefore {
+		t.Fatalf("Should have no more Tasks (TasksUntil)")
+	}
+	if len(models) != 3 {
+		t.Fatalf("ReadTaskTo Length should be 0, was %d", len(models))
+	}
+	if !models[0].Read {
+		t.Fatalf("Model nr 0 should be read but wasn't")
+	}
+	if models[1].Read {
+		t.Fatalf("Model nr 1 should not be read but was")
+	}
+	if !models[2].Read {
+		t.Fatalf("Model nr 2 should be read but wasn't")
+	}
+
+	serv.CheckTask(context.Background(), models[0].ID, false)
+	serv.CheckTask(context.Background(), models[2].ID, true)
+	models, moreBefore, err = serv.ReadTasksUntil(context.Background(), userID, from.AddDate(0, 0, 1))
+
+	if err != nil {
+		t.Fatalf("ReadTasksUntil failed: %s", err)
+	}
+	if moreBefore {
+		t.Fatalf("Should have no more Tasks (TasksUntil)")
+	}
+	if len(models) != 3 {
+		t.Fatalf("ReadTaskTo Length should be 0, was %d", len(models))
+	}
+	if models[0].Read {
+		t.Fatalf("Model nr 0 should not be read but was")
+	}
+	if models[1].Read {
+		t.Fatalf("Model nr 1 should not be read but was")
+	}
+	if !models[2].Read {
+		t.Fatalf("Model nr 2 should be read but wasn't")
+	}
+
+	t.Cleanup(func() {
+		err = clearTrackers(db)
+		if err != nil {
+			t.Fatalf("Clearing Trackers failed: %s", err)
+		}
+		defer serv.Close()
+	})
+}
+
+func TestDeleteTracker(t *testing.T) {
+	serv, db, err := newTestService()
+	if err != nil {
+		t.Fatalf("Could not Set up db: %s", err)
+	}
+
+	err = clearTrackers(db)
+	if err != nil {
+		t.Fatalf("Clearing Trackers failed: %s", err)
+	}
+
+	userID := 0
+	err = serv.CreateTracker(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
+	if err != nil {
+		t.Fatalf("CreateTask failed: %s", err)
+	}
+
+	// ----  check tracker -----=
+	rows, err := db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+	if err != nil {
+		t.Fatalf("Error getting Rows from Trackers: %s", err)
+	}
+
+	var trackers []tracking.TrackerModel
+	for rows.Next() {
+		var tracker tracking.TrackerModel
+		rows.Scan(&tracker.ID, &tracker.UserID, &tracker.StartDate, &tracker.EndDate)
+		trackers = append(trackers, tracker)
+	}
+
+	if len(trackers) != 1 {
+		t.Errorf("There should be only one Tracker, instead was %d", len(trackers))
+	}
+
+	err = serv.DeleteUserTracker(context.Background(), userID)
+	if err != nil {
+		t.Fatalf("Error deleting Trackers: %s", err)
+	}
+
+	// ----  check tracker -----=
+	rows, err = db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+	if err != nil {
+		t.Fatalf("Error getting Rows from Trackers: %s", err)
+	}
+
+	trackers = []tracking.TrackerModel{}
+	for rows.Next() {
+		var tracker tracking.TrackerModel
+		rows.Scan(&tracker.ID, &tracker.UserID, &tracker.StartDate, &tracker.EndDate)
+		trackers = append(trackers, tracker)
+	}
+
+	if len(trackers) != 0 {
+		t.Errorf("There should be no more Trackers, instead was %d", len(trackers))
+	}
+
+	err = serv.DeleteUserTracker(context.Background(), userID)
+	if err != nil {
+		t.Fatalf("Error deleting Trackers second time: %s", err)
+	}
+
+	t.Cleanup(func() {
+		err = clearTrackers(db)
+		if err != nil {
+			t.Fatalf("Clearing Trackers failed: %s", err)
+		}
+		defer serv.Close()
+	})
+}
+
 func TestCreateTrackerDouble(t *testing.T) {
 	serv, db, err := newTestService()
 	if err != nil {

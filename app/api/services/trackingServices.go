@@ -9,6 +9,46 @@ import (
 	"github.com/pkg/errors"
 )
 
+func (s *Services) ReadTasksFrom(ctx context.Context, userID int, fromTime time.Time) ([]tracking.TaskModel, bool, error) {
+	const pages = 10
+
+	tasks, err := s.store.Tracking.ReadTasksFrom(ctx, userID, pages+1, fromTime)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "services: ReadTaskFrom")
+	}
+
+	if len(tasks) == 0 {
+		return tasks, false, nil
+	}
+
+	hasMore := tasks[0].DatesCounter > pages
+	return tasks, hasMore, nil
+}
+
+func (s *Services) ReadTasksUntil(ctx context.Context, userID int, toTime time.Time) ([]tracking.TaskModel, bool, error) {
+	const pages = 10
+
+	tasks, err := s.store.Tracking.ReadTasksUntil(ctx, userID, pages+1, toTime)
+	if err != nil {
+		return nil, false, errors.Wrap(err, "services: ReadTaskFrom")
+	}
+
+	if len(tasks) == 0 {
+		return tasks, false, nil
+	}
+
+	hasMore := tasks[0].DatesCounter > pages
+	return tasks, hasMore, nil
+}
+
+func (s *Services) CheckTask(ctx context.Context, itemID int64, checked bool) error {
+	if err := s.store.Tracking.CheckTask(ctx, itemID, checked); err != nil {
+		return errors.Errorf("CheckTask(itemID: %d, checked: %v)", itemID, checked)
+	}
+
+	return nil
+}
+
 func (s *Services) ReadUserTracker(ctx context.Context, userID int) (*tracking.TrackerModel, error) {
 	tracker, err := s.store.Tracking.ReadUserTracker(ctx, userID)
 	if err != nil {

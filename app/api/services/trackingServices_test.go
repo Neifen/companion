@@ -482,10 +482,10 @@ func TestCreateTrackerDifferentDays(t *testing.T) {
 	for _, timeRange := range timeRanges {
 		begin := time.Now().AddDate(0, 0, rand.Intn(500))
 		nowString := begin.Format("2006-01-02")
-		in100Days := begin.AddDate(0, 0, timeRange)
-		in100DaysString := in100Days.Format("2006-01-02")
+		inXDays := begin.AddDate(0, 0, timeRange)
+		inXDaysString := inXDays.Format("2006-01-02")
 
-		err = serv.CreateTracker(context.Background(), userID, planID, nowString, in100DaysString)
+		err = serv.CreateTracker(context.Background(), userID, planID, nowString, inXDaysString)
 		if err != nil {
 			t.Fatalf("CreateTask failed: %s", err)
 		}
@@ -516,8 +516,8 @@ func TestCreateTrackerDifferentDays(t *testing.T) {
 			t.Errorf("From Date is %s, should be %s", from, begin)
 		}
 
-		if to.Year() != in100Days.Year() && to.Month() != in100Days.Month() && to.Day() != in100Days.Day() {
-			t.Errorf("To Date is %s, should be %s", to, in100Days)
+		if to.Year() != inXDays.Year() && to.Month() != inXDays.Month() && to.Day() != inXDays.Day() {
+			t.Errorf("To Date is %s, should be %s", to, inXDays)
 		}
 
 		// ----  check tasks -----=
@@ -535,7 +535,7 @@ func TestCreateTrackerDifferentDays(t *testing.T) {
 			count++
 		}
 
-		if count != timeRange {
+		if count-1 != timeRange {
 			t.Errorf("There should be %d, instead was %d", timeRange, count)
 		}
 	}

@@ -3,6 +3,7 @@ package bible
 import (
 	"context"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
 )
 
@@ -63,6 +64,43 @@ func (pg *BibleStore) ReadAllChapters(ctx context.Context) ([]*ChapterModel, err
 		}
 
 		chapters[i] = &ChapterModel{id, bookName, bookID, chapter, chapterWordCount}
+	}
+
+	return chapters, nil
+}
+
+func (pg *BibleStore) ReadAllBookChapters(ctx context.Context, book string) ([]ChapterModel, error) {
+	rows, err := pg.db.Query(ctx, `
+	SELECT 
+		id, book_name, book_id, chapter_nr, chapter_word_count 
+	FROM `+chaptersTable+` where book_name=$1
+	 order by id `, book)
+	if err != nil {
+		return nil, errors.Wrapf(err, "ReadAllBookChapters(book: %s) select", book)
+	}
+
+	chapters, err := pgx.CollectRows(rows, pgx.RowToStructByName[ChapterModel])
+	if err != nil {
+		return nil, errors.Wrapf(err, "ReadAllBookChapters(book: %s) scanning", book)
+	}
+
+	return chapters, nil
+}
+
+func (pg *BibleStore) ReadBookChapters(ctx context.Context, book string, chapterNrs []int16) ([]ChapterModel, error) {
+	rows, err := pg.db.Query(ctx, `
+	SELECT 
+		c.id, c.book_name, c.book_id, c.chapter_nr, c.chapter_word_count
+	FROM unnest($1::int16[]) WITH ORDINALITY AS chapter_nrs(nr, ord) 
+		join `+chaptersTable+` c on chapter_nrs.nr=c.chapter_nr where c.book_name=$1 and chapter_nr in 
+	 	order by chapter_nrs.ord `, chapterNrs, book)
+	if err != nil {
+		return nil, errors.Wrapf(err, "ReadAllBookChapters(book: %s) select", book)
+	}
+
+	chapters, err := pgx.CollectRows(rows, pgx.RowToStructByName[ChapterModel])
+	if err != nil {
+		return nil, errors.Wrapf(err, "ReadBookChapters(book: %s, chapterNrs: %v) scanning", book, chapterNrs)
 	}
 
 	return chapters, nil

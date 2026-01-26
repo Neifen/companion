@@ -1,7 +1,7 @@
 package plans
 
 type PlanModel struct {
-	ID       int    `sql:"id"`
-	Name     string `sql:"name"`
-	PlanDesc string `sql:"plan_desc"`
+	ID       int    `db:"id"`
+	Name     string `db:"name"`
+	PlanDesc string `db:"plan_desc"`
 }

@@ -36,10 +36,12 @@ func (s *HandlerSession) viewHome(c echo.Context, u *userReq) error {
 		if len(tracker) != 0 {
 			bible = trackerModelToEntity(tracker, hasMore)
 		} else {
+			// todo: show welcome for new user
 			welcome = true
 		}
 	}
 
+	//todo: show welcome for not logged in
 	if welcome {
 		chapters, err := s.store.Bible.ReadPlanChapter(c.Request().Context(), 0)
 		// todo real errors
@@ -168,7 +170,7 @@ func (s *HandlerSession) handleJoinPlanWindow(c echo.Context) error {
 		fromSettings = false
 	}
 
-	plansModel, err := s.store.Plans.ReadAllPlans(c.Request().Context())
+	plansModel, err := s.services.GetAllPlans(c.Request().Context())
 	if err != nil {
 		fmt.Println("Could not read all plans: ", err)
 		return view.ErrorHTML(c, "Could not load list of plan")
@@ -178,8 +180,6 @@ func (s *HandlerSession) handleJoinPlanWindow(c echo.Context) error {
 	for _, planModel := range plansModel {
 		plans = append(plans, entities.NewPlan(planModel.ID, planModel.Name, planModel.PlanDesc))
 	}
-
-	// TODO get all plans
 
 	return view.NewTracker(c, fromSettings, plans) // todo change
 }

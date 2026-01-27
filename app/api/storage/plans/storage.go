@@ -2,13 +2,13 @@
 package plans
 
 import (
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/neifen/htmx-login/app/api/storage/db"
 )
 
 type PlansStore struct {
-	db *pgxpool.Pool
+	db db.DB
 }
 
-func NewPlansStore(db *pgxpool.Pool) *PlansStore {
+func NewPlansStore(db db.DB) *PlansStore {
 	return &PlansStore{db}
 }

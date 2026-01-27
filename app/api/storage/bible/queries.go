@@ -73,7 +73,7 @@ func (pg *BibleStore) ReadAllBookChapters(ctx context.Context, book string) ([]C
 	rows, err := pg.db.Query(ctx, `
 	SELECT 
 		id, book_name, book_id, chapter_nr, chapter_word_count 
-	FROM `+chaptersTable+` where book_name=$1
+	FROM `+chaptersTable+` where lower(book_name)=lower($1)
 	 order by id `, book)
 	if err != nil {
 		return nil, errors.Wrapf(err, "ReadAllBookChapters(book: %s) select", book)
@@ -91,8 +91,8 @@ func (pg *BibleStore) ReadBookChapters(ctx context.Context, book string, chapter
 	rows, err := pg.db.Query(ctx, `
 	SELECT 
 		c.id, c.book_name, c.book_id, c.chapter_nr, c.chapter_word_count
-	FROM unnest($1::int16[]) WITH ORDINALITY AS chapter_nrs(nr, ord) 
-		join `+chaptersTable+` c on chapter_nrs.nr=c.chapter_nr where c.book_name=$1 and chapter_nr in 
+	FROM unnest($1::smallint[]) WITH ORDINALITY AS chapter_nrs(nr, ord) 
+		join `+chaptersTable+` c on chapter_nrs.nr=c.chapter_nr and lower(c.book_name)=lower($2)
 	 	order by chapter_nrs.ord `, chapterNrs, book)
 	if err != nil {
 		return nil, errors.Wrapf(err, "ReadAllBookChapters(book: %s) select", book)

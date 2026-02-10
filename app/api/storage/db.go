@@ -21,7 +21,7 @@ func (s *Storage) CreateTX(ctx context.Context) error {
 	tx, err := s.pgx.Begin(ctx)
 
 	if err != nil {
-		return errors.Wrapf(err, "Creeating Transaction")
+		return fmt.Errorf("db: Create TX %w", err)
 	}
 	s.db = tx
 	s.tx = tx
@@ -36,7 +36,7 @@ func (s *Storage) RollbackTX(ctx context.Context) error {
 
 	err := s.tx.Rollback(ctx)
 	if err != nil {
-		return errors.Wrap(err, "Rolling back tx didn't work out")
+		return fmt.Errorf("db: Rollback TX %w", err)
 	}
 
 	s.db = s.pgx
@@ -45,12 +45,12 @@ func (s *Storage) RollbackTX(ctx context.Context) error {
 
 func (s *Storage) CommitTX(ctx context.Context) error {
 	if s.tx == nil {
-		return errors.New("No tx started")
+		return fmt.Errorf("db: Commit TX. No tx started")
 	}
 
 	err := s.tx.Commit(ctx)
 	if err != nil {
-		return errors.Wrap(err, "Commiting tx didn't work out")
+		return fmt.Errorf("db: Commit TX %w", err)
 	}
 
 	s.db = s.pgx

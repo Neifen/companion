@@ -9,7 +9,7 @@ import (
 	"github.com/neifen/htmx-login/app/entities"
 )
 
-func chapterModelToEntity(model []*bible.ChapterModel) *entities.TrackedBible {
+func chapterModelToEntity(model []bible.ChapterModel) *entities.TrackedBible {
 	trackedBible := entities.NewTrackedBible(false)
 	var trackedItems []*entities.TrackedItem
 	lastBookName := ""

@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS plans.bible_plans(
     id bigserial PRIMARY KEY,
     plan_fk int REFERENCES plans.plans ON DELETE CASCADE NOT NULL,
     chapter_fk int2 REFERENCES static.chapters NOT NULL,
-    verse_fks int[], -- optional
+    verse_fks smallint[], -- optional
     verses varchar(40), -- optional
     length int NOT NULL,
     running_length int NOT NULL -- template for tracker

@@ -2,6 +2,7 @@ package bible
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
@@ -11,11 +12,12 @@ const (
 	plansTable      = "plans.plans"
 	biblePlansTable = "plans.bible_plans"
 	chaptersTable   = "static.chapters"
+	versesTable     = "static.verses"
 )
 
-func (pg *BibleStore) ReadPlanChapter(ctx context.Context, planID int) ([]*ChapterModel, error) {
+func (pg *BibleStore) ReadPlanChapter(ctx context.Context, planID int) ([]ChapterModel, error) {
 	rows, err := pg.db.Query(ctx, `
-		select c.id, c.book_name, c.book_id, c.chapter_nr, c.chapter_word_count from `+plansTable+` p 
+		select c.id, c.book_name, c.book_id, c.chapter_nr, bp.length as word_count, bp.verse_fks as verses, bp.verses as verses_title from `+plansTable+` p 
 		join `+biblePlansTable+` bp on bp.plan_fk = p.id
 		join `+chaptersTable+` c on bp.chapter_fk = c.id
 		where p.id = $1
@@ -25,83 +27,80 @@ func (pg *BibleStore) ReadPlanChapter(ctx context.Context, planID int) ([]*Chapt
 		return nil, errors.Wrapf(err, "ReadPlanChapter(%d) select", planID)
 	}
 
-	var chapters []*ChapterModel
-	for i := 0; rows.Next(); i++ {
-		var id int16
-		var bookName string
-		var bookID int16
-		var chapterNr int16
-		var chapterWordCount int16
-
-		err := rows.Scan(&id, &bookName, &bookID, &chapterNr, &chapterWordCount)
-		if err != nil {
-			return nil, errors.Wrapf(err, "ReadChaptersFromPlan(%d) scan", planID)
-		}
-
-		chapters = append(chapters, &ChapterModel{id, bookName, bookID, chapterNr, chapterWordCount})
-	}
-
-	return chapters, nil
-}
-
-func (pg *BibleStore) ReadAllChapters(ctx context.Context) ([]*ChapterModel, error) {
-	rows, err := pg.db.Query(ctx, "SELECT id, book_name, book_id, chapter_nr, chapter_word_count FROM "+chaptersTable+" order by id")
+	chapters, err := pgx.CollectRows(rows, pgx.RowToStructByNameLax[ChapterModel])
 	if err != nil {
-		return nil, errors.Wrap(err, "ReadAllChapters select")
+		return nil, errors.Wrapf(err, "ReadPlanChapter(%d) scan", planID)
 	}
-
-	chapters := make([]*ChapterModel, 1189) // 1189 chapter in the bible
-	for i := 0; rows.Next(); i++ {
-		var id int16
-		var bookName string
-		var bookID int16
-		var chapter int16
-		var chapterWordCount int16
-
-		err := rows.Scan(&id, &bookName, &bookID, &chapter, &chapterWordCount)
-		if err != nil {
-			return nil, errors.Wrap(err, "ReadAllChapters scan")
-		}
-
-		chapters[i] = &ChapterModel{id, bookName, bookID, chapter, chapterWordCount}
-	}
-
 	return chapters, nil
 }
 
-func (pg *BibleStore) ReadAllBookChapters(ctx context.Context, book string) ([]ChapterModel, error) {
+func (pg *BibleStore) ReadBookChapters(ctx context.Context, parsedChapters []BibleChapter) ([]ChapterModel, error) {
+
+	books := []string{}
+	chapters := []int16{}
+	versesStart := []int16{}
+	versesEnd := []int16{}
+	wholeBook := []bool{}
+
+	for _, pch := range parsedChapters {
+		books = append(books, pch.Book)
+		chapters = append(chapters, pch.Chapter)
+		versesStart = append(versesStart, pch.VerseStart)
+		versesEnd = append(versesEnd, pch.VerseEnd)
+		wholeBook = append(wholeBook, pch.WholeBook)
+	}
+
 	rows, err := pg.db.Query(ctx, `
 	SELECT 
-		id, book_name, book_id, chapter_nr, chapter_word_count 
-	FROM `+chaptersTable+` where lower(book_name)=lower($1)
-	 order by id `, book)
+		c.id, c.book_name, c.book_id, c.chapter_nr, 
+		coalesce (sum(v.verse_word_count) , c.chapter_word_count ) as word_count, 
+		coalesce(array_agg(v.id order by v.id) filter (where v.id is not null), '{}') as verses,
+		case when count(v.id) = 0 
+			then '' 
+			else c.book_name || ' ' || c.chapter_nr || ':' || 	
+				(case when min(v.id) = max(v.id) 
+					then min(verse_nr)::text
+					else min(verse_nr) || '-' || max(verse_nr)
+				end)
+		end as verses_title
+	FROM unnest($1::text[], $2::boolean[], $3::smallint[], $4::smallint[], $5::smallint[]) WITH ORDINALITY AS chn(book, wholebook, nr, vfrom, vto, ord) 
+		join `+chaptersTable+` c on (chn.nr=c.chapter_nr or chn.wholebook ) and lower(c.book_name)=lower(chn.book)
+		left join `+versesTable+` v on c.id = v.chapter_fk and chn.vfrom <= v.verse_nr and chn.vto >= v.verse_nr
+	 	group by chn.ord, c.id
+	 	order by chn.ord, c.id `, books, wholeBook, chapters, versesStart, versesEnd)
 	if err != nil {
-		return nil, errors.Wrapf(err, "ReadAllBookChapters(book: %s) select", book)
+		return nil, errors.Wrapf(err, "ReadBookChapters(parsed chapters: %v) select", parsedChapters)
 	}
 
-	chapters, err := pgx.CollectRows(rows, pgx.RowToStructByName[ChapterModel])
+	chapterModels, err := pgx.CollectRows(rows, pgx.RowToStructByNameLax[ChapterModel])
 	if err != nil {
-		return nil, errors.Wrapf(err, "ReadAllBookChapters(book: %s) scanning", book)
+		return nil, errors.Wrapf(err, "ReadBookChapters(parsed chapters: %v) scanning", parsedChapters)
 	}
 
-	return chapters, nil
+	return chapterModels, nil
 }
 
-func (pg *BibleStore) ReadBookChapters(ctx context.Context, book string, chapterNrs []int16) ([]ChapterModel, error) {
-	rows, err := pg.db.Query(ctx, `
-	SELECT 
-		c.id, c.book_name, c.book_id, c.chapter_nr, c.chapter_word_count
-	FROM unnest($1::smallint[]) WITH ORDINALITY AS chapter_nrs(nr, ord) 
-		join `+chaptersTable+` c on chapter_nrs.nr=c.chapter_nr and lower(c.book_name)=lower($2)
-	 	order by chapter_nrs.ord `, chapterNrs, book)
+func (pg *BibleStore) ReadVerses(ctx context.Context, chaptersIDs []int16) ([]VerseModel, error) {
+	rows, err := pg.db.Query(context.Background(), `    
+	select 
+		v.id
+		v.verse_nr
+		v.length
+		v.chapter_fk
+	from
+		unnest($1::smallint[]) ordinated as c(verse_id, ord) 
+	join static.verses v
+		on v.id = c.verse_id
+	order by ord
+	`)
 	if err != nil {
-		return nil, errors.Wrapf(err, "ReadAllBookChapters(book: %s) select", book)
+		return nil, fmt.Errorf("bible storage: Read Verses for chapters %v %w", chaptersIDs, err)
 	}
 
-	chapters, err := pgx.CollectRows(rows, pgx.RowToStructByName[ChapterModel])
+	verseModels, err := pgx.CollectRows(rows, pgx.RowToStructByName[VerseModel])
 	if err != nil {
-		return nil, errors.Wrapf(err, "ReadBookChapters(book: %s, chapterNrs: %v) scanning", book, chapterNrs)
+		return nil, fmt.Errorf("bible storage: Read Verses for chapters %v %w", chaptersIDs, err)
 	}
 
-	return chapters, nil
+	return verseModels, nil
 }

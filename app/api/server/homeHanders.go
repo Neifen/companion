@@ -43,7 +43,7 @@ func (s *HandlerSession) viewHome(c echo.Context, u *userReq) error {
 
 	//todo: show welcome for not logged in
 	if welcome {
-		chapters, err := s.store.Bible.ReadPlanChapter(c.Request().Context(), 0)
+		chapters, err := s.services.GetPlansChapters(c.Request().Context(), 0)
 		// todo real errors
 		if err != nil {
 			fmt.Println(err)

@@ -2,7 +2,7 @@ CREATE SCHEMA IF NOT EXISTS static;
 
 CREATE TABLE IF NOT EXISTS static.verses
 (
-    id               int2 PRIMARY KEY, --int2 is up to 32,767 (there are 31,102 verses) 
+    id               int2 PRIMARY KEY, --int2 is up to 32,767 (there are 31,102 verses) = smallint
     verse_nr         int2 NOT NULL,
     verse_word_count int2 NOT NULL,
     chapter_fk       int2 REFERENCES static.chapters

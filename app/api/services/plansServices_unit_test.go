@@ -10,7 +10,7 @@ import (
 func TestParseVerse(t *testing.T) {
 	book, err := parseVerses("John", "10", "1")
 	if err != nil {
-		t.Errorf("John 10:1 didn't work out: %s", err)
+		t.Errorf("John 10:1 didn't work out: \n%+v\n", err)
 	}
 
 	exp := bible.BibleChapter{Book: "John", Chapter: 10, VerseStart: 1, VerseEnd: 1}
@@ -20,7 +20,7 @@ func TestParseVerse(t *testing.T) {
 
 	book, err = parseVerses("John", " 8", "44-99")
 	if err != nil {
-		t.Errorf("John 8:44-99 didn't work out: %s", err)
+		t.Errorf("John 8:44-99 didn't work out: \n%+v\n", err)
 	}
 
 	exp = bible.BibleChapter{Book: "John", Chapter: 8, VerseStart: 44, VerseEnd: 99}
@@ -32,7 +32,7 @@ func TestParseVerse(t *testing.T) {
 func TestParseChapter(t *testing.T) {
 	book, hasV, err := parseChapter("Exodus", "10-12, 1,33")
 	if err != nil {
-		t.Errorf("Exodus 10-12,1,33 didn't work out: %s", err)
+		t.Errorf("Exodus 10-12,1,33 didn't work out: \n%+v\n", err)
 	}
 	if hasV {
 		t.Error("Expected HasV to be false, was true")
@@ -46,7 +46,7 @@ func TestParseChapter(t *testing.T) {
 
 	book, hasV, err = parseChapter("Exodus", "  8   :  44  , 4:1-9  ,   9  -   11")
 	if err != nil {
-		t.Errorf("Genesis 8,4,9-11 didn't work out: %s", err)
+		t.Errorf("Genesis 8,4,9-11 didn't work out: \n%+v\n", err)
 	}
 	if !hasV {
 		t.Error("Expected HasV to be true, was false")
@@ -63,7 +63,7 @@ func TestParseChapter(t *testing.T) {
 func TestParseBook(t *testing.T) {
 	book, hasV, err := parseBook("Genesis")
 	if err != nil {
-		t.Errorf("Genesis didn't work out: %s", err)
+		t.Errorf("Genesis didn't work out: \n%+v\n", err)
 	}
 	if hasV {
 		t.Error("Expected HasV to be false, was true")
@@ -76,7 +76,7 @@ func TestParseBook(t *testing.T) {
 
 	book, hasV, err = parseBook("Genesis  : 8  , 4  ,    9  -   11")
 	if err != nil {
-		t.Errorf("Genesis 8,4,9-11 didn't work out: %s", err)
+		t.Errorf("Genesis 8,4,9-11 didn't work out: \n%+v\n", err)
 	}
 	if hasV {
 		t.Error("Expected HasV to be false, was true")
@@ -90,7 +90,7 @@ func TestParseBook(t *testing.T) {
 
 	book, hasV, err = parseBook("Genesis: 5:1, 3:3-6")
 	if err != nil {
-		t.Errorf("Genesis 5:1, 3:3-6 didn't work out: %s", err)
+		t.Errorf("Genesis 5:1, 3:3-6 didn't work out: \n%+v\n", err)
 	}
 	if !hasV {
 		t.Error("Expected HasV to be true, was false")

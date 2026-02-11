@@ -24,6 +24,7 @@ func (api *APIServer) Run() {
 	e := echo.New()
 
 	e.Use(middleware.Logger())
+	e.Use(middleware.Recover()) // so panics don't crash everything
 	e.Static("/static", "app/assets")
 
 	s := NewHanderSession(api.store, api.services)

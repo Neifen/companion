@@ -7,22 +7,22 @@ import (
 func TestCreatePlan(t *testing.T) {
 	serv, db, err := newTestService()
 	if err != nil {
-		t.Fatalf("Could not Set up db: %s", err)
+		t.Fatalf("Could not Set up db: \n%+v\n", err)
 	}
 
 	if err := clearPlans(db); err != nil {
-		t.Fatalf("Clearing Plans failed: %s", err)
+		t.Fatalf("Clearing Plans failed: \n%+v\n", err)
 	}
 
 	justBooks := []string{"Genesis", "1 John", "jeremiah"}
 	planID, err := serv.CreateNewPlan(t.Context(), "Just Books", "This Plan contains only whole books", justBooks, -1)
 	if err != nil {
-		t.Errorf("Justbook failed with error: %s", err)
+		t.Errorf("Justbook failed with error: \n%+v\n", err)
 	}
 
 	chapters, err := serv.GetPlansChapters(t.Context(), planID)
 	if err != nil {
-		t.Errorf("Read Justbook failed with error: %s", err)
+		t.Errorf("Read Justbook failed with error: \n%+v\n", err)
 	}
 
 	countGenesis := 0
@@ -69,12 +69,12 @@ ChapterLoop:
 		booksAndChapter,
 		-1)
 	if err != nil {
-		t.Errorf("BooksAndChapter failed with error: %s", err)
+		t.Errorf("BooksAndChapter failed with error: \n%+v\n", err)
 	}
 
 	chapters, err = serv.GetPlansChapters(t.Context(), planID)
 	if err != nil {
-		t.Errorf("Read Justbook failed with error: %s", err)
+		t.Errorf("Read Justbook failed with error: \n%+v\n", err)
 	}
 
 	countGenesis = 0
@@ -119,12 +119,12 @@ Chapter2Loop:
 		booksChaptersAndVerses,
 		-1)
 	if err != nil {
-		t.Errorf("Books/Chapters/Verses failed with error: %s", err)
+		t.Errorf("Books/Chapters/Verses failed with error: \n%+v\n", err)
 	}
 
 	chapters, err = serv.GetPlansChapters(t.Context(), planID)
 	if err != nil {
-		t.Errorf("Read Justbook failed with error: %s", err)
+		t.Errorf("Read Justbook failed with error: \n%+v\n", err)
 	}
 
 	countGenesis = 0
@@ -204,7 +204,182 @@ Chapter3Loop:
 	t.Cleanup(func() {
 		err = clearPlans(db)
 		if err != nil {
-			t.Fatalf("Clearing Plans failed: %s", err)
+			t.Fatalf("Clearing Plans failed: \n%+v\n", err)
+		}
+		defer serv.Close()
+	})
+}
+
+func TestCreatePlanSplitChapters(t *testing.T) {
+	serv, db, err := newTestService()
+	if err != nil {
+		t.Fatalf("Could not Set up db: \n%+v\n", err)
+	}
+
+	if err := clearPlans(db); err != nil {
+		t.Fatalf("Clearing Plans failed: \n%+v\n", err)
+	}
+
+	justBooks := []string{"Genesis", "1 John", "jeremiah"}
+	planID, err := serv.CreateNewPlan(t.Context(), "Just Books", "This Plan contains only whole books", justBooks, 2)
+	if err != nil {
+		t.Errorf("Justbook failed with error: \n%+v\n", err)
+	}
+
+	chapters, err := serv.GetPlansChapters(t.Context(), planID)
+	if err != nil {
+		t.Errorf("Read Justbook failed with error: \n%+v\n", err)
+	}
+
+	countGenesis := 0
+	countJohn := 0
+	countJeremiah := 0
+
+ChapterLoop:
+	for _, ch := range chapters {
+		switch ch.BookName {
+		case "Genesis":
+			countGenesis++
+			if countJohn > 0 || countJeremiah > 0 {
+				t.Errorf("Genesis needs to come back before 1 John and Jeremiah")
+				break ChapterLoop
+			}
+		case "1 John":
+			countJohn++
+			if countJeremiah > 0 {
+				t.Errorf("1 John needs to come back before Jeremiah")
+				break ChapterLoop
+			}
+		case "Jeremiah":
+			countJeremiah++
+		default:
+			t.Errorf("Invalid Book name: %s", ch.BookName)
+			break ChapterLoop
+		}
+	}
+
+	if countGenesis != 51 {
+		t.Errorf("Needed to have 51 (50+ replace 1 with 2) Genesis chapters inserted, instead was: %d", countGenesis)
+	}
+	if countJohn != 5 {
+		t.Errorf("Needed to have 5 1.John chapters inserted, instead was: %d", countJohn)
+	}
+	if countJeremiah != 54 {
+		t.Errorf("Needed to have 54 (52 + replace 1 with 3) Jeremiah chapters inserted, instead was: %d", countJeremiah)
+	}
+
+	booksAndChapter := []string{"Genesis: 1,4", "Genesis: 2-50", "jeremiah"}
+	planID, err = serv.CreateNewPlan(t.Context(),
+		"Books and Chapter",
+		"This plan contains books and whole chapters as well as chapter ranges",
+		booksAndChapter,
+		3)
+	if err != nil {
+		t.Errorf("BooksAndChapter failed with error: \n%+v\n", err)
+	}
+
+	chapters, err = serv.GetPlansChapters(t.Context(), planID)
+	if err != nil {
+		t.Errorf("Read Justbook failed with error: \n%+v\n", err)
+	}
+
+	countGenesis = 0
+	countJeremiah = 0
+Chapter2Loop:
+	for i, ch := range chapters {
+		if i < 2 {
+			if ch.BookName != "Genesis" || (ch.ChapterNr != 1 && ch.ChapterNr != 4) {
+				t.Errorf("Needs to start with Genesis 1 and 4, instead was: %s %d", ch.BookName, ch.ChapterNr)
+				break
+			}
+			continue
+		}
+
+		switch ch.BookName {
+		case "Genesis":
+			countGenesis++
+			if countJeremiah > 0 {
+				t.Errorf("Genesis needs to come back before and Jeremiah")
+				break Chapter2Loop
+			}
+		case "Jeremiah":
+			countJeremiah++
+		default:
+			t.Errorf("Invalid Book name: %s", ch.BookName)
+			break Chapter2Loop
+		}
+	}
+
+	if countGenesis != 49 {
+		t.Errorf("Needed to have 49 Genesis chapters inserted, instead was: %d", countGenesis)
+	}
+	if countJeremiah != 52 {
+		t.Errorf("Needed to have 52 Jeremiah chapters inserted, instead was: %d", countJeremiah)
+	}
+
+	booksAndChapter2 := []string{"Genesis: 1,4", "Genesis: 2-50", "jeremiah"}
+	planID, err = serv.CreateNewPlan(t.Context(),
+		"Books and Chapter",
+		"This plan contains books and whole chapters as well as chapter ranges. Tested with a small cutRatio",
+		booksAndChapter2,
+		1.5)
+	if err != nil {
+		t.Errorf("BooksAndChapter failed with error: \n%+v\n", err)
+	}
+
+	chapters, err = serv.GetPlansChapters(t.Context(), planID)
+	if err != nil {
+		t.Errorf("Read Justbook failed with error: \n%+v\n", err)
+	}
+
+	countGenesis = 0
+	countJeremiah = 0
+Chapter3Loop:
+	for i, ch := range chapters {
+		if i < 2 {
+			if ch.BookName != "Genesis" || (ch.ChapterNr != 1 && ch.ChapterNr != 4) {
+				t.Errorf("Needs to start with Genesis 1 and 4, instead was: %s %d", ch.BookName, ch.ChapterNr)
+				break
+			}
+			continue
+		}
+
+		switch ch.BookName {
+		case "Genesis":
+			countGenesis++
+			if countJeremiah > 0 {
+				t.Errorf("Genesis needs to come back before and Jeremiah")
+				break Chapter3Loop
+			}
+		case "Jeremiah":
+			countJeremiah++
+		default:
+			t.Errorf("Invalid Book name: %s", ch.BookName)
+			break Chapter3Loop
+		}
+	}
+
+	if countGenesis != 52 {
+		t.Errorf("Needed to have 52 (49 + 1 replaced with 3) Genesis chapters inserted, instead was: %d", countGenesis)
+	}
+	if countJeremiah != 56 {
+		t.Errorf("Needed to have 56 (52 + 1 replaced with 5) Jeremiah chapters inserted, instead was: %d", countJeremiah)
+	}
+
+	booksChaptersAndVerses := []string{"Genesis: 1,4:12, 5:2-15", "Genesis: 2-50", "jeremiah"}
+	_, err = serv.CreateNewPlan(t.Context(),
+		"Books and Chapter",
+		"This plan contains books and whole chapters as well as chapter ranges",
+		booksChaptersAndVerses,
+		2)
+	if err == nil {
+		t.Errorf("Books/Chapters/Verses failed to throw error: \n%+v\n", err)
+	}
+
+	t.Cleanup(func() {
+		err = clearPlans(db)
+		if err != nil {
+			t.Fatalf("Clearing Plans failed: \n%+v\n", err)
 		}
 		defer serv.Close()
 	})

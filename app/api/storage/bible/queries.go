@@ -2,7 +2,6 @@ package bible
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
@@ -83,23 +82,23 @@ func (pg *BibleStore) ReadBookChapters(ctx context.Context, parsedChapters []Bib
 func (pg *BibleStore) ReadVerses(ctx context.Context, chaptersIDs []int16) ([]VerseModel, error) {
 	rows, err := pg.db.Query(context.Background(), `    
 	select 
-		v.id
-		v.verse_nr
-		v.length
+		v.id,
+		v.verse_nr,
+		v.verse_word_count as length,
 		v.chapter_fk
 	from
-		unnest($1::smallint[]) ordinated as c(verse_id, ord) 
+		unnest($1::smallint[]) with ordinality as c(id, ord)
 	join static.verses v
-		on v.id = c.verse_id
+		on v.chapter_fk = c.id
 	order by ord
-	`)
+	`, chaptersIDs)
 	if err != nil {
-		return nil, fmt.Errorf("bible storage: Read Verses for chapters %v %w", chaptersIDs, err)
+		return nil, errors.Wrapf(err, "bible storage: Read Verses for chapters %v", chaptersIDs)
 	}
 
 	verseModels, err := pgx.CollectRows(rows, pgx.RowToStructByName[VerseModel])
 	if err != nil {
-		return nil, fmt.Errorf("bible storage: Read Verses for chapters %v %w", chaptersIDs, err)
+		return nil, errors.Wrapf(err, "bible storage: Read Verses for chapters %v", chaptersIDs)
 	}
 
 	return verseModels, nil

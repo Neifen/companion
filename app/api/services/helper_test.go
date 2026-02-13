@@ -30,6 +30,11 @@ import (
 // 	os.Exit(exitCode)
 // }
 
+const (
+	defaultPlanID = 0
+	defaultUserID = 0
+)
+
 func clearTrackers(db db.DB) error {
 	res, err := db.Exec(context.Background(), "DELETE FROM tracking.trackers")
 	if err != nil {
@@ -46,6 +51,31 @@ func clearTrackers(db db.DB) error {
 	}
 
 	fmt.Printf("Tracker Rows cleaned up: %d\n", affected)
+	return nil
+}
+
+func clearCompanions(db db.DB) error {
+	res, err := db.Exec(context.Background(), "DELETE FROM companions.companions")
+	if err != nil {
+		return errors.Wrap(err, "Could not clean up Plans table")
+	}
+
+	affected := res.RowsAffected()
+
+	var count int
+	row := db.QueryRow(context.Background(), "SELECT count(*) from companions.companion_items")
+	row.Scan(&count)
+	if count != 0 {
+		return errors.Errorf("companion items should be emty through delete cascade. Was %d instead", count)
+	}
+
+	row = db.QueryRow(context.Background(), "SELECT count(*) from companions.plan_companions")
+	row.Scan(&count)
+	if count != 0 {
+		return errors.Errorf("plan companion connection table should be emty through delete cascade. Was %d instead", count)
+	}
+
+	fmt.Printf("Companion Rows cleaned up: %d\n", affected)
 	return nil
 }
 

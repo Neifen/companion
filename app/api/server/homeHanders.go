@@ -53,7 +53,7 @@ func (s *HandlerSession) viewHome(c echo.Context, u *userReq) error {
 		bible = chapterModelToEntity(chapters)
 	}
 
-	fmt.Printf("\nRender Markup:\n %s", string(view.RenderMarkdown()))
+	fmt.Printf("\nRender Markdown:\n %s", string(view.RenderMarkdown()))
 
 	viewU := entities.NewViewUser(u.name, u.isLoggedIn)
 	return view.HomeHTML(c, bible, viewU, welcome)

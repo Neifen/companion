@@ -56,8 +56,8 @@ func TestGetCompanionByBook(t *testing.T) {
 	}
 
 	expected := constMarkupToHTML()
-	if page.Markup != expected {
-		t.Errorf("Expected %s instead was %s", expected, page.Markup)
+	if page.HTML != expected {
+		t.Errorf("Expected %s instead was %s", expected, page.HTML)
 	}
 
 	if page.CompanionSource != "By book 5 (deuteronomy)" {
@@ -125,8 +125,8 @@ func TestGetCompanionByChapter(t *testing.T) {
 	}
 
 	expected := constMarkupToHTML()
-	if page.Markup != expected {
-		t.Errorf("Expected %s instead was %s", expected, page.Markup)
+	if page.HTML != expected {
+		t.Errorf("Expected %s instead was %s", expected, page.HTML)
 	}
 
 	if page.CompanionSource != "specific chapters" {
@@ -194,8 +194,8 @@ func TestGetCompanionOutsideChapter(t *testing.T) {
 	}
 
 	expected := constMarkupToHTML()
-	if page.Markup != expected {
-		t.Errorf("Expected %s instead was %s", expected, page.Markup)
+	if page.HTML != expected {
+		t.Errorf("Expected %s instead was %s", expected, page.HTML)
 	}
 
 	if page.CompanionSource != "By book 5 (deuteronomy)" {

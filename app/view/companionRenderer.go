@@ -1,6 +1,6 @@
 package view
 
-// here comes the renderer markup -> html (maybe put it in view?)
+// here comes the renderer markdown -> html (maybe put it in view?)
 import (
 	"github.com/gomarkdown/markdown"
 	"github.com/gomarkdown/markdown/html"

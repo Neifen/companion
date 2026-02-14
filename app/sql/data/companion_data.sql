@@ -5,13 +5,13 @@ VALUES
 ON CONFLICT
     DO NOTHING;
 
-INSERT INTO companions.companion_items(id, chapter_start_fk, chapter_end_fk, companion_src, markup, companion_fk)
+INSERT INTO companions.companion_items(id, chapter_start_fk, chapter_end_fk, companion_src, markdown, html, companion_fk)
 VALUES
-    (0, 1, 50, NULL, 'This is jus Genesis mate. really realy fun', 0),
-(1, 51, 90, NULL, 'Exodus', 0),
-(2, 91, 117, NULL, 'Leviticus', 0),
-(3, 118, 153, NULL, 'Numbers', 0),
-(4, 154, 187, NULL, 'Deuteronomy', 0)
+    (0, 1, 50, NULL, 'This is jus Genesis mate. really realy fun', '<p>This is jus Genesis mate. really realy fun</p>', 0),
+(1, 51, 90, NULL, 'Exodus', '<p>Exodus</p>', 0),
+(2, 91, 117, NULL, 'Leviticus','<p>Leviticus</p>', 0),
+(3, 118, 153, NULL, 'Numbers','<p>Numbers</p>', 0),
+(4, 154, 187, NULL, 'Deuteronomy','<p>Deuteronomy</p>', 0)
 ON CONFLICT
     DO NOTHING;
 

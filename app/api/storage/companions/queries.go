@@ -53,21 +53,22 @@ func (pg *CompanionsStore) ConnectCompanionToPlan(ctx context.Context, planID, c
 
 func (pg *CompanionsStore) AddCompanionItem(ctx context.Context, item CompanionItemModel) error {
 	query := `
-		INSERT INTO ` + companionItemsTable + ` (book_fk, chapter_start_fk, chapter_end_fk, companion_src, markup, companion_fk)
-		VALUES (@book, @chapter_start, @chapter_end, @companion_src, @markup, @companion)`
+		INSERT INTO ` + companionItemsTable + ` (book_fk, chapter_start_fk, chapter_end_fk, companion_src, markdown, html, companion_fk)
+		VALUES (@book, @chapter_start, @chapter_end, @companion_src, @markdown, @html, @companion)`
 
 	args := pgx.NamedArgs{
 		"book":          item.BookID,
 		"chapter_start": item.ChapterStartID,
 		"chapter_end":   item.ChapterEndID,
 		"companion_src": item.CompanionSource,
-		"markup":        item.Markup,
+		"markdown":      item.Markdown,
+		"html":          item.HTML,
 		"companion":     item.CompanionID,
 	}
 
 	_, err := pg.db.Exec(ctx, query, args)
 	if err != nil {
-		//todo: can I print %v but without Markup?
+		//todo: can I print %v but without Markdown?
 		return errors.Wrapf(err, "companion storage: AddCompanionItem values: %v", item)
 	}
 
@@ -108,7 +109,8 @@ func (pg *CompanionsStore) ReadChaptersCompanion(ctx context.Context, companionI
 			ci.chapter_start_fk,
 			ci.chapter_end_fk,
 			ci.companion_src,
-			ci.markup,
+			ci.markdown,
+			ci.html,
 			ci.companion_fk
 		from
 			`+companionItemsTable+` ci

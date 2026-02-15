@@ -3,7 +3,7 @@ CREATE SCHEMA IF NOT EXISTS tracking;
 -- used to be user_to_tracker
 CREATE TABLE IF NOT EXISTS tracking.trackers(
     id bigserial PRIMARY KEY,
-    user_fk int NOT NULL REFERENCES auth.users ON DELETE CASCADE,
+    user_fk uuid NOT NULL REFERENCES auth.users ON DELETE CASCADE,
     start_date date NOT NULL,
     end_date date NOT NULL,
     created_at timestamptz NOT NULL DEFAULT NOW(),

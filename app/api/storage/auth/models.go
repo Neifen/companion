@@ -1,16 +1,15 @@
 package auth
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/neifen/htmx-login/app/api/crypto"
+	"github.com/pkg/errors"
 )
 
 type UserModel struct {
-	ID    int
-	UID   string
+	ID    uuid.UUID
 	Name  string
 	Email string
 	Pw    []byte
@@ -18,29 +17,29 @@ type UserModel struct {
 
 type RefreshTokenModel struct {
 	id         int
-	UserUID    string
+	UserUID    uuid.UUID
 	Token      string
 	Expiration time.Time
 	Remember   bool
 }
 
-func NewUserModel(name, email, pw string) *UserModel {
-
+func NewUserModel(name, email, pw string) (*UserModel, error) {
 	pwHash, err := crypto.HashPassword(pw)
 	if err != nil {
-		fmt.Println("could not hash password")
-		return nil
+		return nil, errors.Wrapf(err, "usermodel: create new user")
 	}
 
+	id := uuid.New()
+
 	return &UserModel{
+		ID:    id,
 		Name:  name,
 		Email: email,
 		Pw:    pwHash,
-		UID:   uuid.NewString(),
-	}
+	}, nil
 }
 
-func NewRefreshTokenModel(userUID, token string, expiration time.Time, remember bool) *RefreshTokenModel {
+func NewRefreshTokenModel(userUID uuid.UUID, token string, expiration time.Time, remember bool) *RefreshTokenModel {
 	return &RefreshTokenModel{
 		UserUID:    userUID,
 		Token:      token,

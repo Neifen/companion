@@ -9,12 +9,14 @@ import (
 
 	"aidanwoods.dev/go-paseto"
 	"github.com/go-test/deep"
+	"github.com/google/uuid"
 )
 
 func TestInvalidPrivateKey(t *testing.T) {
 	os.Setenv("TOKEN_LOCAL_KEY", "♥")
 
-	access, err := NewAccessToken("what", "ever")
+	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
+	access, err := NewAccessToken(userID, "ever")
 	if err == nil {
 		t.Errorf(`NewAccessToken: Having ♥ as a Private key should return an error`)
 	}
@@ -54,7 +56,7 @@ func TestInvalidPrivateKey(t *testing.T) {
 		t.Errorf(`ValidSynmTokenFromCookies: Having ♥ as a Private key should not return a token: %v`, token)
 	}
 
-	refresh, err := NewRefreshToken("what", "ever", false)
+	refresh, err := NewRefreshToken(userID, "ever", false)
 	if err == nil {
 		t.Errorf(`NewRefreshToken: Having ♥ as a Private key should return an error`)
 	}
@@ -71,7 +73,8 @@ func TestInvalidPrivateKey(t *testing.T) {
 func TestInvalidPrivateKeyEmpty(t *testing.T) {
 	os.Setenv("TOKEN_LOCAL_KEY", "")
 
-	access, err := NewAccessToken("what", "ever")
+	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
+	access, err := NewAccessToken(userID, "ever")
 	if err == nil {
 		t.Errorf(`NewAccessToken: Having an empty Private key should return an error`)
 	}
@@ -112,7 +115,7 @@ func TestInvalidPrivateKeyEmpty(t *testing.T) {
 		t.Errorf(`ValidSynmTokenFromCookies: Having an empty Private key should not return a token: %v`, token)
 	}
 
-	refresh, err := NewRefreshToken("what", "ever", true)
+	refresh, err := NewRefreshToken(userID, "ever", true)
 	if err == nil {
 		t.Errorf(`NewRefreshToken: Having an empty Private key should return an error`)
 	}
@@ -127,31 +130,31 @@ func TestInvalidPrivateKeyEmpty(t *testing.T) {
 }
 
 func TestAccessAndRefreshTokenNotEqual(t *testing.T) {
-	uid := "this Is an uid"
+	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
 	name := "my Name"
 	symKey := paseto.NewV4SymmetricKey()
 	os.Setenv("TOKEN_LOCAL_KEY", symKey.ExportHex())
 
-	access, err := NewAccessToken(uid, name)
+	access, err := NewAccessToken(userID, name)
 	if err != nil {
-		t.Fatalf(`NewAccessToken(%q, %q) failed with the following error %v`, uid, name, err)
+		t.Fatalf(`NewAccessToken(%q, %q) failed with the following error %v`, userID, name, err)
 	}
 
-	refresh, err := NewRefreshToken(uid, name, false)
+	refresh, err := NewRefreshToken(userID, name, false)
 	if err != nil {
-		t.Fatalf(`NewRefreshToken(%q, %q) failed with the following error %v`, uid, name, err)
+		t.Fatalf(`NewRefreshToken(%q, %q) failed with the following error %v`, userID, name, err)
 	}
 
 	accessKey := access.Encrypted
 	refreshKey := refresh.Encrypted
 
 	if accessKey == refreshKey {
-		t.Errorf(`Access token and Refresh token with same parameters (%q, %q) were equal: %q`, uid, name, refreshKey)
+		t.Errorf(`Access token and Refresh token with same parameters (%q, %q) were equal: %q`, userID, name, refreshKey)
 	}
 }
 
 func TestAccessAndRefreshTokenNotEqualEmpty(t *testing.T) {
-	uid := ""
+	uid := uuid.Nil
 	name := ""
 	symKey := paseto.NewV4SymmetricKey()
 	os.Setenv("TOKEN_LOCAL_KEY", symKey.ExportHex())
@@ -175,7 +178,7 @@ func TestAccessAndRefreshTokenNotEqualEmpty(t *testing.T) {
 }
 
 func TestAccessTokenSymetricKey(t *testing.T) {
-	uid := "this Is an uid"
+	uid := uuid.New()
 	name := "my Name"
 	symKey := paseto.NewV4SymmetricKey()
 	os.Setenv("TOKEN_LOCAL_KEY", symKey.ExportHex())
@@ -197,7 +200,7 @@ func TestAccessTokenSymetricKey(t *testing.T) {
 }
 
 func TestAddAccessTokenToCookie(t *testing.T) {
-	uid := "this Is an uid"
+	uid := uuid.New()
 	name := "my Name"
 	symKey := paseto.NewV4SymmetricKey()
 	os.Setenv("TOKEN_LOCAL_KEY", symKey.ExportHex())
@@ -255,7 +258,7 @@ func TestAddAccessTokenToCookie(t *testing.T) {
 }
 
 func TestAddRefreshTokenToCookie(t *testing.T) {
-	uid := "this Is an uid"
+	uid := uuid.New()
 	name := "my Name"
 	symKey := paseto.NewV4SymmetricKey()
 	os.Setenv("TOKEN_LOCAL_KEY", symKey.ExportHex())
@@ -313,7 +316,7 @@ func TestAddRefreshTokenToCookie(t *testing.T) {
 }
 
 func TestAddRefreshTokenStayLoggedInToAndFromCookie(t *testing.T) {
-	uid := "this Is an uid"
+	uid := uuid.New()
 	name := "my Name"
 	symKey := paseto.NewV4SymmetricKey()
 	os.Setenv("TOKEN_LOCAL_KEY", symKey.ExportHex())
@@ -416,7 +419,7 @@ func TestValidSynmTokenFromCookiesInvalid(t *testing.T) {
 }
 
 func TestRefreshTokenSymetricKey(t *testing.T) {
-	uid := "this Is an uid"
+	uid := uuid.New()
 	name := "my Name"
 	symKey := paseto.NewV4SymmetricKey()
 	os.Setenv("TOKEN_LOCAL_KEY", symKey.ExportHex())
@@ -438,7 +441,7 @@ func TestRefreshTokenSymetricKey(t *testing.T) {
 }
 
 func TestNewAccessToken(t *testing.T) {
-	uid := "this Is an uid"
+	uid := uuid.New()
 	name := "my Name"
 
 	expectedExp := time.Now().Add(2 * time.Hour)
@@ -480,7 +483,7 @@ func TestNewAccessToken(t *testing.T) {
 }
 
 func TestNewRefreshToken(t *testing.T) {
-	uid := "this Is an uid"
+	uid := uuid.New()
 	name := "my Name"
 
 	expectedExp := time.Now().Add(7 * 24 * time.Hour)
@@ -522,7 +525,7 @@ func TestNewRefreshToken(t *testing.T) {
 }
 
 func TestNewRefreshTokenStayLoggedIn(t *testing.T) {
-	uid := "this Is an uid"
+	uid := uuid.New()
 	name := "my Name"
 
 	expectedExp := time.Now().Add(40 * 24 * time.Hour)

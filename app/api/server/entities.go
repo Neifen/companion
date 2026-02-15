@@ -1,6 +1,7 @@
 package server
 
 import (
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/neifen/htmx-login/app/api/crypto"
 	"github.com/neifen/htmx-login/app/api/storage/auth"
@@ -10,8 +11,7 @@ import (
 type userReq struct {
 	isLoggedIn bool
 	name       string
-	uuid       string
-	id         int
+	id         uuid.UUID
 }
 
 func emptyUser() *userReq {
@@ -21,9 +21,8 @@ func emptyUser() *userReq {
 func userFromModel(u *auth.UserModel) *userReq {
 	return &userReq{
 		name:       u.Name,
-		uuid:       u.UID,
-		isLoggedIn: true,
 		id:         u.ID,
+		isLoggedIn: true,
 	}
 }
 
@@ -47,5 +46,5 @@ func userFromToken(c echo.Context) (*userReq, error) {
 	if err != nil {
 		return emptyUser(), errors.Wrap(err, "getting userName from token")
 	}
-	return &userReq{isLoggedIn: true, name: name, uuid: uid}, nil
+	return &userReq{isLoggedIn: true, name: name, id: uid}, nil
 }

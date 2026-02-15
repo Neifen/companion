@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/neifen/htmx-login/app/api/storage/tracking"
 )
 
@@ -21,7 +22,7 @@ func TestCreateTracker(t *testing.T) {
 		t.Fatalf("Clearing Trackers failed: %s", err)
 	}
 
-	userID := 0
+	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
 	err = serv.CreateTracker(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
 	if err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
@@ -105,7 +106,7 @@ func TestReadTracker(t *testing.T) {
 		t.Fatalf("Clearing Trackers failed: %s", err)
 	}
 
-	userID := 0
+	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
 	err = serv.CreateTracker(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
 	if err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
@@ -148,7 +149,7 @@ func TestPaginateAndCheckTask(t *testing.T) {
 		t.Fatalf("Clearing Trackers failed: %s", err)
 	}
 
-	userID := 0
+	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
 	fromRaw := "2025-12-26"
 	from, _ := time.Parse("2006-01-02", fromRaw)
 
@@ -279,7 +280,7 @@ func TestDeleteTracker(t *testing.T) {
 		t.Fatalf("Clearing Trackers failed: %s", err)
 	}
 
-	userID := 0
+	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
 	err = serv.CreateTracker(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
 	if err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
@@ -348,7 +349,7 @@ func TestCreateTrackerDouble(t *testing.T) {
 		t.Fatalf("Clearing Trackers failed: %s", err)
 	}
 
-	userID := 0
+	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
 	err = serv.CreateTracker(context.Background(), userID, 0, "2020-12-26", "2021-12-26")
 	if err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
@@ -439,7 +440,7 @@ func TestCreateTrackerDifferentDays(t *testing.T) {
 		t.Fatalf("Clearing Trackers failed: %s", err)
 	}
 
-	userID := 0
+	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
 	var planID int
 	err = db.QueryRow(context.Background(), "select max(id) from plans.plans").Scan(&planID)
 	if err != nil {
@@ -529,7 +530,7 @@ func TestMoveTrackersParallel(t *testing.T) {
 		t.Fatalf("Clearing Trackers failed: %s", err)
 	}
 
-	userID := 0
+	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
 	start := time.Now().AddDate(0, 0, rand.Intn(500))
 	startString := start.Format("2006-01-02")
 	stop := start.AddDate(0, 0, 100)
@@ -622,7 +623,7 @@ func TestMoveTrackers(t *testing.T) {
 		t.Fatalf("Clearing Trackers failed: %s", err)
 	}
 
-	userID := 0
+	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
 
 	start := time.Now().AddDate(0, 0, rand.Intn(500))
 	startString := start.Format("2006-01-02")
@@ -767,7 +768,7 @@ func TestMoveTrackersStart(t *testing.T) {
 		t.Fatalf("Clearing Trackers failed: %s", err)
 	}
 
-	userID := 0
+	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
 
 	start := time.Now().AddDate(0, 0, rand.Intn(500))
 	startString := start.Format("2006-01-02")
@@ -893,7 +894,7 @@ func TestMoveTrackersEnd(t *testing.T) {
 		t.Fatalf("Clearing Trackers failed: %s", err)
 	}
 
-	userID := 0
+	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
 
 	start := time.Now().AddDate(0, 0, 100)
 	startString := start.Format("2006-01-02")

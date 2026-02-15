@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
 )
@@ -34,7 +35,7 @@ func (pg *TrackingStore) CheckTask(ctx context.Context, taskID int64, checked bo
 	return nil
 }
 
-func (pg *TrackingStore) ReadUserTracker(ctx context.Context, userID int) (*TrackerModel, error) {
+func (pg *TrackingStore) ReadUserTracker(ctx context.Context, userID uuid.UUID) (*TrackerModel, error) {
 	var trackerSettings TrackerModel
 
 	row := pg.db.QueryRow(ctx, `
@@ -43,13 +44,13 @@ func (pg *TrackingStore) ReadUserTracker(ctx context.Context, userID int) (*Trac
 
 	err := row.Scan(&trackerSettings.ID, &trackerSettings.StartDate, &trackerSettings.EndDate)
 	if err != nil {
-		return nil, errors.Wrapf(err, `error reading task settings for user %d`, userID)
+		return nil, errors.Wrapf(err, `error reading task settings for user %s`, userID)
 	}
 
 	return &trackerSettings, nil
 }
 
-func (pg *TrackingStore) ReadTasksUntil(ctx context.Context, userID, pages int, toTime time.Time) ([]TaskModel, error) {
+func (pg *TrackingStore) ReadTasksUntil(ctx context.Context, userID uuid.UUID, pages int, toTime time.Time) ([]TaskModel, error) {
 	toDate := toTime.Format("2006-01-02")
 	rows, err := pg.db.Query(ctx, `
 		WITH prev_dates AS (
@@ -70,13 +71,13 @@ func (pg *TrackingStore) ReadTasksUntil(ctx context.Context, userID, pages int, 
 		ORDER BY ta.read_by ASC, ta.id ASC;`,
 		userID, toDate, pages)
 	if err != nil {
-		return nil, errors.Wrapf(err, "ReadTrackerFromuserID(%d) select", userID)
+		return nil, errors.Wrapf(err, "ReadTrackerFromuserID(%s) select", userID)
 	}
 
-	return pg.scanTasks(userID, rows, pages)
+	return pg.scanTasks(rows)
 }
 
-func (pg *TrackingStore) ReadTasksFrom(ctx context.Context, userID, pages int, fromTime time.Time) ([]TaskModel, error) {
+func (pg *TrackingStore) ReadTasksFrom(ctx context.Context, userID uuid.UUID, pages int, fromTime time.Time) ([]TaskModel, error) {
 	fromDate := fromTime.Format("2006-01-02")
 
 	rows, err := pg.db.Query(ctx, `
@@ -98,40 +99,40 @@ func (pg *TrackingStore) ReadTasksFrom(ctx context.Context, userID, pages int, f
 		ORDER BY ta.read_by ASC, ta.id ASC;`,
 		userID, fromDate, pages)
 	if err != nil {
-		return nil, errors.Wrapf(err, "ReadTrackerFromuserID(%d) select", userID)
+		return nil, errors.Wrapf(err, "ReadTrackerFromuserID(%s) select", userID)
 	}
 
-	return pg.scanTasks(userID, rows, pages)
+	return pg.scanTasks(rows)
 }
 
-func (pg *TrackingStore) scanTasks(userID int, rows pgx.Rows, pages int) ([]TaskModel, error) {
+func (pg *TrackingStore) scanTasks(rows pgx.Rows) ([]TaskModel, error) {
 	var trackers []TaskModel
 
 	trackers, err := pgx.CollectRows(rows, pgx.RowToStructByName[TaskModel])
 	if err != nil {
-		return nil, errors.Wrapf(err, "ReadTrackerFromuserID(%d) scan", userID)
+		return nil, errors.Wrapf(err, "db: scan Tasks")
 	}
 
 	return trackers, nil
 }
 
-func (pg *TrackingStore) DeleteUserTracker(ctx context.Context, userID int) error {
+func (pg *TrackingStore) DeleteUserTracker(ctx context.Context, userID uuid.UUID) error {
 	_, err := pg.db.Exec(ctx, `DELETE FROM `+trackersTable+` WHERE user_fk = $1`, userID)
 	if err != nil {
-		return errors.Wrapf(err, "Could not delete trackers Table for userID %d", userID)
+		return errors.Wrapf(err, "Could not delete trackers Table for userID %s", userID)
 	}
 
 	return nil
 }
 
-func (pg *TrackingStore) CreateTracker(ctx context.Context, userID int, start, end string) (int64, error) {
+func (pg *TrackingStore) CreateTracker(ctx context.Context, userID uuid.UUID, start, end string) (int64, error) {
 	var utID int64
 	err := pg.db.QueryRow(ctx, `
 	INSERT INTO `+trackersTable+` (user_fk, start_date, end_date)
 	VALUES ($1, $2, $3)
 	RETURNING id`, userID, start, end).Scan(&utID)
 	if err != nil {
-		return -1, errors.Wrapf(err, "Could not create tracker(userID: %d, start: %s, end: %s) ", userID, start, end)
+		return -1, errors.Wrapf(err, "Could not create tracker(userID: %s, start: %s, end: %s) ", userID, start, end)
 	}
 
 	return utID, nil
@@ -163,7 +164,7 @@ func (pg *TrackingStore) CreateTasks(ctx context.Context, trackerID int64, planI
 	return nil
 }
 
-func (pg *TrackingStore) MoveTrackerDays(ctx context.Context, userID, days int) error {
+func (pg *TrackingStore) MoveTrackerDays(ctx context.Context, userID uuid.UUID, days int) error {
 	_, err := pg.db.Exec(ctx, `
 		update `+trackersTable+` 
 		set start_date = start_date + interval '1' day * $2,
@@ -171,13 +172,13 @@ func (pg *TrackingStore) MoveTrackerDays(ctx context.Context, userID, days int) 
 		where user_fk = $1
 	`, userID, days)
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerDays(userID: %d, days: %d) ", userID, days)
+		return errors.Wrapf(err, "MoveTrackerDays(userID: %s, days: %d) ", userID, days)
 	}
 
 	return nil
 }
 
-func (pg *TrackingStore) MoveTaskDays(ctx context.Context, userID int, days int) error {
+func (pg *TrackingStore) MoveTaskDays(ctx context.Context, userID uuid.UUID, days int) error {
 	_, err := pg.db.Exec(ctx, `
 		update `+tasksTable+` ta
 		set read_by = read_by + interval '1' day * $2
@@ -185,13 +186,13 @@ func (pg *TrackingStore) MoveTaskDays(ctx context.Context, userID int, days int)
 		where tr.user_fk = $1 and ta.tracker_fk = tr.id AND not ta.read 
 	`, userID, days)
 	if err != nil {
-		return errors.Wrapf(err, "MoveTaskDays(userID: %d, days: %d) ", userID, days)
+		return errors.Wrapf(err, "MoveTaskDays(userID: %s, days: %d) ", userID, days)
 	}
 
 	return nil
 }
 
-func (pg *TrackingStore) MoveTasks(ctx context.Context, userID int, start, end string) error {
+func (pg *TrackingStore) MoveTasks(ctx context.Context, userID uuid.UUID, start, end string) error {
 	var setDateStmt string
 	if start != "" && end != "" {
 		setDateStmt = fmt.Sprintf(`set read_by = ('%s'::DATE) +
@@ -242,13 +243,13 @@ func (pg *TrackingStore) MoveTasks(ctx context.Context, userID int, start, end s
 	where f.id = ta.id
 `, userID)
 	if err != nil {
-		return errors.Wrapf(err, "db: MoveTasks(userID: %d, start: %v, end %v) ", userID, start, end)
+		return errors.Wrapf(err, "db: MoveTasks(userID: %s, start: %v, end %v) ", userID, start, end)
 	}
 
 	return nil
 }
 
-func (pg *TrackingStore) GetTrackerStart(ctx context.Context, userID int) (time.Time, error) {
+func (pg *TrackingStore) GetTrackerStart(ctx context.Context, userID uuid.UUID) (time.Time, error) {
 
 	var start time.Time
 	err := pg.db.QueryRow(ctx, `
@@ -256,13 +257,13 @@ func (pg *TrackingStore) GetTrackerStart(ctx context.Context, userID int) (time.
 		where user_fk = $1
 	`, userID).Scan(&start)
 	if err != nil {
-		return time.Time{}, errors.Wrapf(err, "db: GetTrackerStart(userID: %d) ", userID)
+		return time.Time{}, errors.Wrapf(err, "db: GetTrackerStart(userID: %s) ", userID)
 	}
 
 	return start, nil
 }
 
-func (pg *TrackingStore) GetTrackerEnd(ctx context.Context, userID int) (time.Time, error) {
+func (pg *TrackingStore) GetTrackerEnd(ctx context.Context, userID uuid.UUID) (time.Time, error) {
 
 	var end time.Time
 	err := pg.db.QueryRow(ctx, `
@@ -270,13 +271,13 @@ func (pg *TrackingStore) GetTrackerEnd(ctx context.Context, userID int) (time.Ti
 		where user_fk = $1
 	`, userID).Scan(&end)
 	if err != nil {
-		return time.Time{}, errors.Wrapf(err, "db: GetTrackerEnd(userID: %d) ", userID)
+		return time.Time{}, errors.Wrapf(err, "db: GetTrackerEnd(userID: %s) ", userID)
 	}
 
 	return end, nil
 }
 
-func (pg *TrackingStore) MoveTracker(ctx context.Context, userID int, start, end string) error {
+func (pg *TrackingStore) MoveTracker(ctx context.Context, userID uuid.UUID, start, end string) error {
 
 	var setDateStmt string
 	if start != "" && end != "" {
@@ -292,13 +293,13 @@ func (pg *TrackingStore) MoveTracker(ctx context.Context, userID int, start, end
 		where user_fk = $1
 	`, userID)
 	if err != nil {
-		return errors.Wrapf(err, "db: MoveTracker(userID: %d, start: %v, end %v) ", userID, start, end)
+		return errors.Wrapf(err, "db: MoveTracker(userID: %s, start: %v, end %v) ", userID, start, end)
 	}
 
 	return nil
 }
 
-func (pg *TrackingStore) ReadLastUncheckedTask(ctx context.Context, userID int) (int64, error) {
+func (pg *TrackingStore) ReadLastUncheckedTask(ctx context.Context, userID uuid.UUID) (int64, error) {
 	var taskID int64
 	row := pg.db.QueryRow(ctx, "select min(ta.id) from "+tasksTable+" ta where ta.id = $1 and not ta.read", userID)
 	err := row.Scan(&taskID)

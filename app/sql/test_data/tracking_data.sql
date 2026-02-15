@@ -1,13 +1,13 @@
 --todo remove this, only for test
 INSERT INTO tracking.trackers(id, user_fk, start_date, end_date)
-    VALUES (0, 0, TO_DATE('2024-10-31', 'YYYY-MM-DD'), TO_DATE('2025-10-31', 'YYYY-MM-DD'))
+    VALUES (0, '550e8400-e29b-41d4-a716-446655440000'0, TO_DATE('2024-10-31', 'YYYY-MM-DD'), TO_DATE('2025-10-31', 'YYYY-MM-DD'))
 ON CONFLICT
     DO NOTHING;
 
 INSERT INTO tracking.tasks(id, tracker_fk, bible_plan_fk, read_by)
 SELECT
     id.id AS id,
-    0 AS user_fk,
+    '550e8400-e29b-41d4-a716-446655440000' AS user_fk,
     id.id AS bible_plan_fk,
     TO_DATE('2024-10-31', 'YYYY-MM-DD') + interval '1' day *(CEIL(365::float * bp.running_length / p.length) - 1) AS read_by
 FROM

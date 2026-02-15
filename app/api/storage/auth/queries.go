@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
 )
 
@@ -14,42 +16,64 @@ const (
 )
 
 func (pg *AuthStore) CreateUser(ctx context.Context, u *UserModel) error {
-	var userid int //dont really need it
-	row := pg.db.QueryRow(ctx, "INSERT INTO "+usersTable+"(name, email, pw, uid) VALUES ($1, $2, $3, $4) RETURNING id", u.Name, u.Email, u.Pw, u.UID)
-	err := row.Scan(&userid)
-
-	if err != nil {
-
-		if err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"` {
-			return fmt.Errorf("user %s already exists", u.Email)
-		}
-		return errors.New("db error 430: could not add user")
+	args := pgx.NamedArgs{
+		"uuid":  u.ID,
+		"name":  u.Name,
+		"email": u.Email,
+		"pw":    u.Pw,
 	}
+
+	_, err := pg.db.Exec(ctx, "INSERT INTO "+usersTable+"(name, email, pw, uid) VALUES (@uuid, @name, @email, @pw)", args)
+	if err != nil {
+		return errors.Wrapf(err, "db: Create User %s %s, %s", u.ID, u.Name, u.Email)
+	}
+
 	return nil
 }
 
-func (*AuthStore) UpdateUser(u *UserModel) error {
-	//TODO
+func (pg *AuthStore) UpdateUser(ctx context.Context, u *UserModel) error {
+	ags := pgx.NamedArgs{
+		"name":  u.Name,
+		"email": u.Email,
+		"pw":    u.Pw,
+		"id":    u.ID,
+	}
+	ct, err := pg.db.Exec(ctx, "UPDATE "+usersTable+" set name = @name, email=@email, pw=@pw where id = @id ", ags)
+	if err != nil {
+		return errors.Wrapf(err, "db: Update User %s, %s with ID %d", u.Name, u.Email, u.ID)
+	}
+
+	if ct.RowsAffected() != 1 {
+		return errors.Errorf("db: Update User %s, %s with ID %d- No Rows affected", u.Name, u.Email, u.ID)
+	}
+
 	return nil
 }
 
-func (*AuthStore) DeleteUser(u *UserModel) error {
-	//TODO
+func (pg *AuthStore) DeleteUser(ctx context.Context, u *UserModel) error {
+	ct, err := pg.db.Exec(ctx, "DELETE FROM"+usersTable+" where id = $1 ", u.ID)
+	if err != nil {
+		return errors.Wrapf(err, "db: Delete User %s, %s with ID %d", u.Name, u.Email, u.ID)
+	}
+
+	if ct.RowsAffected() != 1 {
+		return errors.Errorf("db: Delete User %s, %s with ID %d - No Rows affected", u.Name, u.Email, u.ID)
+	}
+
 	return nil
 }
 
-func (pg *AuthStore) ReadUserByEmail(ctx context.Context, req string) (*UserModel, error) {
-	row := pg.db.QueryRow(ctx, "SELECT id, email, pw, name, uid from "+usersTable+" where email=$1", req)
+func (pg *AuthStore) ReadUserByEmail(ctx context.Context, emailReq string) (*UserModel, error) {
+	row := pg.db.QueryRow(ctx, "SELECT id, email, pw, name from "+usersTable+" where email=$1", emailReq)
 
-	var id int
+	var id uuid.UUID
 	var email string
 	var pw []byte
 	var name string
-	var uid string
 
-	err := row.Scan(&id, &email, &pw, &name, &uid)
+	err := row.Scan(&id, &email, &pw, &name)
 	if err != nil {
-		return nil, fmt.Errorf("db error 431: could not read user %s", req)
+		return nil, errors.Wrapf(err, "db: ReadUserByEmail %s", emailReq)
 	}
 
 	return &UserModel{
@@ -57,22 +81,20 @@ func (pg *AuthStore) ReadUserByEmail(ctx context.Context, req string) (*UserMode
 		Email: email,
 		Pw:    pw,
 		Name:  name,
-		UID:   uid,
 	}, nil
 }
 
-func (pg *AuthStore) ReadUserByUID(ctx context.Context, uid string) (*UserModel, error) {
-	row := pg.db.QueryRow(ctx, "SELECT id, email, pw, name, uid from "+usersTable+" where uid=$1", uid)
+func (pg *AuthStore) ReadUserByUID(ctx context.Context, idReq uuid.UUID) (*UserModel, error) {
+	row := pg.db.QueryRow(ctx, "SELECT id, email, pw, name from "+usersTable+" where id=$1", idReq)
 
-	var id int
+	var id uuid.UUID
 	var email string
 	var pw []byte
 	var name string
-	var uidRes string
 
-	err := row.Scan(&id, &email, &pw, &name, &uidRes)
+	err := row.Scan(&id, &email, &pw, &name)
 	if err != nil {
-		return nil, fmt.Errorf("db error 441: could not read user %s", uid)
+		return nil, errors.Wrapf(err, "db: ReadUserByUID %s", idReq)
 	}
 
 	return &UserModel{
@@ -80,13 +102,12 @@ func (pg *AuthStore) ReadUserByUID(ctx context.Context, uid string) (*UserModel,
 		Email: email,
 		Pw:    pw,
 		Name:  name,
-		UID:   uidRes,
 	}, nil
 }
 
 func (pg *AuthStore) CreateRefreshToken(ctx context.Context, t *RefreshTokenModel) error {
 	var id int //dont really need it
-	row := pg.db.QueryRow(ctx, "INSERT INTO "+refreshTokensTable+"(user_uid, token, expires, remember) VALUES ($1, $2, $3, $4) RETURNING id", t.UserUID, t.Token, t.Expiration, t.Remember)
+	row := pg.db.QueryRow(ctx, "INSERT INTO "+refreshTokensTable+"(user_id, token, expires, remember) VALUES ($1, $2, $3, $4) RETURNING id", t.UserUID, t.Token, t.Expiration, t.Remember)
 	err := row.Scan(&id)
 
 	if err != nil {
@@ -113,11 +134,11 @@ func (pg *AuthStore) DeleteRefreshTokenByToken(ctx context.Context, token string
 }
 
 func (pg *AuthStore) ReadRefreshTokenByToken(ctx context.Context, token string) (*RefreshTokenModel, error) {
-	row := pg.db.QueryRow(ctx, "SELECT id, user_uid, token, expires, remember from "+refreshTokensTable+" where token = $1", token)
+	row := pg.db.QueryRow(ctx, "SELECT id, user_id, token, expires, remember from "+refreshTokensTable+" where token = $1", token)
 
 	var id int
 	var tokenRes string
-	var userUID string
+	var userUID uuid.UUID
 	var expiration time.Time
 	var remember bool
 

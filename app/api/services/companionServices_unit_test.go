@@ -27,6 +27,7 @@ func TestMarkDown(t *testing.T) {
 			`<table><thead><tr><th>Col</th></tr></thead><tbody><tr><td></td></tr></tbody></table>`},
 	}
 
+	//todo: use t.Run instead
 	for _, test := range testMatrix {
 		result := getHTMLFromMarkdown(test.input)
 		result = strings.TrimSpace(result)

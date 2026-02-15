@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"aidanwoods.dev/go-paseto"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 )
 
@@ -21,8 +22,13 @@ func (t *Token) UserName() (string, error) {
 	return t.Token.GetString("user-name")
 }
 
-func (t *Token) UserID() (string, error) {
-	return t.Token.GetString("user-id")
+func (t *Token) UserID() (uuid.UUID, error) {
+	uid, err := t.Token.GetString("user-id")
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return uuid.Parse(uid)
+
 }
 
 // A key that can only be verified with the private key
@@ -95,7 +101,7 @@ func ValidTokenFromCookies(cookie *http.Cookie) (*Token, error) {
 	return &Token{Token: *token, Expiration: exp, Encrypted: cookie.Value}, nil
 }
 
-func NewAccessToken(uid, name string) (*Token, error) {
+func NewAccessToken(uid uuid.UUID, name string) (*Token, error) {
 	token := paseto.NewToken()
 
 	token.SetIssuedAt(time.Now())
@@ -105,7 +111,7 @@ func NewAccessToken(uid, name string) (*Token, error) {
 	exp := time.Now().Add(addTime)
 	token.SetExpiration(exp)
 
-	token.SetString("user-id", uid)
+	token.SetString("user-id", uid.String())
 	token.SetString("user-name", name)
 
 	symKey, err := encryptedKey(token)
@@ -121,7 +127,7 @@ func NewAccessToken(uid, name string) (*Token, error) {
 	}, nil
 }
 
-func NewRefreshToken(uid, name string, remember bool) (*Token, error) {
+func NewRefreshToken(uid uuid.UUID, name string, remember bool) (*Token, error) {
 	token := paseto.NewToken()
 
 	token.SetIssuedAt(time.Now())
@@ -135,7 +141,7 @@ func NewRefreshToken(uid, name string, remember bool) (*Token, error) {
 	exp := time.Now().Add(addTime)
 	token.SetExpiration(exp)
 
-	token.SetString("user-id", uid)
+	token.SetString("user-id", uid.String())
 	token.SetString("user-name", name)
 
 	symKey, err := encryptedKey(token)

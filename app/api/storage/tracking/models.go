@@ -1,6 +1,10 @@
 package tracking
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type TaskModel struct {
 	ID           int64     `db:"id"`
@@ -16,7 +20,7 @@ type TaskModel struct {
 
 type TrackerModel struct {
 	ID        int64     `db:"id"`
-	UserID    int       `db:"user_fk"`
+	UserID    uuid.UUID `db:"user_fk"`
 	StartDate time.Time `db:"start_date"`
 	EndDate   time.Time `db:"end_date"`
 }

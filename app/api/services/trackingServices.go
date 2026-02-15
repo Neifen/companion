@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/neifen/htmx-login/app/api/storage/tracking"
 	"github.com/pkg/errors"
 )
 
-func (s *Services) ReadTasksFrom(ctx context.Context, userID int, fromTime time.Time) ([]tracking.TaskModel, bool, error) {
+func (s *Services) ReadTasksFrom(ctx context.Context, userID uuid.UUID, fromTime time.Time) ([]tracking.TaskModel, bool, error) {
 	const pages = 10
 
 	tasks, err := s.store.Tracking.ReadTasksFrom(ctx, userID, pages+1, fromTime)
@@ -25,7 +26,7 @@ func (s *Services) ReadTasksFrom(ctx context.Context, userID int, fromTime time.
 	return tasks, hasMore, nil
 }
 
-func (s *Services) ReadTasksUntil(ctx context.Context, userID int, toTime time.Time) ([]tracking.TaskModel, bool, error) {
+func (s *Services) ReadTasksUntil(ctx context.Context, userID uuid.UUID, toTime time.Time) ([]tracking.TaskModel, bool, error) {
 	const pages = 10
 
 	tasks, err := s.store.Tracking.ReadTasksUntil(ctx, userID, pages+1, toTime)
@@ -49,7 +50,7 @@ func (s *Services) CheckTask(ctx context.Context, itemID int64, checked bool) er
 	return nil
 }
 
-func (s *Services) ReadUserTracker(ctx context.Context, userID int) (*tracking.TrackerModel, error) {
+func (s *Services) ReadUserTracker(ctx context.Context, userID uuid.UUID) (*tracking.TrackerModel, error) {
 	tracker, err := s.store.Tracking.ReadUserTracker(ctx, userID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "ReadUserTracker(uid: %d)", userID)
@@ -58,14 +59,14 @@ func (s *Services) ReadUserTracker(ctx context.Context, userID int) (*tracking.T
 	return tracker, nil
 }
 
-func (s *Services) DeleteUserTracker(ctx context.Context, userID int) error {
+func (s *Services) DeleteUserTracker(ctx context.Context, userID uuid.UUID) error {
 	if err := s.store.Tracking.DeleteUserTracker(ctx, userID); err != nil {
 		return errors.Wrapf(err, "DeleteUserTracker(uid: %d)", userID)
 	}
 	return nil
 }
 
-func (s *Services) MoveTrackerDays(ctx context.Context, userID int, days int) error {
+func (s *Services) MoveTrackerDays(ctx context.Context, userID uuid.UUID, days int) error {
 	if err := s.store.CreateTX(ctx); err != nil {
 		return errors.Wrapf(err, "MoveTrackerDays(uid: %d, days: %d)", userID, days)
 	}
@@ -83,7 +84,7 @@ func (s *Services) MoveTrackerDays(ctx context.Context, userID int, days int) er
 	return nil
 }
 
-func (s *Services) MoveTrackerStart(ctx context.Context, userID int, start string, moveEnd bool) error {
+func (s *Services) MoveTrackerStart(ctx context.Context, userID uuid.UUID, start string, moveEnd bool) error {
 	if moveEnd {
 		return s.MoveTrackerWithStart(ctx, userID, start)
 	}
@@ -91,7 +92,7 @@ func (s *Services) MoveTrackerStart(ctx context.Context, userID int, start strin
 	return s.MoveTracker(ctx, userID, start, "")
 }
 
-func (s *Services) MoveTrackerEnd(ctx context.Context, userID int, end string, resetStart bool) error {
+func (s *Services) MoveTrackerEnd(ctx context.Context, userID uuid.UUID, end string, resetStart bool) error {
 	start := ""
 	if resetStart {
 		start = time.Now().Format("2006-01-02")
@@ -100,7 +101,7 @@ func (s *Services) MoveTrackerEnd(ctx context.Context, userID int, end string, r
 	return s.MoveTracker(ctx, userID, start, end)
 }
 
-func (s *Services) MoveTrackerWithStart(ctx context.Context, userID int, newStartRaw string) error {
+func (s *Services) MoveTrackerWithStart(ctx context.Context, userID uuid.UUID, newStartRaw string) error {
 	if err := s.store.CreateTX(ctx); err != nil {
 		return errors.Wrapf(err, "MoveTrackerWithStart(uid: %d, New Start: %s)", userID, newStartRaw)
 	}
@@ -129,7 +130,7 @@ func (s *Services) MoveTrackerWithStart(ctx context.Context, userID int, newStar
 	return nil
 }
 
-func (s *Services) MoveTracker(ctx context.Context, userID int, start, end string) error {
+func (s *Services) MoveTracker(ctx context.Context, userID uuid.UUID, start, end string) error {
 	if start == "" && end == "" {
 		return errors.New("Both start and end are empty")
 	}
@@ -185,7 +186,7 @@ func (s *Services) MoveTracker(ctx context.Context, userID int, start, end strin
 	return nil
 }
 
-func (s *Services) CreateTracker(ctx context.Context, userID, planID int, startRaw, endRaw string) error {
+func (s *Services) CreateTracker(ctx context.Context, userID uuid.UUID, planID int, startRaw, endRaw string) error {
 	start, err := time.Parse("2006-01-02", startRaw)
 	if err != nil {
 		return errors.Wrapf(err, "createTracker(%d) could not transform start to date", userID)

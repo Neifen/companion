@@ -145,11 +145,11 @@ func redirectToTokenRefresh(c echo.Context) error {
 }
 
 func (s *HandlerSession) createAndHandleTokens(user *userReq, c echo.Context, remember bool) error {
-	access, err := crypto.NewAccessToken(user.uuid, user.name)
+	access, err := crypto.NewAccessToken(user.id, user.name)
 	if err != nil {
 		return errors.Wrap(err, "could not generate access token")
 	}
-	refresh, err := crypto.NewRefreshToken(user.uuid, user.name, remember)
+	refresh, err := crypto.NewRefreshToken(user.id, user.name, remember)
 	if err != nil {
 		return errors.Wrap(err, "could not generate refresh token")
 	}
@@ -228,9 +228,14 @@ func (s *HandlerSession) handlePostSignup(c echo.Context) error {
 	pw := c.FormValue("password")
 	name := c.FormValue("name")
 
-	u := auth.NewUserModel(name, email, pw)
-	err := s.store.Auth.CreateUser(c.Request().Context(), u)
+	u, err := auth.NewUserModel(name, email, pw)
+	if err != nil {
+		logging.Error(err)
+		// todo show error
+		return s.handleGetSignup(c)
+	}
 
+	err = s.services.NewUser(c.Request().Context(), u)
 	if err != nil {
 		logging.Error(err)
 		// todo show error

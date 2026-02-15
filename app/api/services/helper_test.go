@@ -54,6 +54,30 @@ func clearTrackers(db db.DB) error {
 	return nil
 }
 
+func clearUsers(db db.DB) error {
+	res, err := db.Exec(context.Background(), "DELETE FROM auth.users")
+	if err != nil {
+		return errors.Wrap(err, "Could not clean up users table")
+	}
+
+	affected := res.RowsAffected()
+	var count int
+	row := db.QueryRow(context.Background(), "SELECT count(*) from auth.refresh_tokens")
+	row.Scan(&count)
+	if count != 0 {
+		return errors.Errorf("refresh_tokens should be emty through delete cascade. Was %d instead", count)
+	}
+
+	row = db.QueryRow(context.Background(), "SELECT count(*) from auth.verification_tokens")
+	row.Scan(&count)
+	if count != 0 {
+		return errors.Errorf("verification_tokens table should be emty through delete cascade. Was %d instead", count)
+	}
+
+	fmt.Printf("Auth Users Rows cleaned up: %d\n", affected)
+	return nil
+}
+
 func clearCompanions(db db.DB) error {
 	res, err := db.Exec(context.Background(), "DELETE FROM companions.companions")
 	if err != nil {

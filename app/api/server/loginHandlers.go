@@ -47,21 +47,21 @@ func (s *HandlerSession) handlePostLogin(c echo.Context) error {
 	pw := c.FormValue("password")
 	remember := c.FormValue("remember") == "on"
 
-	userReq := s.Authenticate(c.Request().Context(), email, pw)
-	if userReq.isLoggedIn {
-		err := s.createAndHandleTokens(userReq, c, remember)
-
-		if err == nil {
-			return s.replaceHome(c, userReq)
-		} else {
-			fmt.Printf("\n\n auth: %v \n\n", err)
-
-		}
-
+	u, err := s.services.Authenticate(c.Request().Context(), email, pw)
+	if err != nil {
+		fmt.Printf("api: handlePostLogin: \n%+v\n", err)
+		return s.redirectToLogin(c)
 	}
 
-	// authenticate failed
-	return s.redirectToLogin(c)
+	userReq := userFromModel(u)
+	err = s.createAndHandleTokens(userReq, c, remember)
+	if err != nil {
+		fmt.Printf("api: handlePostLogin: \n%+v\n", err)
+		return s.redirectToLogin(c)
+	}
+
+	return s.replaceHome(c, userReq)
+
 }
 
 func (s *HandlerSession) handleTokenRefresh(c echo.Context) error {

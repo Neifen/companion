@@ -11,8 +11,8 @@ func TestHashPassword(t *testing.T) {
 	inputPw := "anything"
 
 	pw, err := HashPassword(inputPw)
-	
-	if(err != nil){
+
+	if err != nil {
 		t.Fatalf(`HashPassword(%q) failed with error %v`, inputPw, err)
 	}
 
@@ -21,7 +21,7 @@ func TestHashPassword(t *testing.T) {
 
 	expected := sh.Sum(nil)
 
-	if(!slices.Equal(expected, pw)) {
+	if !slices.Equal(expected, pw) {
 		t.Errorf(`HashPassword(%q) = %q, expected %q`, inputPw, pw, expected)
 	}
 }
@@ -30,8 +30,8 @@ func TestHashPasswordEmpty(t *testing.T) {
 	inputPw := ""
 
 	pw, err := HashPassword(inputPw)
-	
-	if(err != nil){
+
+	if err != nil {
 		t.Fatalf(`HashPassword(%q) failed with error %v`, inputPw, err)
 	}
 
@@ -40,7 +40,7 @@ func TestHashPasswordEmpty(t *testing.T) {
 
 	expected := sh.Sum(nil)
 
-	if(!slices.Equal(expected, pw)) {
+	if !slices.Equal(expected, pw) {
 		t.Errorf(`HashPassword(%q) = %q, expected %q`, inputPw, pw, expected)
 	}
 }
@@ -49,8 +49,8 @@ func TestHashPasswordEmojis(t *testing.T) {
 	inputPw := "♥◘♣○╗ß"
 
 	pw, err := HashPassword(inputPw)
-	
-	if(err != nil){
+
+	if err != nil {
 		t.Fatalf(`HashPassword(%q) failed with error %v`, inputPw, err)
 	}
 
@@ -59,7 +59,7 @@ func TestHashPasswordEmojis(t *testing.T) {
 
 	expected := sh.Sum(nil)
 
-	if(!slices.Equal(expected, pw)) {
+	if !slices.Equal(expected, pw) {
 		t.Errorf(`HashPassword(%q) = %q, expected %q`, inputPw, pw, expected)
 	}
 }

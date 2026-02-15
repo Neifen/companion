@@ -37,9 +37,6 @@ func (s *Services) CreateCompanion(ctx context.Context, planID int, companion co
 	return companionID, nil
 }
 
-// todo: check markdown! for evil things
-// todo: test for that
-
 func (s *Services) AddCompanionItem(ctx context.Context, companionID int, item companions.CompanionItemModel) error {
 
 	if item.BookID == nil && (item.ChapterStartID == nil || item.ChapterEndID == nil) {

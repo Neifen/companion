@@ -17,13 +17,13 @@ const (
 
 func (pg *AuthStore) CreateUser(ctx context.Context, u *UserModel) error {
 	args := pgx.NamedArgs{
-		"uuid":  u.ID,
+		"id":    u.ID,
 		"name":  u.Name,
 		"email": u.Email,
 		"pw":    u.Pw,
 	}
 
-	_, err := pg.db.Exec(ctx, "INSERT INTO "+usersTable+"(name, email, pw, uid) VALUES (@uuid, @name, @email, @pw)", args)
+	_, err := pg.db.Exec(ctx, "INSERT INTO "+usersTable+"(id, name, email, pw) VALUES (@id, @name, @email, @pw)", args)
 	if err != nil {
 		return errors.Wrapf(err, "db: Create User %s %s, %s", u.ID, u.Name, u.Email)
 	}

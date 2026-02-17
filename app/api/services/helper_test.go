@@ -185,6 +185,7 @@ ON CONFLICT
 	if err != nil {
 		return errors.Wrap(err, "query deets")
 	}
+	defer rows.Close()
 
 	type chapter struct {
 		ID           int

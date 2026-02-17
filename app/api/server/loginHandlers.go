@@ -3,7 +3,6 @@ package server
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	view2 "github.com/neifen/htmx-login/app/view"
 
@@ -13,24 +12,21 @@ import (
 	"github.com/neifen/htmx-login/app/api/crypto"
 	"github.com/neifen/htmx-login/app/api/logging"
 	"github.com/neifen/htmx-login/app/api/services"
-	"github.com/neifen/htmx-login/app/api/storage"
 	"github.com/neifen/htmx-login/app/api/storage/auth"
 )
 
 type HandlerSession struct {
-	store    *storage.Storage
 	services *services.Services
 }
 
-func NewHanderSession(store *storage.Storage, services *services.Services) *HandlerSession {
+func NewHanderSession(services *services.Services) *HandlerSession {
 	return &HandlerSession{
-		store:    store,
 		services: services,
 	}
 }
 
 func (s *HandlerSession) handleGetLogin(c echo.Context) error {
-	if u, _ := userFromToken(c); u.isLoggedIn {
+	if u, _ := userFromToken(c); u != nil {
 		return s.replaceHome(c, u)
 	}
 
@@ -39,7 +35,7 @@ func (s *HandlerSession) handleGetLogin(c echo.Context) error {
 }
 
 func (s *HandlerSession) handlePostLogin(c echo.Context) error {
-	if u, _ := userFromToken(c); u.isLoggedIn {
+	if u, _ := userFromToken(c); u != nil {
 		return s.replaceHome(c, u)
 	}
 
@@ -47,18 +43,14 @@ func (s *HandlerSession) handlePostLogin(c echo.Context) error {
 	pw := c.FormValue("password")
 	remember := c.FormValue("remember") == "on"
 
-	u, err := s.services.Authenticate(c.Request().Context(), email, pw)
+	u, err := s.services.Authenticate(c.Request().Context(), email, pw, remember)
 	if err != nil {
 		fmt.Printf("api: handlePostLogin: \n%+v\n", err)
 		return s.redirectToLogin(c)
 	}
 
-	userReq := userFromModel(u)
-	err = s.createAndHandleTokens(userReq, c, remember)
-	if err != nil {
-		fmt.Printf("api: handlePostLogin: \n%+v\n", err)
-		return s.redirectToLogin(c)
-	}
+	tokenToCookie(*u.Access, *u.Refresh, c)
+	userReq := userFromModel(u.User)
 
 	return s.replaceHome(c, userReq)
 
@@ -76,55 +68,21 @@ func (s *HandlerSession) handleTokenRefresh(c echo.Context) error {
 }
 
 func (s *HandlerSession) subHandleTokenRefresh(c echo.Context) error {
-	cookie, err := c.Cookie("refresh")
+	refresh, err := c.Cookie("refresh")
 	if err != nil {
 		return errors.Wrapf(err, "getting refresh token from cookie %q failed", "refresh")
 	}
 
-	if cookie == nil {
+	if refresh == nil {
 		return fmt.Errorf("no refresh token in cookie %q", "refresh")
 	}
 
-	token, err := crypto.ValidTokenFromCookies(cookie)
+	auth, err := s.services.RefreshToken(c.Request().Context(), refresh.Value)
 	if err != nil {
-		err = s.store.Auth.DeleteRefreshTokenByToken(c.Request().Context(), token.Encrypted)
-		if err != nil {
-			fmt.Printf("could not delete refresh token from db %v\n", err)
-		}
-
-		return fmt.Errorf("refresh token could not be validated")
+		errors.WithMessagef(err, "api: refresh token")
 	}
 
-	exp := token.Expiration
-	fmt.Printf("cookie expires: %v, token expires: %v\n", cookie.Expires, token.Expiration)
-
-	if exp.Before(time.Now()) {
-		err = s.store.Auth.DeleteRefreshTokenByToken(c.Request().Context(), token.Encrypted)
-		if err != nil {
-			fmt.Printf("could not delete refresh token from db %v\n", err)
-		}
-		return fmt.Errorf("refresh token expired")
-	}
-
-	refreshType, err := s.store.Auth.ReadRefreshTokenByToken(c.Request().Context(), token.Encrypted)
-	if err != nil {
-		return errors.Wrapf(err, "could not load refresh token from db")
-	}
-
-	user, err := s.store.Auth.ReadUserByUID(c.Request().Context(), refreshType.UserUID)
-	if err != nil {
-		return errors.Wrapf(err, "user invalid")
-	}
-
-	err = s.createAndHandleTokens(userFromModel(user), c, refreshType.Remember)
-	if err != nil {
-		return errors.Wrapf(err, "creating new tokens failed")
-	}
-
-	err = s.store.Auth.DeleteRefreshToken(c.Request().Context(), refreshType)
-	if err != nil {
-		return errors.Wrapf(err, "could not delete old refresh token")
-	}
+	tokenToCookie(*auth.Access, *auth.Refresh, c)
 
 	returnURL := c.QueryParam("return")
 	if returnURL != "" {
@@ -144,50 +102,28 @@ func redirectToTokenRefresh(c echo.Context) error {
 	return c.String(http.StatusUnauthorized, "Unauthorized")
 }
 
-func (s *HandlerSession) createAndHandleTokens(user *userReq, c echo.Context, remember bool) error {
-	access, err := crypto.NewAccessToken(user.id, user.name)
-	if err != nil {
-		return errors.Wrap(err, "could not generate access token")
-	}
-	refresh, err := crypto.NewRefreshToken(user.id, user.name, remember)
-	if err != nil {
-		return errors.Wrap(err, "could not generate refresh token")
-	}
-
-	uid, err := refresh.UserID()
-	if err != nil {
-		return errors.Wrap(err, "could not get userid from new refresh token")
-	}
-
-	refreshModel := auth.NewRefreshTokenModel(uid, refresh.Encrypted, refresh.Expiration, remember)
-	err = s.store.Auth.CreateRefreshToken(c.Request().Context(), refreshModel)
-	if err != nil {
-		return errors.Wrap(err, "could not write new refresh token to db")
-	}
-
-	tokenC := access.AddToCookie()
+func tokenToCookie(token crypto.AccessToken, refresh crypto.RefreshToken, c echo.Context) {
+	tokenC := token.AddToCookie()
 	c.SetCookie(tokenC)
 
 	refreshC := refresh.AddToCookie()
 	c.SetCookie(refreshC)
-
-	return nil
 }
 
 func (s *HandlerSession) handlePostLogout(c echo.Context) error {
 	// delete refresh token from db
 	refresh, err := c.Cookie("refresh")
 	if err == nil && refresh != nil {
-		err = s.store.Auth.DeleteRefreshTokenByToken(c.Request().Context(), refresh.Value)
+		err := s.services.InvalidateRefresh(c.Request().Context(), refresh.Value)
 		if err != nil {
-			fmt.Printf("did not delete refresh token from db: %v\n", err)
+			//todo: error
 		}
 	}
 
 	clearCookie("token", "/", c)
-	clearCookie("refresh", "/token", c)
+	clearCookie("refresh", "/", c)
 
-	return s.replaceHome(c, emptyUser())
+	return s.replaceHome(c, nil)
 }
 
 func clearCookie(name, path string, c echo.Context) {
@@ -202,7 +138,7 @@ func clearCookie(name, path string, c echo.Context) {
 }
 
 func (s *HandlerSession) handleGetRecovery(c echo.Context) error {
-	if u, _ := userFromToken(c); u.isLoggedIn {
+	if u, _ := userFromToken(c); u != nil {
 		return s.replaceHome(c, u)
 	}
 
@@ -211,7 +147,7 @@ func (s *HandlerSession) handleGetRecovery(c echo.Context) error {
 }
 
 func (s *HandlerSession) handleGetSignup(c echo.Context) error {
-	if u, _ := userFromToken(c); u.isLoggedIn {
+	if u, _ := userFromToken(c); u != nil {
 		return s.replaceHome(c, u)
 	}
 
@@ -220,7 +156,7 @@ func (s *HandlerSession) handleGetSignup(c echo.Context) error {
 }
 
 func (s *HandlerSession) handlePostSignup(c echo.Context) error {
-	if u, _ := userFromToken(c); u.isLoggedIn {
+	if u, _ := userFromToken(c); u != nil {
 		return s.replaceHome(c, u)
 	}
 

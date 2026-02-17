@@ -16,8 +16,8 @@ type APIServer struct {
 	services *services.Services
 }
 
-func NewAPIHandler(path string, s *storage.Storage, serv *services.Services) *APIServer {
-	return &APIServer{apiPath: path, store: s}
+func NewAPIHandler(path string, serv *services.Services) *APIServer {
+	return &APIServer{apiPath: path, services: serv}
 }
 
 func (api *APIServer) Run() {
@@ -27,7 +27,7 @@ func (api *APIServer) Run() {
 	e.Use(middleware.Recover()) // so panics don't crash everything
 	e.Static("/static", "app/assets")
 
-	s := NewHanderSession(api.store, api.services)
+	s := NewHanderSession(api.services)
 
 	// home
 	e.GET("/", s.handleGetHome, pasetoMiddleOpt())
@@ -90,14 +90,21 @@ func pasetoMiddle() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			u, err := userFromToken(c)
-
-			//todo there needs to be a difference between simply not logged in / token invalid and refresh token invalid
-			if err != nil || !u.isLoggedIn {
+			// a) refresh available
+			if err != nil {
+				fmt.Printf("middleware: access token validation unsuccessful, try refresh token. \n%+v\n", err)
 				return redirectToTokenRefresh(c)
 			}
 
+			if u == nil {
+				// b) no refresh, log back in
+				fmt.Println("middleware, no user is logged in, continue to login")
+				return next(c)
+			}
+
+			// c) logged in
 			c.Set("u", u)
-			fmt.Printf("Middleware, user %s is logged in, continue\n", u.name)
+			fmt.Printf("middleware, user %s is logged in, continue\n", u.name)
 			return next(c)
 		}
 	}
@@ -107,18 +114,21 @@ func pasetoMiddleOpt() echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			u, err := userFromToken(c)
-
+			// a) refresh available
 			if err != nil {
+				fmt.Printf("middleware opt: access token validation unsuccessful, try refresh token. \n%+v\n", err)
 				return redirectToTokenRefresh(c)
 			}
 
-			c.Set("u", u)
-			if u.isLoggedIn {
-				fmt.Printf("Middleware, user %s is logged in, continue\n", u.name)
+			if u == nil {
+				// b) no refresh, log back in
+				fmt.Println("middleware opt, no user is logged in, continue to login")
 				return next(c)
 			}
 
-			fmt.Println("Middleware, no user is logged in, continue")
+			// c) logged in
+			c.Set("u", u)
+			fmt.Printf("middleware opt, user %s is logged in, continue\n", u.name)
 			return next(c)
 		}
 	}

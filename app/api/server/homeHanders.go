@@ -25,7 +25,7 @@ func (s *HandlerSession) replaceHome(c echo.Context, u *userReq) error {
 func (s *HandlerSession) viewHome(c echo.Context, u *userReq) error {
 	var bible *entities.TrackedBible
 
-	welcome := !u.isLoggedIn
+	welcome := u == nil
 	if !welcome {
 		tracker, hasMore, err := s.services.ReadTasksFrom(c.Request().Context(), u.id, time.Now().AddDate(0, 0, -2))
 		if err != nil {
@@ -46,16 +46,21 @@ func (s *HandlerSession) viewHome(c echo.Context, u *userReq) error {
 		chapters, err := s.services.GetPlansChapters(c.Request().Context(), 0)
 		// todo real errors
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("Issue with getting welcome screen: \n%+v\n", err)
 			return c.JSON(http.StatusInternalServerError, err) // todo do better
 		}
 
 		bible = chapterModelToEntity(chapters)
 	}
 
-	fmt.Printf("\nRender Markdown:\n %s", string(view.RenderMarkdown()))
+	name := ""
+	loggedIn := false
+	if u != nil {
+		name = u.name //todo: we're doing it different
+		loggedIn = true
+	}
 
-	viewU := entities.NewViewUser(u.name, u.isLoggedIn)
+	viewU := entities.NewViewUser(name, loggedIn)
 	return view.HomeHTML(c, bible, viewU, welcome)
 }
 
@@ -112,8 +117,9 @@ func (s *HandlerSession) handleCheckTrackeItem(c echo.Context) error {
 		return view.TrackerCheckHTMLError(c, itemID, !checked, err.Error())
 	}
 
-	if !u.isLoggedIn {
-		// todo use cookies
+	if u == nil {
+		// todo: use cookies
+		// keep track of checked items in cookies, and then write down when logged in
 		return nil
 	}
 
@@ -129,7 +135,7 @@ func (s *HandlerSession) handleCheckTrackeItem(c echo.Context) error {
 // e.GET("/plan-settings", s.handlePlanSettings)
 func (s *HandlerSession) handlePlanSettings(c echo.Context) error {
 	u := c.Get("u").(*userReq)
-	if !u.isLoggedIn {
+	if u == nil {
 		return view.ErrorHTML(c, "not logged in")
 	}
 	settings, err := s.services.ReadUserTracker(c.Request().Context(), u.id)
@@ -149,7 +155,7 @@ func (s *HandlerSession) handleDeletePlanConfirm(c echo.Context) error {
 // e.POST("/plan-settings/delete-plan", s.handleDeletePlan, pasetoMiddle())
 func (s *HandlerSession) handleDeletePlan(c echo.Context) error {
 	u := c.Get("u").(*userReq)
-	if !u.isLoggedIn {
+	if u == nil {
 		return view.ErrorHTML(c, "not logged in")
 	}
 	if err := s.services.DeleteUserTracker(c.Request().Context(), u.id); err != nil {
@@ -209,7 +215,7 @@ func (s *HandlerSession) handleJoinPlanConfirm(c echo.Context) error {
 func (s *HandlerSession) handleJoinPlan(c echo.Context) error {
 	// todo change all
 	u := c.Get("u").(*userReq)
-	if !u.isLoggedIn {
+	if u == nil {
 		return view.ErrorHTML(c, "not logged in")
 	}
 

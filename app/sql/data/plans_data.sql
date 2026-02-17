@@ -4,13 +4,15 @@ INSERT INTO plans.plans(id, name, plan_desc)
 ON CONFLICT
     DO NOTHING;
 
-INSERT INTO plans.bible_plans(id, plan_fk, chapter_fk, running_length, length)
+INSERT INTO plans.bible_plans(id, plan_fk, chapter_fk, running_length, length, verse_fks, verses)
 SELECT
     id.id AS id,
     0 AS plan_fk,
     id.id AS chapter_fk,
     SUM(c.chapter_word_count) OVER (ORDER BY id.id),
-    c.chapter_word_count AS length
+    c.chapter_word_count AS length,
+    '{}'::smallint[] as verse_fks,
+    '' as verses
 FROM
     GENERATE_SERIES(1, 1189) id
     JOIN static.chapters c ON id.id = c.id

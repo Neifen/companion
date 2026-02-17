@@ -34,6 +34,7 @@ func TestCreateTracker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error getting Rows from Trackers: %s", err)
 	}
+	defer rows.Close()
 
 	var trackers []tracking.TrackerModel
 	for rows.Next() {
@@ -63,6 +64,7 @@ func TestCreateTracker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error getting Rows from Tasks: %s", err)
 	}
+	defer rows.Close()
 
 	var tasks []tracking.TaskModel
 	for rows.Next() {
@@ -291,6 +293,7 @@ func TestDeleteTracker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error getting Rows from Trackers: %s", err)
 	}
+	defer rows.Close()
 
 	var trackers []tracking.TrackerModel
 	for rows.Next() {
@@ -313,6 +316,7 @@ func TestDeleteTracker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error getting Rows from Trackers: %s", err)
 	}
+	defer rows.Close()
 
 	trackers = []tracking.TrackerModel{}
 	for rows.Next() {
@@ -366,6 +370,7 @@ func TestCreateTrackerDouble(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error getting Rows from Trackers: %s", err)
 	}
+	defer rows.Close()
 
 	var trackers []tracking.TrackerModel
 	for rows.Next() {
@@ -396,6 +401,7 @@ func TestCreateTrackerDouble(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error getting Rows from Tasks: %s", err)
 	}
+	defer rows.Close()
 
 	var tasks []tracking.TaskModel
 	for rows.Next() {
@@ -466,6 +472,7 @@ func TestCreateTrackerDifferentDays(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error getting Rows from Trackers: %s", err)
 		}
+		defer rows.Close()
 
 		var trackers []tracking.TrackerModel
 		for rows.Next() {
@@ -495,6 +502,7 @@ func TestCreateTrackerDifferentDays(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error getting Rows from Tasks: %s", err)
 		}
+		defer rows.Close()
 
 		count := 0
 		for rows.Next() {
@@ -548,6 +556,7 @@ func TestMoveTrackersParallel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error getting Rows from Trackers: %s", err)
 	}
+	defer rows.Close()
 
 	var trackers []tracking.TrackerModel
 	for rows.Next() {
@@ -581,6 +590,7 @@ func TestMoveTrackersParallel(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error getting Rows from Tasks: %s", err)
 	}
+	defer rows.Close()
 
 	var tasks []tracking.TaskModel
 	for rows.Next() {
@@ -672,6 +682,7 @@ func TestMoveTrackers(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error getting Rows from Trackers: %s", err)
 		}
+		defer rows.Close()
 
 		var trackers []tracking.TrackerModel
 		for rows.Next() {
@@ -720,6 +731,7 @@ func TestMoveTrackers(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error getting Rows from Tasks: %s", err)
 		}
+		defer rows.Close()
 
 		var tasks []tracking.TaskModel
 		for rows.Next() {
@@ -814,6 +826,7 @@ func TestMoveTrackersStart(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error getting Rows from Trackers: %s", err)
 		}
+		defer rows.Close()
 
 		var trackers []tracking.TrackerModel
 		for rows.Next() {
@@ -850,6 +863,7 @@ func TestMoveTrackersStart(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error getting Rows from Tasks: %s", err)
 		}
+		defer rows.Close()
 
 		var tasks []tracking.TaskModel
 		for rows.Next() {
@@ -940,6 +954,7 @@ func TestMoveTrackersEnd(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error getting Rows from Trackers: %s", err)
 		}
+		defer rows.Close()
 
 		var trackers []tracking.TrackerModel
 		for rows.Next() {
@@ -983,6 +998,7 @@ func TestMoveTrackersEnd(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error getting Rows from Tasks: %s", err)
 		}
+		defer rows.Close()
 
 		var tasks []tracking.TaskModel
 		for rows.Next() {

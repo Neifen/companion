@@ -27,12 +27,11 @@ func main() {
 	err = store.InitDB()
 	if err != nil {
 		// need to be able to set up db, otherwise fail
-		log.Fatal(err)
+		log.Fatalf("error Initializing: %+v", err)
 	}
 
 	services := services.NewServices(store)
-
-	api := server.NewAPIHandler(":1323", store, services)
+	api := server.NewAPIHandler(":1323", services)
 	api.Run()
 }
 

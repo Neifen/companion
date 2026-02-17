@@ -5,7 +5,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/neifen/htmx-login/app/api/crypto"
-	"github.com/pkg/errors"
 )
 
 type UserModel struct {
@@ -16,19 +15,31 @@ type UserModel struct {
 }
 
 type RefreshTokenModel struct {
-	id         int
-	UserUID    uuid.UUID
-	Token      string
-	Expiration time.Time
-	Remember   bool
+	ID         int       `db:"id"`
+	UserUID    uuid.UUID `db:"user_id"`
+	Token      string    `db:"token_hash"`
+	Expiration time.Time `db:"expires"`
+	Remember   bool      `db:"remember"`
 }
 
-func NewUserModel(name, email, pw string) (*UserModel, error) {
-	pwHash, err := crypto.HashPassword(pw)
-	if err != nil {
-		return nil, errors.Wrapf(err, "usermodel: create new user")
-	}
+type VerificationTokenModel struct {
+	ID         int        `db:"id"`
+	UserUID    uuid.UUID  `db:"user_id"`
+	TokenHash  []byte     `db:"token_hash"`
+	Expiration time.Time  `db:"expires_at"`
+	Consumed   *time.Time `db:"consumed_at"`
+	Channel    string     `db:"channel"`
+	Purpose    string     `db:"purpose"`
+}
 
+const (
+	PurposeSignup   = "signup"
+	PurposeEmail    = "emailChange"
+	PurposePassword = "passwordReset"
+)
+
+func NewUserModel(name, email, pw string) (*UserModel, error) {
+	pwHash := crypto.HashPassword(pw)
 	id := uuid.New()
 
 	return &UserModel{

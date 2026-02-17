@@ -1,6 +1,8 @@
 package server
 
 import (
+	"fmt"
+
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/neifen/htmx-login/app/api/crypto"
@@ -9,42 +11,38 @@ import (
 )
 
 type userReq struct {
-	isLoggedIn bool
-	name       string
-	id         uuid.UUID
-}
-
-func emptyUser() *userReq {
-	return new(userReq)
+	name string
+	id   uuid.UUID
 }
 
 func userFromModel(u *auth.UserModel) *userReq {
 	return &userReq{
-		name:       u.Name,
-		id:         u.ID,
-		isLoggedIn: true,
+		name: u.Name,
+		id:   u.ID,
 	}
 }
 
 func userFromToken(c echo.Context) (*userReq, error) {
 	cookie, err := c.Cookie("token")
-	if err != nil || cookie == nil {
-		return emptyUser(), nil
+	if err != nil {
+		_, errRef := c.Cookie("refresh")
+		if errRef != nil {
+			fmt.Printf("No access nor refresh token -> login %+v", errRef)
+			return nil, nil
+		}
+
+		return nil, errors.Wrap(err, "access token removed, try refresh")
 	}
 
 	token, err := crypto.ValidTokenFromCookies(cookie)
 	if err != nil {
-		return emptyUser(), errors.Wrap(err, "getting user from cookies")
+		return nil, errors.Wrap(err, "getting user from cookies")
 	}
 
 	uid, err := token.UserID()
 	if err != nil {
-		return emptyUser(), errors.Wrap(err, "getting userID from token")
+		return nil, errors.Wrap(err, "getting userID from token")
 	}
 
-	name, err := token.UserName()
-	if err != nil {
-		return emptyUser(), errors.Wrap(err, "getting userName from token")
-	}
-	return &userReq{isLoggedIn: true, name: name, id: uid}, nil
+	return &userReq{name: "todo:find another way to get name", id: uid}, nil
 }

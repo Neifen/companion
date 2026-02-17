@@ -16,10 +16,7 @@ func TestNewUserModel(t *testing.T) {
 	wantEmail := "my@email.com"
 	unhashedPw := "testPw"
 
-	hashedPw, err := crypto.HashPassword(unhashedPw)
-	if err != nil {
-		t.Fatalf("Could not hash pw: %s, error: %v\n", unhashedPw, err)
-	}
+	hashedPw := crypto.HashPassword(unhashedPw)
 
 	u, err := auth.NewUserModel(wantName, wantEmail, unhashedPw)
 	if err != nil {
@@ -50,11 +47,7 @@ func TestNewUserModelEmpty(t *testing.T) {
 	wantEmail := ""
 	unhashedPw := ""
 
-	hashedPw, err := crypto.HashPassword(unhashedPw)
-	if err != nil {
-		t.Fatalf("Could not hash pw: %s, error: %+v\n", unhashedPw, err)
-	}
-
+	hashedPw := crypto.HashPassword(unhashedPw)
 	u, err := auth.NewUserModel(wantName, wantEmail, unhashedPw)
 	if err != nil {
 		t.Fatalf("error: %+v]n", err)

@@ -7,13 +7,76 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/neifen/htmx-login/app/api/crypto"
 	"github.com/pkg/errors"
 )
 
 const (
-	usersTable         = "auth.users"
-	refreshTokensTable = "auth.refresh_tokens"
+	usersTable              = "auth.users"
+	refreshTokensTable      = "auth.refresh_tokens"
+	verificationTokensTable = "auth.verification_tokens"
 )
+
+func (pg *AuthStore) CreateVerification(ctx context.Context, u *VerificationTokenModel) error {
+	args := pgx.NamedArgs{
+		"user_id":    u.UserUID,
+		"token_hash": u.TokenHash,
+		"channel":    u.Channel,
+		"purpose":    u.Purpose,
+		"expires_at": u.Expiration,
+	}
+
+	_, err := pg.db.Exec(ctx, "INSERT INTO "+verificationTokensTable+"(user_id, token_hash, channel, purpose, expires_at) VALUES (@user_id, @token_hash, @channel, @purpose, @expires_at)", args)
+	if err != nil {
+		return errors.Wrapf(err, "db: Create Verification Token for user %s ", u.UserUID)
+	}
+
+	return nil
+}
+
+func (pg *AuthStore) ConsumeVerification(ctx context.Context, u *VerificationTokenModel) error {
+	_, err := pg.db.Exec(ctx, "UPDATE "+verificationTokensTable+" set consumed = $1 where id=$2", u.Consumed, u.ID)
+	if err != nil {
+		return errors.Wrapf(err, "db: Consume Verification Token for user %s ", u.UserUID)
+	}
+
+	return nil
+}
+
+func (pg *AuthStore) UserVerified(ctx context.Context, uid uuid.UUID) error {
+	_, err := pg.db.Exec(ctx, "UPDATE "+usersTable+" set verified = true where id=$2", uid)
+	if err != nil {
+		return errors.Wrapf(err, "db: User Verified for user %s ", uid)
+	}
+
+	return nil
+}
+
+func (pg *AuthStore) ReadVerification(ctx context.Context, hashedToken []byte) (*VerificationTokenModel, error) {
+	row := pg.db.QueryRow(ctx, "SELECT id, user_id, channel, purpose, expires_at, consumed_at from "+verificationTokensTable+" where token_hash = $1", hashedToken)
+
+	var id int
+	var uid uuid.UUID
+	var channel string
+	var purpose string
+	var expiration time.Time
+	var comsumed *time.Time
+
+	err := row.Scan(&id, &uid, &channel, &purpose, &expiration, &comsumed)
+	if err != nil {
+		return nil, errors.Wrap(err, "db: Read Verification Token")
+	}
+
+	model := &VerificationTokenModel{
+		ID:       id,
+		UserUID:  uid,
+		Channel:  channel,
+		Purpose:  purpose,
+		Consumed: comsumed,
+	}
+
+	return model, nil
+}
 
 func (pg *AuthStore) CreateUser(ctx context.Context, u *UserModel) error {
 	args := pgx.NamedArgs{
@@ -26,6 +89,15 @@ func (pg *AuthStore) CreateUser(ctx context.Context, u *UserModel) error {
 	_, err := pg.db.Exec(ctx, "INSERT INTO "+usersTable+"(id, name, email, pw) VALUES (@id, @name, @email, @pw)", args)
 	if err != nil {
 		return errors.Wrapf(err, "db: Create User %s %s, %s", u.ID, u.Name, u.Email)
+	}
+
+	return nil
+}
+
+func (pg *AuthStore) UpdateUserPassword(ctx context.Context, uid uuid.UUID, pw []byte) error {
+	_, err := pg.db.Exec(ctx, "UPDATE "+usersTable+" set pw=$1 where id = $2 ", pw, uid)
+	if err != nil {
+		return errors.Wrapf(err, "db: Update User Password ID %d", uid)
 	}
 
 	return nil
@@ -105,51 +177,38 @@ func (pg *AuthStore) ReadUserByUID(ctx context.Context, idReq uuid.UUID) (*UserM
 	}, nil
 }
 
-func (pg *AuthStore) CreateRefreshToken(ctx context.Context, t *RefreshTokenModel) error {
-	var id int //dont really need it
-	row := pg.db.QueryRow(ctx, "INSERT INTO "+refreshTokensTable+"(user_id, token, expires, remember) VALUES ($1, $2, $3, $4) RETURNING id", t.UserUID, t.Token, t.Expiration, t.Remember)
-	err := row.Scan(&id)
-
+func (pg *AuthStore) StoreRefreshToken(ctx context.Context, uid uuid.UUID, t *crypto.RefreshToken) error {
+	_, err := pg.db.Exec(ctx, "INSERT INTO "+refreshTokensTable+"(user_id, token_hash, expires) VALUES ($1, $2, $3)", uid, t.Hashed, t.Exp)
 	if err != nil {
-		return err
-		// return errors.New("db error 610: could not add new refresh_token")
+		return errors.Wrapf(err, "db: Store Refresh Token")
+	}
+
+	return nil
+}
+
+func (pg *AuthStore) DeleteRefreshTokenByToken(ctx context.Context, hashed []byte) error {
+	_, err := pg.db.Exec(ctx, "DELETE FROM "+refreshTokensTable+" rt where rt.token_hash = $1", hashed)
+	if err != nil {
+		return fmt.Errorf("db error 621: could not delete refresh_token %v", hashed)
 	}
 	return nil
 }
 
-func (pg *AuthStore) DeleteRefreshToken(ctx context.Context, t *RefreshTokenModel) error {
-	_, err := pg.db.Query(ctx, "DELETE FROM "+refreshTokensTable+" rt where rt.id = $1", t.id)
-	if err != nil {
-		return fmt.Errorf("db error 620: could not delete refresh_token %v", t.id)
-	}
-	return nil
-}
-
-func (pg *AuthStore) DeleteRefreshTokenByToken(ctx context.Context, token string) error {
-	_, err := pg.db.Query(ctx, "DELETE FROM "+refreshTokensTable+" rt where rt.token = $1", token)
-	if err != nil {
-		return fmt.Errorf("db error 621: could not delete refresh_token %v", token)
-	}
-	return nil
-}
-
-func (pg *AuthStore) ReadRefreshTokenByToken(ctx context.Context, token string) (*RefreshTokenModel, error) {
-	row := pg.db.QueryRow(ctx, "SELECT id, user_id, token, expires, remember from "+refreshTokensTable+" where token = $1", token)
+func (pg *AuthStore) ReadRefreshTokenByToken(ctx context.Context, hashed []byte) (*RefreshTokenModel, error) {
+	row := pg.db.QueryRow(ctx, "SELECT id, user_id, expires, remember from "+refreshTokensTable+" where token_hash = $1", hashed)
 
 	var id int
-	var tokenRes string
 	var userUID uuid.UUID
 	var expiration time.Time
 	var remember bool
 
-	err := row.Scan(&id, &userUID, &tokenRes, &expiration, &remember)
+	err := row.Scan(&id, &userUID, &expiration, &remember)
 	if err != nil {
-		return nil, fmt.Errorf("db error 630: could not read refresh_token %s", token)
+		return nil, errors.Wrapf(err, "db error 630: could not read refresh_token %s", hashed)
 	}
 
 	return &RefreshTokenModel{
-		id:         id,
-		Token:      tokenRes,
+		ID:         id,
 		UserUID:    userUID,
 		Expiration: expiration,
 		Remember:   remember,

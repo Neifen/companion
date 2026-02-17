@@ -1,10 +1,12 @@
+CREATE SCHEMA IF NOT EXISTS public;
+CREATE SCHEMA IF NOT EXISTS auth;
+
 CREATE EXTENSION IF NOT EXISTS citext;
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
-CREATE SCHEMA IF NOT EXISTS auth;
 
 CREATE TABLE IF NOT EXISTS auth.users(
-    id uuid PRIMARY KEY, --todo: change to uuid -> gen_random_uuid -> create extension if not exists pgcrypto;
+    id uuid PRIMARY KEY,
     name varchar NOT NULL,
     email citext NOT NULL UNIQUE,
     pw bytea NOT NULL,
@@ -13,10 +15,12 @@ CREATE TABLE IF NOT EXISTS auth.users(
     updated_at timestamptz NOT NULL DEFAULT NOW()
 );
 
+
+
 CREATE TABLE IF NOT EXISTS auth.refresh_tokens(
     id serial PRIMARY KEY,
     user_id uuid NOT NULL REFERENCES auth.users(id) on delete cascade,
-    token varchar NOT NULL,
+    token_hash bytea NOT NULL,
     remember boolean DEFAULT FALSE,
     expires timestamptz NOT NULL,
     created_at timestamptz NOT NULL DEFAULT NOW(),
@@ -35,4 +39,3 @@ CREATE TABLE IF NOT EXISTS auth.verification_tokens(
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS users_unique_lower_email_idx ON auth.users(LOWER(email));
-

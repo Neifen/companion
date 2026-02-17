@@ -10,12 +10,7 @@ import (
 func TestHashPassword(t *testing.T) {
 	inputPw := "anything"
 
-	pw, err := HashPassword(inputPw)
-
-	if err != nil {
-		t.Fatalf(`HashPassword(%q) failed with error %v`, inputPw, err)
-	}
-
+	pw := HashPassword(inputPw)
 	sh := sha3.New256()
 	sh.Write([]byte(inputPw))
 
@@ -29,12 +24,7 @@ func TestHashPassword(t *testing.T) {
 func TestHashPasswordEmpty(t *testing.T) {
 	inputPw := ""
 
-	pw, err := HashPassword(inputPw)
-
-	if err != nil {
-		t.Fatalf(`HashPassword(%q) failed with error %v`, inputPw, err)
-	}
-
+	pw := HashPassword(inputPw)
 	sh := sha3.New256()
 	sh.Write([]byte(inputPw))
 
@@ -48,12 +38,7 @@ func TestHashPasswordEmpty(t *testing.T) {
 func TestHashPasswordEmojis(t *testing.T) {
 	inputPw := "♥◘♣○╗ß"
 
-	pw, err := HashPassword(inputPw)
-
-	if err != nil {
-		t.Fatalf(`HashPassword(%q) failed with error %v`, inputPw, err)
-	}
-
+	pw := HashPassword(inputPw)
 	sh := sha3.New256()
 	sh.Write([]byte(inputPw))
 

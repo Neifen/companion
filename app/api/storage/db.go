@@ -18,11 +18,18 @@ import (
 )
 
 func (s *Storage) CreateTX(ctx context.Context) error {
-	tx, err := s.pgx.Begin(ctx)
+	if s.pgx == nil {
+		panic("s.pgx is nil!")
+	}
+	if ctx == nil {
+		panic("ctx is nil!") // unlikely to panic by itself
+	}
 
+	tx, err := s.pgx.Begin(ctx)
 	if err != nil {
 		return errors.Wrap(err, "db: Create TX")
 	}
+
 	s.db = tx
 	s.tx = tx
 
@@ -57,7 +64,10 @@ func (s *Storage) CommitTX(ctx context.Context) error {
 	return nil
 }
 
+// Close DO NOT CALL THIS OTHER THAN AT END OF TEST OR MAIN
 func (s *Storage) Close() {
+	stat := s.pgx.Stat()
+	fmt.Printf("Total: %d, Idle: %d, Acquired: %d\n", stat.TotalConns(), stat.IdleConns(), stat.AcquiredConns())
 	s.pgx.Close()
 }
 
@@ -117,7 +127,7 @@ func (s *Storage) InitDB() error {
 
 		res, err := s.pgx.Exec(context.Background(), string(authSQL))
 		if err != nil {
-			return errors.Wrapf(err, "db: Init DB with file %s", file)
+			return errors.Wrapf(err, "db: Init DB with file %s with %s", file, string(authSQL))
 		}
 		aff := res.RowsAffected()
 		fmt.Printf("created %s tables, affected Rows: %v \n", file, aff)

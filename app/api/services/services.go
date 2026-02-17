@@ -4,6 +4,7 @@ import (
 	"github.com/neifen/htmx-login/app/api/storage"
 )
 
+// Close DO NOT CALL THIS OTHER THAN AT END OF TEST OR MAIN
 func (s *Services) Close() {
 	s.store.Close()
 }

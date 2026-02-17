@@ -19,7 +19,7 @@ func (s *Services) NewUser(ctx context.Context, u *auth.UserModel) error {
 		UserUID:    u.ID,
 		TokenHash:  hash,
 		Channel:    "email", // default for now
-		Purpose:    "signup",
+		Purpose:    auth.PurposeSignup,
 		Expiration: exp,
 	}
 

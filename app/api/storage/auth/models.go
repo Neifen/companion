@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/neifen/htmx-login/app/api/crypto"
+	"github.com/pkg/errors"
 )
 
 type UserModel struct {
@@ -39,7 +40,11 @@ const (
 )
 
 func NewUserModel(name, email, pw string) (*UserModel, error) {
-	pwHash := crypto.HashPassword(pw)
+	pwHash, err := crypto.HashPassword(pw)
+	if err != nil {
+		return nil, errors.WithMessage(err, "auth db: New User Model")
+	}
+
 	id := uuid.New()
 
 	return &UserModel{

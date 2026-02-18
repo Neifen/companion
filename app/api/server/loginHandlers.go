@@ -117,6 +117,7 @@ func (s *HandlerSession) handlePostLogout(c echo.Context) error {
 		err := s.services.InvalidateRefresh(c.Request().Context(), refresh.Value)
 		if err != nil {
 			//todo: error
+			return echo.ErrBadRequest
 		}
 	}
 

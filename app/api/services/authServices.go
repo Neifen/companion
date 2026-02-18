@@ -1,9 +1,9 @@
 package services
 
 import (
-	"bytes"
 	"context"
 	"fmt"
+	"net/mail"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,6 +13,22 @@ import (
 )
 
 func (s *Services) NewUser(ctx context.Context, u *auth.UserModel) error {
+	err := s.store.CreateTX(ctx)
+	if err != nil {
+		return errors.WithMessage(err, "auth service: New User")
+	}
+	defer s.store.RollbackTX(ctx)
+
+	_, err = mail.ParseAddress(u.Email)
+	if err != nil {
+		return errors.WithMessage(err, "auth service: New User")
+	}
+
+	err = s.store.Auth.CreateUser(ctx, u)
+	if err != nil {
+		return errors.WithMessage(err, "auth service: New User")
+	}
+
 	hash, token := crypto.NewRandomHash()
 	exp := time.Now().Add(time.Hour)
 	ver := &auth.VerificationTokenModel{
@@ -22,19 +38,7 @@ func (s *Services) NewUser(ctx context.Context, u *auth.UserModel) error {
 		Purpose:    auth.PurposeSignup,
 		Expiration: exp,
 	}
-
-	err := s.store.CreateTX(ctx)
-	if err != nil {
-		return errors.WithMessage(err, "auth service: New User")
-	}
-	defer s.store.RollbackTX(ctx)
-
 	err = s.store.Auth.CreateVerification(ctx, ver)
-	if err != nil {
-		return errors.WithMessage(err, "auth service: New User")
-	}
-
-	err = s.store.Auth.CreateUser(ctx, u)
 	if err != nil {
 		return errors.WithMessage(err, "auth service: New User")
 	}
@@ -50,7 +54,7 @@ func (s *Services) NewUser(ctx context.Context, u *auth.UserModel) error {
 }
 
 func sendVerificationEmail(token string, u *auth.UserModel) {
-	fmt.Println("Hi %s, please verify email %s with token %s", u.Name, u.Email, token)
+	fmt.Printf("Hi %s, please verify email %s with token %s\n", u.Name, u.Email, token)
 }
 
 func (s *Services) CheckVerificationToken(ctx context.Context, token string, uid uuid.UUID) error {
@@ -103,62 +107,56 @@ func (s *Services) CheckVerificationToken(ctx context.Context, token string, uid
 	return nil
 }
 
-func (s *Services) ChangePassword(ctx context.Context, token, oldPw, newPw string, uid uuid.UUID) error {
+func (s *Services) ResetPassword(ctx context.Context, token, newPw string, uid uuid.UUID) error {
 
 	err := s.store.CreateTX(ctx)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Change Password")
+		return errors.WithMessage(err, "auth service: Reset Password")
 	}
 	defer s.store.RollbackTX(ctx)
 
 	hashed, err := crypto.HashToken(token)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Change Password")
+		return errors.WithMessage(err, "auth service: Reset Password")
 	}
 
 	verification, err := s.store.Auth.ReadVerification(ctx, hashed)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Change Password")
+		return errors.WithMessage(err, "auth service: Reset Password")
 	}
 
 	if verification == nil || verification.UserUID == uid || verification.Purpose != auth.PurposePassword {
-		return errors.New("auth service: Change Password. Invalid Verification")
+		return errors.New("auth service: Reset Password. Invalid Verification")
 	}
 
 	if verification.Expiration.After(time.Now()) {
-		return errors.New("auth service: Change Password. Verification expired")
+		return errors.New("auth service: Reset Password. Verification expired")
 	}
 
 	if verification.Consumed != nil && verification.Consumed.After(time.Now().Add(time.Hour*24)) {
-		return errors.New("auth service: Change Password. Verification link doesn't exist anymore")
+		return errors.New("auth service: Reset Password. Verification link doesn't exist anymore")
 	}
 
-	u, err := s.store.Auth.ReadUserByUID(ctx, uid)
+	newHashedPw, err := crypto.HashPassword(newPw)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Change Password")
+		return errors.WithMessage(err, "auth service: Reset Password")
 	}
 
-	hashedOldPw := crypto.HashPassword(oldPw)
-	if !bytes.Equal(u.Pw, hashedOldPw) {
-		return errors.New("auth service: Change Password. Password invalid")
-	}
-
-	newHashedPw := crypto.HashPassword(newPw)
 	err = s.store.Auth.UpdateUserPassword(ctx, uid, newHashedPw)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Change Password")
+		return errors.WithMessage(err, "auth service: Reset Password")
 	}
 
 	now := time.Now()
 	verification.Consumed = &now
 	err = s.store.Auth.ConsumeVerification(ctx, verification)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Change Password")
+		return errors.WithMessage(err, "auth service: Reset Password")
 	}
 
 	err = s.store.CommitTX(ctx)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Change Password")
+		return errors.WithMessage(err, "auth service: Reset Password")
 	}
 
 	return nil
@@ -182,8 +180,8 @@ func (s *Services) Authenticate(ctx context.Context, email, pw string, remember 
 		return nil, errors.WithMessage(err, "service: Authenticate")
 	}
 
-	pwHash := crypto.HashPassword(pw)
-	if !bytes.Equal(pwHash, u.Pw) {
+	pwOK := crypto.CheckPassword(pw, u.Pw)
+	if !pwOK {
 		return nil, errors.New("service: Authenticate didn't succeed")
 	}
 

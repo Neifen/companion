@@ -40,8 +40,9 @@ func encryptedKey(t paseto.Token) (string, error) {
 	return encrypted, nil
 }
 
-// todo: maybe wrong place,
 func (t *AccessToken) AddToCookie() *http.Cookie {
+	// todo: maybe wrong place,
+
 	/*
 		Set-Cookie: access_token=eyJ…; HttpOnly; Secure
 		Set-Cookie: refresh_token=…; Max-Age=31536000; Path=/api/auth/refresh; HttpOnly; Secure

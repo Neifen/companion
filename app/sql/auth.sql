@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS auth.refresh_tokens(
 CREATE TABLE IF NOT EXISTS auth.verification_tokens(
   id            serial primary key,
   user_id       uuid not null references auth.users(id) on delete cascade,
-  token_hash    text not null, -- compare is enough
+  token_hash    bytea not null, -- compare is enough
   channel       text not null, -- 'email' | 'sms'
   purpose       text not null, -- 'signup' | 'email_change' | 'password_reset'
   expires_at    timestamptz not null,

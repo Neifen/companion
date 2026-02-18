@@ -6,13 +6,24 @@ import (
 	"encoding/base64"
 
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/sha3"
 )
 
-func HashPassword(pw string) []byte {
+func HashPassword(pw string) ([]byte, error) {
 	//todo: chat says this is not enough. it should be salted hasing
-	hash := sha3.Sum256([]byte(pw))
-	return hash[:]
+	hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, errors.Wrap(err, "hashing: Hash Password")
+	}
+
+	return hash, nil
+}
+
+func CheckPassword(pw string, hash []byte) bool {
+
+	err := bcrypt.CompareHashAndPassword(hash, []byte(pw))
+	return err == nil
 }
 
 func HashToken(token string) ([]byte, error) {

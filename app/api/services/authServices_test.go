@@ -1,28 +1,27 @@
 package services_test
 
 import (
-	"fmt"
-	"os"
 	"slices"
 	"testing"
 	"time"
 
-	"github.com/neifen/htmx-login/app/api/services"
 	"github.com/neifen/htmx-login/app/api/storage/auth"
 )
 
 func TestCrudUser(t *testing.T) {
+	testContext.resetAuth = true
+
 	u, err := auth.NewUserModel("name", "email@nate.ch", "pass")
 	if err != nil {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	err = serv.NewUser(t.Context(), u)
+	err = testContext.serv.NewUser(t.Context(), u)
 	if err != nil {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	uResp, err := serv.GetUserByEmail(t.Context(), "email@nate.ch")
+	uResp, err := testContext.serv.GetUserByEmail(t.Context(), "email@nate.ch")
 	if err != nil {
 		t.Fatalf("failed to get User with err \n%+v\n", err)
 	}
@@ -36,7 +35,7 @@ func TestCrudUser(t *testing.T) {
 	}
 
 	id := u.ID
-	uResp, err = serv.GetUserByID(t.Context(), id)
+	uResp, err = testContext.serv.GetUserByID(t.Context(), id)
 	if err != nil {
 		t.Errorf("failed to get User with err \n%+v\n", err)
 	}
@@ -51,12 +50,14 @@ func TestCrudUser(t *testing.T) {
 }
 
 func TestCrudUserErrors(t *testing.T) {
+	testContext.resetAuth = true
+
 	u, err := auth.NewUserModel("name", "emailCrudErr@nate.ch", "pass")
 	if err != nil {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	err = serv.NewUser(t.Context(), u)
+	err = testContext.serv.NewUser(t.Context(), u)
 	if err != nil {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
@@ -67,7 +68,7 @@ func TestCrudUserErrors(t *testing.T) {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	err = serv.NewUser(t.Context(), u)
+	err = testContext.serv.NewUser(t.Context(), u)
 	if err == nil {
 		t.Fatalf("should have thrown an error for having the same email")
 	}
@@ -78,24 +79,26 @@ func TestCrudUserErrors(t *testing.T) {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	err = serv.NewUser(t.Context(), u)
+	err = testContext.serv.NewUser(t.Context(), u)
 	if err == nil {
 		t.Fatalf("should have thrown an error for having an email that is not an email")
 	}
 }
 
 func TestAuthentication(t *testing.T) {
+	testContext.resetAuth = true
+
 	u, err := auth.NewUserModel("name", "emailAuth@nate.ch", "pass")
 	if err != nil {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	err = serv.NewUser(t.Context(), u)
+	err = testContext.serv.NewUser(t.Context(), u)
 	if err != nil {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	uResp, err := serv.Authenticate(t.Context(), "emailAuth@nate.ch", "pass", false)
+	uResp, err := testContext.serv.Authenticate(t.Context(), "emailAuth@nate.ch", "pass", false)
 	if err != nil {
 		t.Fatalf("failed to Authenticate with err %+v", err)
 	}
@@ -133,7 +136,7 @@ func TestAuthentication(t *testing.T) {
 		t.Errorf("expected encrypted share token to expire in 7d, instead was %s", uResp.Access.Expiration)
 	}
 
-	uResp, err = serv.Authenticate(t.Context(), "emailAuth@nate.ch", "pass", true)
+	uResp, err = testContext.serv.Authenticate(t.Context(), "emailAuth@nate.ch", "pass", true)
 	if err != nil {
 		t.Fatalf("failed to Authenticate with err %+v", err)
 	}
@@ -142,7 +145,7 @@ func TestAuthentication(t *testing.T) {
 		t.Errorf("expected encrypted share token to expire in 40d, instead was %s", uResp.Access.Expiration)
 	}
 
-	uResp, err = serv.Authenticate(t.Context(), "emaillAuth@nate.ch", "pass", false)
+	uResp, err = testContext.serv.Authenticate(t.Context(), "emaillAuth@nate.ch", "pass", false)
 	if err == nil {
 		t.Errorf("failed to produce error when authenticating with wrong email")
 	}
@@ -150,7 +153,7 @@ func TestAuthentication(t *testing.T) {
 		t.Errorf("failed to produce nil user when authenticating with wrong email")
 	}
 
-	uResp, err = serv.Authenticate(t.Context(), "emailAuth@nate.ch", "pass2", false)
+	uResp, err = testContext.serv.Authenticate(t.Context(), "emailAuth@nate.ch", "pass2", false)
 	if err == nil {
 		t.Errorf("failed to produce error when authenticating with wrong pass")
 	}
@@ -160,22 +163,24 @@ func TestAuthentication(t *testing.T) {
 }
 
 func TestRefreshToken(t *testing.T) {
+	testContext.resetAuth = true
+
 	u, err := auth.NewUserModel("name", "emailRefresh@nate.ch", "pass")
 	if err != nil {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	err = serv.NewUser(t.Context(), u)
+	err = testContext.serv.NewUser(t.Context(), u)
 	if err != nil {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	auth, err := serv.Authenticate(t.Context(), "emailRefresh@nate.ch", "pass", false)
+	auth, err := testContext.serv.Authenticate(t.Context(), "emailRefresh@nate.ch", "pass", false)
 	if err != nil {
 		t.Fatalf("failed to Authenticate with err %+v", err)
 	}
 
-	ref, err := serv.RefreshToken(t.Context(), auth.Refresh.Token)
+	ref, err := testContext.serv.RefreshToken(t.Context(), auth.Refresh.Token)
 	if err != nil {
 		t.Fatalf("failed to Refresh token err %+v", err)
 	}
@@ -186,59 +191,19 @@ func TestRefreshToken(t *testing.T) {
 }
 
 func Test_SignupVerification(t *testing.T) {
+	testContext.resetAuth = true
 	u, err := auth.NewUserModel("name", "emailverify@nate.ch", "pass")
 	if err != nil {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	err = serv.NewUser(t.Context(), u)
+	err = testContext.serv.NewUser(t.Context(), u)
 	if err != nil {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
+	// err = testContext.serv.CheckVerificationToken(t.Context(), token, u.ID)
+
 	//todo: test verification actually
 	//todo: add account state: UNVERIFIED, VERIFIED, SUSPENDED, DELETED
-
-}
-
-var serv *services.Services
-
-func TestMain(m *testing.M) {
-	exitCode := doMain(m)
-	os.Exit(exitCode)
-}
-func doMain(m *testing.M) int {
-	fmt.Println("Start setting up tests")
-	s, db, err := newTestService()
-	if err != nil {
-		fmt.Printf("failed to create new test service with err \n%+v\n", err)
-
-		if s != nil {
-			s.Close()
-		}
-		return 1
-	}
-	defer s.Close()
-	serv = s
-
-	err = clearUsers(db)
-	if err != nil {
-		fmt.Printf("failed to clear users with err \n%+v\n", err)
-		return 1
-	}
-
-	exitCode := m.Run()
-
-	fmt.Println("Tests done, clean up")
-	err = clearUsers(db)
-	if err != nil {
-		fmt.Printf("failed to clear users with err \n%+v\n", err)
-		return 1
-	}
-
-	return exitCode
-}
-
-func timeAlmostEqual(expected, actual time.Time) bool {
-	return actual.After(expected.Add(-time.Second)) && actual.Before(expected.Add(time.Second))
 }

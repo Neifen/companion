@@ -5,22 +5,15 @@ import (
 )
 
 func TestCreatePlan(t *testing.T) {
-	serv, db, err := newTestService()
-	if err != nil {
-		t.Fatalf("Could not Set up db: \n%+v\n", err)
-	}
-
-	if err := clearPlans(db); err != nil {
-		t.Fatalf("Clearing Plans failed: \n%+v\n", err)
-	}
+	testContext.resetPlans = true
 
 	justBooks := []string{"Genesis", "1 John", "jeremiah"}
-	planID, err := serv.CreateNewPlan(t.Context(), "Just Books", "This Plan contains only whole books", justBooks, -1)
+	planID, err := testContext.serv.CreateNewPlan(t.Context(), "Just Books", "This Plan contains only whole books", justBooks, -1)
 	if err != nil {
 		t.Errorf("Justbook failed with error: \n%+v\n", err)
 	}
 
-	chapters, err := serv.GetPlansChapters(t.Context(), planID)
+	chapters, err := testContext.serv.GetPlansChapters(t.Context(), planID)
 	if err != nil {
 		t.Errorf("Read Justbook failed with error: \n%+v\n", err)
 	}
@@ -63,7 +56,7 @@ ChapterLoop:
 	}
 
 	booksAndChapter := []string{"Genesis: 1,4", "Genesis: 2-50", "jeremiah"}
-	planID, err = serv.CreateNewPlan(t.Context(),
+	planID, err = testContext.serv.CreateNewPlan(t.Context(),
 		"Books and Chapter",
 		"This plan contains books and whole chapters as well as chapter ranges",
 		booksAndChapter,
@@ -72,7 +65,7 @@ ChapterLoop:
 		t.Errorf("BooksAndChapter failed with error: \n%+v\n", err)
 	}
 
-	chapters, err = serv.GetPlansChapters(t.Context(), planID)
+	chapters, err = testContext.serv.GetPlansChapters(t.Context(), planID)
 	if err != nil {
 		t.Errorf("Read Justbook failed with error: \n%+v\n", err)
 	}
@@ -113,7 +106,7 @@ Chapter2Loop:
 	}
 
 	booksChaptersAndVerses := []string{"Genesis: 1,4:12, 5:2-15", "Genesis: 2-50", "jeremiah"}
-	planID, err = serv.CreateNewPlan(t.Context(),
+	planID, err = testContext.serv.CreateNewPlan(t.Context(),
 		"Books and Chapter",
 		"This plan contains books and whole chapters as well as chapter ranges",
 		booksChaptersAndVerses,
@@ -122,7 +115,7 @@ Chapter2Loop:
 		t.Errorf("Books/Chapters/Verses failed with error: \n%+v\n", err)
 	}
 
-	chapters, err = serv.GetPlansChapters(t.Context(), planID)
+	chapters, err = testContext.serv.GetPlansChapters(t.Context(), planID)
 	if err != nil {
 		t.Errorf("Read Justbook failed with error: \n%+v\n", err)
 	}
@@ -200,33 +193,18 @@ Chapter3Loop:
 	if countJeremiah != 52 {
 		t.Errorf("Needed to have 52 Jeremiah chapters inserted, instead was: %d", countJeremiah)
 	}
-
-	t.Cleanup(func() {
-		err = clearPlans(db)
-		if err != nil {
-			t.Fatalf("Clearing Plans failed: \n%+v\n", err)
-		}
-		defer serv.Close()
-	})
 }
 
 func TestCreatePlanSplitChapters(t *testing.T) {
-	serv, db, err := newTestService()
-	if err != nil {
-		t.Fatalf("Could not Set up db: \n%+v\n", err)
-	}
-
-	if err := clearPlans(db); err != nil {
-		t.Fatalf("Clearing Plans failed: \n%+v\n", err)
-	}
+	testContext.resetPlans = true
 
 	justBooks := []string{"Genesis", "1 John", "jeremiah"}
-	planID, err := serv.CreateNewPlan(t.Context(), "Just Books", "This Plan contains only whole books", justBooks, 2)
+	planID, err := testContext.serv.CreateNewPlan(t.Context(), "Just Books", "This Plan contains only whole books", justBooks, 2)
 	if err != nil {
 		t.Errorf("Justbook failed with error: \n%+v\n", err)
 	}
 
-	chapters, err := serv.GetPlansChapters(t.Context(), planID)
+	chapters, err := testContext.serv.GetPlansChapters(t.Context(), planID)
 	if err != nil {
 		t.Errorf("Read Justbook failed with error: \n%+v\n", err)
 	}
@@ -269,7 +247,7 @@ ChapterLoop:
 	}
 
 	booksAndChapter := []string{"Genesis: 1,4", "Genesis: 2-50", "jeremiah"}
-	planID, err = serv.CreateNewPlan(t.Context(),
+	planID, err = testContext.serv.CreateNewPlan(t.Context(),
 		"Books and Chapter",
 		"This plan contains books and whole chapters as well as chapter ranges",
 		booksAndChapter,
@@ -278,7 +256,7 @@ ChapterLoop:
 		t.Errorf("BooksAndChapter failed with error: \n%+v\n", err)
 	}
 
-	chapters, err = serv.GetPlansChapters(t.Context(), planID)
+	chapters, err = testContext.serv.GetPlansChapters(t.Context(), planID)
 	if err != nil {
 		t.Errorf("Read Justbook failed with error: \n%+v\n", err)
 	}
@@ -318,7 +296,7 @@ Chapter2Loop:
 	}
 
 	booksAndChapter2 := []string{"Genesis: 1,4", "Genesis: 2-50", "jeremiah"}
-	planID, err = serv.CreateNewPlan(t.Context(),
+	planID, err = testContext.serv.CreateNewPlan(t.Context(),
 		"Books and Chapter",
 		"This plan contains books and whole chapters as well as chapter ranges. Tested with a small cutRatio",
 		booksAndChapter2,
@@ -327,7 +305,7 @@ Chapter2Loop:
 		t.Errorf("BooksAndChapter failed with error: \n%+v\n", err)
 	}
 
-	chapters, err = serv.GetPlansChapters(t.Context(), planID)
+	chapters, err = testContext.serv.GetPlansChapters(t.Context(), planID)
 	if err != nil {
 		t.Errorf("Read Justbook failed with error: \n%+v\n", err)
 	}
@@ -367,7 +345,7 @@ Chapter3Loop:
 	}
 
 	booksChaptersAndVerses := []string{"Genesis: 1,4:12, 5:2-15", "Genesis: 2-50", "jeremiah"}
-	_, err = serv.CreateNewPlan(t.Context(),
+	_, err = testContext.serv.CreateNewPlan(t.Context(),
 		"Books and Chapter",
 		"This plan contains books and whole chapters as well as chapter ranges",
 		booksChaptersAndVerses,
@@ -375,12 +353,4 @@ Chapter3Loop:
 	if err == nil {
 		t.Errorf("Books/Chapters/Verses failed to throw error: \n%+v\n", err)
 	}
-
-	t.Cleanup(func() {
-		err = clearPlans(db)
-		if err != nil {
-			t.Fatalf("Clearing Plans failed: \n%+v\n", err)
-		}
-		defer serv.Close()
-	})
 }

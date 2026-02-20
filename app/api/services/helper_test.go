@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
@@ -17,26 +19,86 @@ import (
 	"github.com/pkg/errors"
 )
 
-// func TestMain(m *testing.M) {
-// 	var err error
-// 	db, err = newTestDB()
-// 	if err != nil {
-// 		log.Fatal(err)
-// 		os.Exit(1)
-// 	}
-// 	deferdb.db.Close()
+var testContext TestContext
 
-// 	exitCode := m.Run()
-// 	os.Exit(exitCode)
-// }
+type TestContext struct {
+	db              db.DB
+	serv            *services.Services
+	resetPlans      bool
+	resetTracking   bool
+	resetAuth       bool
+	resetCompanions bool
+}
+
+func TestMain(m *testing.M) {
+	exitCode := doMain(m)
+	os.Exit(exitCode)
+}
+func doMain(m *testing.M) int {
+	fmt.Println("Start setting up tests")
+	s, d, err := newTestService()
+	if err != nil {
+		fmt.Printf("failed to create new test service with err \n%+v\n", err)
+
+		if s != nil {
+			s.Close()
+		}
+		return 1
+	}
+	defer s.Close()
+
+	testContext = TestContext{serv: s, db: d}
+
+	exitCode := m.Run()
+
+	fmt.Println("Tests done, clean up")
+
+	if testContext.resetAuth {
+		err = clearUsers()
+		if err != nil {
+			fmt.Printf("failed to clear users with err \n%+v\n", err)
+			exitCode = 1
+		}
+	}
+
+	if testContext.resetPlans {
+		err = clearPlans()
+		if err != nil {
+			fmt.Printf("failed to clear users with err \n%+v\n", err)
+			exitCode = 1
+		}
+	}
+
+	if testContext.resetCompanions {
+		err = clearCompanions()
+		if err != nil {
+			fmt.Printf("failed to clear users with err \n%+v\n", err)
+			exitCode = 1
+		}
+	}
+
+	if testContext.resetTracking {
+		err = clearTrackers()
+		if err != nil {
+			fmt.Printf("failed to clear users with err \n%+v\n", err)
+			exitCode = 1
+		}
+	}
+
+	return exitCode
+}
+
+func timeAlmostEqual(expected, actual time.Time) bool {
+	return actual.After(expected.Add(-time.Second)) && actual.Before(expected.Add(time.Second))
+}
 
 const (
 	defaultPlanID = 0
 	defaultUserID = 0
 )
 
-func clearTrackers(db db.DB) error {
-	res, err := db.Exec(context.Background(), "DELETE FROM tracking.trackers")
+func clearTrackers() error {
+	res, err := testContext.db.Exec(context.Background(), "DELETE FROM tracking.trackers")
 	if err != nil {
 		return errors.Wrap(err, "Could not clean up Trackers table")
 	}
@@ -44,7 +106,7 @@ func clearTrackers(db db.DB) error {
 	affected := res.RowsAffected()
 
 	var count int
-	row := db.QueryRow(context.Background(), "SELECT count(*) from tracking.tasks")
+	row := testContext.db.QueryRow(context.Background(), "SELECT count(*) from tracking.tasks")
 	row.Scan(&count)
 	if count != 0 {
 		return errors.Errorf("tasks should be emty through delete cascade. Was %d instead", count)
@@ -54,21 +116,21 @@ func clearTrackers(db db.DB) error {
 	return nil
 }
 
-func clearUsers(db db.DB) error {
-	res, err := db.Exec(context.Background(), "DELETE FROM auth.users")
+func clearUsers() error {
+	res, err := testContext.db.Exec(context.Background(), "DELETE FROM auth.users")
 	if err != nil {
 		return errors.Wrap(err, "Could not clean up users table")
 	}
 
 	affected := res.RowsAffected()
 	var count int
-	row := db.QueryRow(context.Background(), "SELECT count(*) from auth.refresh_tokens")
+	row := testContext.db.QueryRow(context.Background(), "SELECT count(*) from auth.refresh_tokens")
 	row.Scan(&count)
 	if count != 0 {
 		return errors.Errorf("refresh_tokens should be emty through delete cascade. Was %d instead", count)
 	}
 
-	row = db.QueryRow(context.Background(), "SELECT count(*) from auth.verification_tokens")
+	row = testContext.db.QueryRow(context.Background(), "SELECT count(*) from auth.verification_tokens")
 	row.Scan(&count)
 	if count != 0 {
 		return errors.Errorf("verification_tokens table should be emty through delete cascade. Was %d instead", count)
@@ -78,8 +140,8 @@ func clearUsers(db db.DB) error {
 	return nil
 }
 
-func clearCompanions(db db.DB) error {
-	res, err := db.Exec(context.Background(), "DELETE FROM companions.companions")
+func clearCompanions() error {
+	res, err := testContext.db.Exec(context.Background(), "DELETE FROM companions.companions")
 	if err != nil {
 		return errors.Wrap(err, "Could not clean up Plans table")
 	}
@@ -87,13 +149,13 @@ func clearCompanions(db db.DB) error {
 	affected := res.RowsAffected()
 
 	var count int
-	row := db.QueryRow(context.Background(), "SELECT count(*) from companions.companion_items")
+	row := testContext.db.QueryRow(context.Background(), "SELECT count(*) from companions.companion_items")
 	row.Scan(&count)
 	if count != 0 {
 		return errors.Errorf("companion items should be emty through delete cascade. Was %d instead", count)
 	}
 
-	row = db.QueryRow(context.Background(), "SELECT count(*) from companions.plan_companions")
+	row = testContext.db.QueryRow(context.Background(), "SELECT count(*) from companions.plan_companions")
 	row.Scan(&count)
 	if count != 0 {
 		return errors.Errorf("plan companion connection table should be emty through delete cascade. Was %d instead", count)
@@ -103,8 +165,8 @@ func clearCompanions(db db.DB) error {
 	return nil
 }
 
-func clearPlans(db db.DB) error {
-	res, err := db.Exec(context.Background(), "DELETE FROM plans.plans where id != 0")
+func clearPlans() error {
+	res, err := testContext.db.Exec(context.Background(), "DELETE FROM plans.plans where id != 0")
 	if err != nil {
 		return errors.Wrap(err, "Could not clean up Plans table")
 	}

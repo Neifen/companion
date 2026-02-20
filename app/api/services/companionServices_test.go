@@ -11,35 +11,33 @@ import (
 )
 
 func TestGetCompanionByBook(t *testing.T) {
-	serv, db, err := newTestService()
+	err := clearCompanions()
 	if err != nil {
-		t.Fatalf("Could not Set up db: \n%+v\n", err)
+		t.Fatalf("Could not Clear Companion: \n%+v\n", err)
 	}
 
-	if err := clearCompanions(db); err != nil {
-		t.Fatalf("Clearing Companions failed: \n%+v\n", err)
-	}
+	testContext.resetCompanions = true
 
 	companion := companions.CompanionModel{Title: "Test Companion", Author: "Nate", CompanionType: "todo: figurethatout", IsDefault: false}
-	companionID, err := serv.CreateCompanion(t.Context(), defaultPlanID, companion)
+	companionID, err := testContext.serv.CreateCompanion(t.Context(), defaultPlanID, companion)
 	if err != nil {
 		t.Fatalf("Could not Create Companion: \n%+v\n", err)
 	}
 
 	// Deuteronomy is 5, chapterIDs range from 154-187
 	companionItem := *companions.NewCompanionItemByBook(6, "By book 6 (joshua)", testMarkup)
-	err = serv.AddCompanionItem(t.Context(), companionID, companionItem)
+	err = testContext.serv.AddCompanionItem(t.Context(), companionID, companionItem)
 	if err != nil {
 		t.Fatalf("Could not Create Item 6: \n%+v\n", err)
 	}
 
 	companionItem = *companions.NewCompanionItemByBook(5, "By book 5 (deuteronomy)", testMarkup)
-	err = serv.AddCompanionItem(t.Context(), companionID, companionItem)
+	err = testContext.serv.AddCompanionItem(t.Context(), companionID, companionItem)
 	if err != nil {
 		t.Fatalf("Could not Create Item 5: \n%+v\n", err)
 	}
 
-	companionRes, err := serv.GetAvailableCompanions(t.Context(), defaultPlanID)
+	companionRes, err := testContext.serv.GetAvailableCompanions(t.Context(), defaultPlanID)
 	if err != nil {
 		t.Errorf("Could not Read available companions: \n%+v\n", err)
 	}
@@ -50,7 +48,7 @@ func TestGetCompanionByBook(t *testing.T) {
 		t.Errorf("Expected Title 'Test Companion', Author 'Nate', type 'figurethatout' and Isdefault false, instead was: %v", companionRes[0])
 	}
 
-	page, err := serv.GetCompanionPage(t.Context(), int64(companionID), 170)
+	page, err := testContext.serv.GetCompanionPage(t.Context(), int64(companionID), 170)
 	if err != nil {
 		t.Errorf("Could not Read companion Item: \n%+v\n", err)
 	}
@@ -63,52 +61,41 @@ func TestGetCompanionByBook(t *testing.T) {
 	if page.CompanionSource != "By book 5 (deuteronomy)" {
 		t.Errorf("Expected to get item by book 5 (deuteronomy), instead was %s", page.CompanionSource)
 	}
-
-	t.Cleanup(func() {
-		err = clearCompanions(db)
-		if err != nil {
-			t.Fatalf("Clearing Companions failed: \n%+v\n", err)
-		}
-		defer serv.Close()
-	})
 }
 
 func TestGetCompanionByChapter(t *testing.T) {
-	serv, db, err := newTestService()
+	testContext.resetCompanions = true
+	err := clearCompanions()
 	if err != nil {
-		t.Fatalf("Could not Set up db: \n%+v\n", err)
-	}
-
-	if err := clearCompanions(db); err != nil {
-		t.Fatalf("Clearing Companions failed: \n%+v\n", err)
+		t.Fatalf("Could not Clear Companion: \n%+v\n", err)
 	}
 
 	companion := companions.CompanionModel{Title: "Test Companion", Author: "Nate", CompanionType: "figurethatout", IsDefault: false}
-	companionID, err := serv.CreateCompanion(t.Context(), defaultPlanID, companion)
+	companionID, err := testContext.serv.CreateCompanion(t.Context(), defaultPlanID, companion)
 	if err != nil {
 		t.Fatalf("Could not Create Companion: \n%+v\n", err)
 	}
 
 	// Deuteronomy is 5, chapterIDs range from 154-187
 	companionItem := *companions.NewCompanionItemByBook(5, "By book 6 (deuteronomy)", testMarkup)
-	err = serv.AddCompanionItem(t.Context(), companionID, companionItem)
+	err = testContext.serv.AddCompanionItem(t.Context(), companionID, companionItem)
 	if err != nil {
 		t.Fatalf("Could not Create Item 5: \n%+v\n", err)
 	}
 
 	companionItem = *companions.NewCompanionItemByBook(6, "By book 6 (joshua)", testMarkup)
-	err = serv.AddCompanionItem(t.Context(), companionID, companionItem)
+	err = testContext.serv.AddCompanionItem(t.Context(), companionID, companionItem)
 	if err != nil {
 		t.Fatalf("Could not Create Item 5: \n%+v\n", err)
 	}
 
 	companionItem = *companions.NewCompanionItemByChapter(169, 171, "specific chapters", testMarkup)
-	err = serv.AddCompanionItem(t.Context(), companionID, companionItem)
+	err = testContext.serv.AddCompanionItem(t.Context(), companionID, companionItem)
 	if err != nil {
 		t.Fatalf("Could not Create Item 5: \n%+v\n", err)
 	}
 
-	companionRes, err := serv.GetAvailableCompanions(t.Context(), defaultPlanID)
+	companionRes, err := testContext.serv.GetAvailableCompanions(t.Context(), defaultPlanID)
 	if err != nil {
 		t.Errorf("Could not Read available companions: \n%+v\n", err)
 	}
@@ -119,7 +106,7 @@ func TestGetCompanionByChapter(t *testing.T) {
 		t.Errorf("Expected Title 'Test Companion', Author 'Nate', type 'figurethatout' and Isdefault false, instead was: %v", companionRes[0])
 	}
 
-	page, err := serv.GetCompanionPage(t.Context(), int64(companionID), 170)
+	page, err := testContext.serv.GetCompanionPage(t.Context(), int64(companionID), 170)
 	if err != nil {
 		t.Errorf("Could not Read companion Item: \n%+v\n", err)
 	}
@@ -132,52 +119,41 @@ func TestGetCompanionByChapter(t *testing.T) {
 	if page.CompanionSource != "specific chapters" {
 		t.Errorf("Expected to get item by specific chapter, instead was %s", page.CompanionSource)
 	}
-
-	t.Cleanup(func() {
-		err = clearCompanions(db)
-		if err != nil {
-			t.Fatalf("Clearing Companions failed: \n%+v\n", err)
-		}
-		defer serv.Close()
-	})
 }
 
 func TestGetCompanionOutsideChapter(t *testing.T) {
-	serv, db, err := newTestService()
+	testContext.resetCompanions = true
+	err := clearCompanions()
 	if err != nil {
-		t.Fatalf("Could not Set up db: \n%+v\n", err)
-	}
-
-	if err := clearCompanions(db); err != nil {
-		t.Fatalf("Clearing Companions failed: \n%+v\n", err)
+		t.Fatalf("Could not Clear Companion: \n%+v\n", err)
 	}
 
 	companion := companions.CompanionModel{Title: "Test Companion", Author: "Nate", CompanionType: "figurethatout", IsDefault: false}
-	companionID, err := serv.CreateCompanion(t.Context(), defaultPlanID, companion)
+	companionID, err := testContext.serv.CreateCompanion(t.Context(), defaultPlanID, companion)
 	if err != nil {
 		t.Fatalf("Could not Create Companion: \n%+v\n", err)
 	}
 
 	// Deuteronomy is 5, chapterIDs range from 154-187
 	companionItem := *companions.NewCompanionItemByBook(5, "By book 5 (deuteronomy)", testMarkup)
-	err = serv.AddCompanionItem(t.Context(), companionID, companionItem)
+	err = testContext.serv.AddCompanionItem(t.Context(), companionID, companionItem)
 	if err != nil {
 		t.Fatalf("Could not Create Item 5: \n%+v\n", err)
 	}
 
 	companionItem = *companions.NewCompanionItemByBook(6, "By book 6 (joshua)", testMarkup)
-	err = serv.AddCompanionItem(t.Context(), companionID, companionItem)
+	err = testContext.serv.AddCompanionItem(t.Context(), companionID, companionItem)
 	if err != nil {
 		t.Fatalf("Could not Create Item 5: \n%+v\n", err)
 	}
 
 	companionItem = *companions.NewCompanionItemByChapter(169, 171, "specific chapters", testMarkup)
-	err = serv.AddCompanionItem(t.Context(), companionID, companionItem)
+	err = testContext.serv.AddCompanionItem(t.Context(), companionID, companionItem)
 	if err != nil {
 		t.Fatalf("Could not Create Item 5: \n%+v\n", err)
 	}
 
-	companionRes, err := serv.GetAvailableCompanions(t.Context(), defaultPlanID)
+	companionRes, err := testContext.serv.GetAvailableCompanions(t.Context(), defaultPlanID)
 	if err != nil {
 		t.Errorf("Could not Read available companions: \n%+v\n", err)
 	}
@@ -188,7 +164,7 @@ func TestGetCompanionOutsideChapter(t *testing.T) {
 		t.Errorf("Expected Title 'Test Companion', Author 'Nate', type 'figurethatout' and Isdefault false, instead was: %v", companionRes[0])
 	}
 
-	page, err := serv.GetCompanionPage(t.Context(), int64(companionID), 168)
+	page, err := testContext.serv.GetCompanionPage(t.Context(), int64(companionID), 168)
 	if err != nil {
 		t.Errorf("Could not Read companion Item: \n%+v\n", err)
 	}
@@ -201,14 +177,6 @@ func TestGetCompanionOutsideChapter(t *testing.T) {
 	if page.CompanionSource != "By book 5 (deuteronomy)" {
 		t.Errorf("Expected to get item by book 6 (joshua) chapter, instead was %s", page.CompanionSource)
 	}
-
-	t.Cleanup(func() {
-		err = clearCompanions(db)
-		if err != nil {
-			t.Fatalf("Clearing Companions failed: \n%+v\n", err)
-		}
-		defer serv.Close()
-	})
 }
 
 const testMarkup = `

@@ -12,25 +12,17 @@ import (
 )
 
 func TestCreateTracker(t *testing.T) {
-	serv, db, err := newTestService()
-	if err != nil {
-		t.Fatalf("Could not Set up db: %s", err)
-	}
-
-	err = clearTrackers(db)
-	if err != nil {
-		t.Fatalf("Clearing Trackers failed: %s", err)
-	}
+	testContext.resetTracking = true
 
 	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
-	err = serv.CreateTracker(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
+	err := testContext.serv.CreateTracker(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
 	if err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
 	}
 
 	// ----  check tracker -----=
 
-	rows, err := db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+	rows, err := testContext.db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
 	if err != nil {
 		t.Fatalf("Error getting Rows from Trackers: %s", err)
 	}
@@ -60,7 +52,7 @@ func TestCreateTracker(t *testing.T) {
 	}
 
 	// ----  check tasks -----=
-	rows, err = db.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
+	rows, err = testContext.db.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
 	if err != nil {
 		t.Fatalf("Error getting Rows from Tasks: %s", err)
 	}
@@ -88,34 +80,19 @@ func TestCreateTracker(t *testing.T) {
 		t.Errorf("Last ReadyBy Date is %s, should be 2026-12-26", last)
 	}
 
-	t.Cleanup(func() {
-		err = clearTrackers(db)
-		if err != nil {
-			t.Fatalf("Clearing Trackers failed: %s", err)
-		}
-		defer serv.Close()
-	})
 }
 
 func TestReadTracker(t *testing.T) {
-	serv, db, err := newTestService()
-	if err != nil {
-		t.Fatalf("Could not Set up db: %s", err)
-	}
-
-	err = clearTrackers(db)
-	if err != nil {
-		t.Fatalf("Clearing Trackers failed: %s", err)
-	}
+	testContext.resetTracking = true
 
 	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
-	err = serv.CreateTracker(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
+	err := testContext.serv.CreateTracker(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
 	if err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
 	}
 
 	// ----  check tracker -----=
-	tracker, err := serv.ReadUserTracker(context.Background(), userID)
+	tracker, err := testContext.serv.ReadUserTracker(context.Background(), userID)
 	if err != nil {
 		t.Fatalf("Error getting Rows from Trackers: %s", err)
 	}
@@ -130,26 +107,10 @@ func TestReadTracker(t *testing.T) {
 	if to.Year() != 2026 && to.Month() != 12 && to.Day() != 26 {
 		t.Errorf("To Date is %s, should be 2026-12-26", to)
 	}
-
-	t.Cleanup(func() {
-		err = clearTrackers(db)
-		if err != nil {
-			t.Fatalf("Clearing Trackers failed: %s", err)
-		}
-		defer serv.Close()
-	})
 }
 
 func TestPaginateAndCheckTask(t *testing.T) {
-	serv, db, err := newTestService()
-	if err != nil {
-		t.Fatalf("Could not Set up db: %s", err)
-	}
-
-	err = clearTrackers(db)
-	if err != nil {
-		t.Fatalf("Clearing Trackers failed: %s", err)
-	}
+	testContext.resetTracking = true
 
 	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
 	fromRaw := "2025-12-26"
@@ -158,16 +119,12 @@ func TestPaginateAndCheckTask(t *testing.T) {
 	toRaw := "2026-12-26"
 	to, _ := time.Parse("2006-01-02", toRaw)
 
-	err = serv.CreateTracker(context.Background(), userID, 0, fromRaw, toRaw)
+	err := testContext.serv.CreateTracker(context.Background(), userID, 0, fromRaw, toRaw)
 	if err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
 	}
 
-	if err != nil {
-		t.Fatalf("Parse failed: %s", err)
-	}
-
-	models, moreAfter, err := serv.ReadTasksFrom(context.Background(), userID, from)
+	models, moreAfter, err := testContext.serv.ReadTasksFrom(context.Background(), userID, from)
 	if err != nil {
 		t.Fatalf("ReadTasksFrom failed: %s", err)
 	}
@@ -178,7 +135,7 @@ func TestPaginateAndCheckTask(t *testing.T) {
 		t.Fatalf("ReadTaskFrom Length should be 10, was %d", len(models))
 	}
 
-	models, moreBefore, err := serv.ReadTasksUntil(context.Background(), userID, to)
+	models, moreBefore, err := testContext.serv.ReadTasksUntil(context.Background(), userID, to)
 	if err != nil {
 		t.Fatalf("ReadTasksFrom failed: %s", err)
 	}
@@ -189,7 +146,7 @@ func TestPaginateAndCheckTask(t *testing.T) {
 		t.Fatalf("ReadTaskFrom Length should be 45, was %d", len(models))
 	}
 
-	models, moreAfter, err = serv.ReadTasksFrom(context.Background(), userID, to)
+	models, moreAfter, err = testContext.serv.ReadTasksFrom(context.Background(), userID, to)
 	if err != nil {
 		t.Fatalf("ReadTasksFrom failed: %s", err)
 	}
@@ -200,7 +157,7 @@ func TestPaginateAndCheckTask(t *testing.T) {
 		t.Fatalf("ReadTaskFrom Length should be 4, was %d", len(models))
 	}
 
-	models, moreBefore, err = serv.ReadTasksUntil(context.Background(), userID, from.AddDate(0, 0, 1))
+	models, moreBefore, err = testContext.serv.ReadTasksUntil(context.Background(), userID, from.AddDate(0, 0, 1))
 	if err != nil {
 		t.Fatalf("ReadTasksUntil failed: %s", err)
 	}
@@ -216,9 +173,9 @@ func TestPaginateAndCheckTask(t *testing.T) {
 		}
 	}
 
-	serv.CheckTask(context.Background(), models[0].ID, true)
-	serv.CheckTask(context.Background(), models[2].ID, true)
-	models, moreBefore, err = serv.ReadTasksUntil(context.Background(), userID, from.AddDate(0, 0, 1))
+	testContext.serv.CheckTask(context.Background(), models[0].ID, true)
+	testContext.serv.CheckTask(context.Background(), models[2].ID, true)
+	models, moreBefore, err = testContext.serv.ReadTasksUntil(context.Background(), userID, from.AddDate(0, 0, 1))
 
 	if err != nil {
 		t.Fatalf("ReadTasksUntil failed: %s", err)
@@ -239,9 +196,9 @@ func TestPaginateAndCheckTask(t *testing.T) {
 		t.Fatalf("Model nr 2 should be read but wasn't")
 	}
 
-	serv.CheckTask(context.Background(), models[0].ID, false)
-	serv.CheckTask(context.Background(), models[2].ID, true)
-	models, moreBefore, err = serv.ReadTasksUntil(context.Background(), userID, from.AddDate(0, 0, 1))
+	testContext.serv.CheckTask(context.Background(), models[0].ID, false)
+	testContext.serv.CheckTask(context.Background(), models[2].ID, true)
+	models, moreBefore, err = testContext.serv.ReadTasksUntil(context.Background(), userID, from.AddDate(0, 0, 1))
 
 	if err != nil {
 		t.Fatalf("ReadTasksUntil failed: %s", err)
@@ -261,35 +218,19 @@ func TestPaginateAndCheckTask(t *testing.T) {
 	if !models[2].Read {
 		t.Fatalf("Model nr 2 should be read but wasn't")
 	}
-
-	t.Cleanup(func() {
-		err = clearTrackers(db)
-		if err != nil {
-			t.Fatalf("Clearing Trackers failed: %s", err)
-		}
-		defer serv.Close()
-	})
 }
 
 func TestDeleteTracker(t *testing.T) {
-	serv, db, err := newTestService()
-	if err != nil {
-		t.Fatalf("Could not Set up db: %s", err)
-	}
-
-	err = clearTrackers(db)
-	if err != nil {
-		t.Fatalf("Clearing Trackers failed: %s", err)
-	}
+	testContext.resetTracking = true
 
 	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
-	err = serv.CreateTracker(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
+	err := testContext.serv.CreateTracker(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
 	if err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
 	}
 
 	// ----  check tracker -----=
-	rows, err := db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+	rows, err := testContext.db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
 	if err != nil {
 		t.Fatalf("Error getting Rows from Trackers: %s", err)
 	}
@@ -306,13 +247,13 @@ func TestDeleteTracker(t *testing.T) {
 		t.Errorf("There should be only one Tracker, instead was %d", len(trackers))
 	}
 
-	err = serv.DeleteUserTracker(context.Background(), userID)
+	err = testContext.serv.DeleteUserTracker(context.Background(), userID)
 	if err != nil {
 		t.Fatalf("Error deleting Trackers: %s", err)
 	}
 
 	// ----  check tracker -----=
-	rows, err = db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+	rows, err = testContext.db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
 	if err != nil {
 		t.Fatalf("Error getting Rows from Trackers: %s", err)
 	}
@@ -329,44 +270,29 @@ func TestDeleteTracker(t *testing.T) {
 		t.Errorf("There should be no more Trackers, instead was %d", len(trackers))
 	}
 
-	err = serv.DeleteUserTracker(context.Background(), userID)
+	err = testContext.serv.DeleteUserTracker(context.Background(), userID)
 	if err != nil {
 		t.Fatalf("Error deleting Trackers second time: %s", err)
 	}
-
-	t.Cleanup(func() {
-		err = clearTrackers(db)
-		if err != nil {
-			t.Fatalf("Clearing Trackers failed: %s", err)
-		}
-		defer serv.Close()
-	})
 }
 
 func TestCreateTrackerDouble(t *testing.T) {
-	serv, db, err := newTestService()
-	if err != nil {
-		t.Fatalf("Could not Set up db: %s", err)
-	}
-	err = clearTrackers(db)
-	if err != nil {
-		t.Fatalf("Clearing Trackers failed: %s", err)
-	}
+	testContext.resetTracking = true
 
 	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
-	err = serv.CreateTracker(context.Background(), userID, 0, "2020-12-26", "2021-12-26")
+	err := testContext.serv.CreateTracker(context.Background(), userID, 0, "2020-12-26", "2021-12-26")
 	if err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
 	}
 
-	err = serv.CreateTracker(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
+	err = testContext.serv.CreateTracker(context.Background(), userID, 0, "2025-12-26", "2026-12-26")
 	if err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
 	}
 
 	// ----  check tracker -----=
 
-	rows, err := db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+	rows, err := testContext.db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
 	if err != nil {
 		t.Fatalf("Error getting Rows from Trackers: %s", err)
 	}
@@ -397,7 +323,7 @@ func TestCreateTrackerDouble(t *testing.T) {
 
 	// ----  check tasks -----=
 
-	rows, err = db.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
+	rows, err = testContext.db.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
 	if err != nil {
 		t.Fatalf("Error getting Rows from Tasks: %s", err)
 	}
@@ -424,31 +350,14 @@ func TestCreateTrackerDouble(t *testing.T) {
 	if last.Year() != 2026 && last.Month() != 12 && last.Day() != 26 {
 		t.Errorf("Last ReadyBy Date is %s, should be 2026-12-26", last)
 	}
-
-	t.Cleanup(func() {
-		err = clearTrackers(db)
-		if err != nil {
-			t.Fatalf("Clearing Trackers failed: %s", err)
-		}
-
-		defer serv.Close()
-	})
 }
 
 func TestCreateTrackerDifferentDays(t *testing.T) {
-	serv, db, err := newTestService()
-	if err != nil {
-		t.Fatalf("Could not Set up db: %s", err)
-	}
-
-	err = clearTrackers(db)
-	if err != nil {
-		t.Fatalf("Clearing Trackers failed: %s", err)
-	}
+	testContext.resetTracking = true
 
 	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
 	var planID int
-	err = db.QueryRow(context.Background(), "select max(id) from plans.plans").Scan(&planID)
+	err := testContext.db.QueryRow(context.Background(), "select max(id) from plans.plans").Scan(&planID)
 	if err != nil {
 		t.Fatalf("Getting max id failed: %s", err)
 	}
@@ -461,14 +370,14 @@ func TestCreateTrackerDifferentDays(t *testing.T) {
 		inXDays := begin.AddDate(0, 0, timeRange)
 		inXDaysString := inXDays.Format("2006-01-02")
 
-		err = serv.CreateTracker(context.Background(), userID, planID, nowString, inXDaysString)
+		err = testContext.serv.CreateTracker(context.Background(), userID, planID, nowString, inXDaysString)
 		if err != nil {
 			t.Fatalf("CreateTask failed: %s", err)
 		}
 
 		// ----  check tracker -----=
 
-		rows, err := db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+		rows, err := testContext.db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
 		if err != nil {
 			t.Fatalf("Error getting Rows from Trackers: %s", err)
 		}
@@ -498,7 +407,7 @@ func TestCreateTrackerDifferentDays(t *testing.T) {
 		}
 
 		// ----  check tasks -----=
-		rows, err = db.Query(context.Background(), "SELECT array_agg(id)::varchar, read_by FROM tracking.tasks group by read_by order by read_by")
+		rows, err = testContext.db.Query(context.Background(), "SELECT array_agg(id)::varchar, read_by FROM tracking.tasks group by read_by order by read_by")
 		if err != nil {
 			t.Fatalf("Error getting Rows from Tasks: %s", err)
 		}
@@ -517,24 +426,12 @@ func TestCreateTrackerDifferentDays(t *testing.T) {
 			t.Errorf("There should be %d, instead was %d", timeRange, count)
 		}
 	}
-
-	t.Cleanup(func() {
-		err = clearTrackers(db)
-		if err != nil {
-			t.Fatalf("Clearing Trackers failed: %s", err)
-		}
-
-		defer serv.Close()
-	})
 }
 
 func TestMoveTrackersParallel(t *testing.T) {
-	serv, db, err := newTestService()
-	if err != nil {
-		t.Fatalf("Could not Set up db: %s", err)
-	}
+	testContext.resetTracking = true
 
-	if err := clearTrackers(db); err != nil {
+	if err := clearTrackers(); err != nil {
 		t.Fatalf("Clearing Trackers failed: %s", err)
 	}
 
@@ -543,16 +440,16 @@ func TestMoveTrackersParallel(t *testing.T) {
 	startString := start.Format("2006-01-02")
 	stop := start.AddDate(0, 0, 100)
 	stopString := stop.Format("2006-01-02")
-	if err := serv.CreateTracker(context.Background(), userID, 0, startString, stopString); err != nil {
+	if err := testContext.serv.CreateTracker(context.Background(), userID, 0, startString, stopString); err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
 	}
 
-	if err := serv.MoveTrackerDays(context.Background(), userID, 100); err != nil {
+	if err := testContext.serv.MoveTrackerDays(context.Background(), userID, 100); err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
 	}
 
 	// ----  check tracker -----=
-	rows, err := db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+	rows, err := testContext.db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
 	if err != nil {
 		t.Fatalf("Error getting Rows from Trackers: %s", err)
 	}
@@ -586,7 +483,7 @@ func TestMoveTrackersParallel(t *testing.T) {
 
 	// ----  check tasks -----=
 
-	rows, err = db.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
+	rows, err = testContext.db.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
 	if err != nil {
 		t.Fatalf("Error getting Rows from Tasks: %s", err)
 	}
@@ -613,23 +510,12 @@ func TestMoveTrackersParallel(t *testing.T) {
 	if last.Year() != stop.Year() && last.Month() != stop.Month() && last.Day() != stop.Day() {
 		t.Errorf("Last ReadyBy Date is %s, should be %s", last, stop)
 	}
-
-	t.Cleanup(func() {
-		err = clearTrackers(db)
-		if err != nil {
-			t.Fatalf("Clearing Trackers failed: %s", err)
-		}
-		defer serv.Close()
-	})
 }
 
 func TestMoveTrackers(t *testing.T) {
-	serv, db, err := newTestService()
-	if err != nil {
-		t.Fatalf("Could not Set up db: %s", err)
-	}
+	testContext.resetTracking = true
 
-	if err := clearTrackers(db); err != nil {
+	if err := clearTrackers(); err != nil {
 		t.Fatalf("Clearing Trackers failed: %s", err)
 	}
 
@@ -639,7 +525,7 @@ func TestMoveTrackers(t *testing.T) {
 	startString := start.Format("2006-01-02")
 	stop := start.AddDate(0, 0, 100)
 	stopString := stop.Format("2006-01-02")
-	if err := serv.CreateTracker(context.Background(), userID, 0, startString, stopString); err != nil {
+	if err := testContext.serv.CreateTracker(context.Background(), userID, 0, startString, stopString); err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
 	}
 
@@ -664,7 +550,7 @@ func TestMoveTrackers(t *testing.T) {
 
 	for _, test := range testMatrix {
 
-		if err := serv.MoveTracker(context.Background(), userID, test.start, test.end); err != nil {
+		if err := testContext.serv.MoveTracker(context.Background(), userID, test.start, test.end); err != nil {
 			if !test.err {
 				t.Fatalf("CreateTask failed: %s", err)
 			} else {
@@ -678,7 +564,7 @@ func TestMoveTrackers(t *testing.T) {
 		}
 
 		// ----  check tracker -----=
-		rows, err := db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+		rows, err := testContext.db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
 		if err != nil {
 			t.Fatalf("Error getting Rows from Trackers: %s", err)
 		}
@@ -727,7 +613,7 @@ func TestMoveTrackers(t *testing.T) {
 
 		// ----  check tasks -----=
 
-		rows, err = db.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
+		rows, err = testContext.db.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
 		if err != nil {
 			t.Fatalf("Error getting Rows from Tasks: %s", err)
 		}
@@ -760,23 +646,12 @@ func TestMoveTrackers(t *testing.T) {
 			t.Errorf("Diff is %d, should be %d", actDiff, test.diff)
 		}
 	}
-
-	t.Cleanup(func() {
-		err = clearTrackers(db)
-		if err != nil {
-			t.Fatalf("Clearing Trackers failed: %s", err)
-		}
-		defer serv.Close()
-	})
 }
 
 func TestMoveTrackersStart(t *testing.T) {
-	serv, db, err := newTestService()
-	if err != nil {
-		t.Fatalf("Could not Set up db: %s", err)
-	}
+	testContext.resetTracking = true
 
-	if err := clearTrackers(db); err != nil {
+	if err := clearTrackers(); err != nil {
 		t.Fatalf("Clearing Trackers failed: %s", err)
 	}
 
@@ -786,7 +661,7 @@ func TestMoveTrackersStart(t *testing.T) {
 	startString := start.Format("2006-01-02")
 	stop := start.AddDate(0, 0, 100)
 	stopString := stop.Format("2006-01-02")
-	if err := serv.CreateTracker(context.Background(), userID, 0, startString, stopString); err != nil {
+	if err := testContext.serv.CreateTracker(context.Background(), userID, 0, startString, stopString); err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
 	}
 
@@ -808,7 +683,7 @@ func TestMoveTrackersStart(t *testing.T) {
 	}
 
 	for _, test := range testMatrix {
-		if err := serv.MoveTrackerStart(context.Background(), userID, test.start, test.moveEnd); err != nil {
+		if err := testContext.serv.MoveTrackerStart(context.Background(), userID, test.start, test.moveEnd); err != nil {
 			if !test.err {
 				t.Fatalf("CreateTask failed: %s", err)
 			} else {
@@ -822,7 +697,7 @@ func TestMoveTrackersStart(t *testing.T) {
 		}
 
 		// ----  check tracker -----=
-		rows, err := db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+		rows, err := testContext.db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
 		if err != nil {
 			t.Fatalf("Error getting Rows from Trackers: %s", err)
 		}
@@ -859,7 +734,7 @@ func TestMoveTrackersStart(t *testing.T) {
 
 		// ----  check tasks -----=
 
-		rows, err = db.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
+		rows, err = testContext.db.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
 		if err != nil {
 			t.Fatalf("Error getting Rows from Tasks: %s", err)
 		}
@@ -888,23 +763,12 @@ func TestMoveTrackersStart(t *testing.T) {
 			t.Errorf("Diff is %d, should be %d", actDiff, test.diff)
 		}
 	}
-
-	t.Cleanup(func() {
-		err = clearTrackers(db)
-		if err != nil {
-			t.Fatalf("Clearing Trackers failed: %s", err)
-		}
-		defer serv.Close()
-	})
 }
 
 func TestMoveTrackersEnd(t *testing.T) {
-	serv, db, err := newTestService()
-	if err != nil {
-		t.Fatalf("Could not Set up db: %s", err)
-	}
+	testContext.resetTracking = true
 
-	if err := clearTrackers(db); err != nil {
+	if err := clearTrackers(); err != nil {
 		t.Fatalf("Clearing Trackers failed: %s", err)
 	}
 
@@ -914,7 +778,7 @@ func TestMoveTrackersEnd(t *testing.T) {
 	startString := start.Format("2006-01-02")
 	stop := start.AddDate(0, 0, 100)
 	stopString := stop.Format("2006-01-02")
-	if err := serv.CreateTracker(context.Background(), userID, 0, startString, stopString); err != nil {
+	if err := testContext.serv.CreateTracker(context.Background(), userID, 0, startString, stopString); err != nil {
 		t.Fatalf("CreateTask failed: %s", err)
 	}
 
@@ -936,7 +800,7 @@ func TestMoveTrackersEnd(t *testing.T) {
 	}
 
 	for _, test := range testMatrix {
-		if err := serv.MoveTrackerEnd(context.Background(), userID, test.end, test.resetStart); err != nil {
+		if err := testContext.serv.MoveTrackerEnd(context.Background(), userID, test.end, test.resetStart); err != nil {
 			if !test.err {
 				t.Fatalf("CreateTask failed: %s", err)
 			} else {
@@ -950,7 +814,7 @@ func TestMoveTrackersEnd(t *testing.T) {
 		}
 
 		// ----  check tracker -----=
-		rows, err := db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+		rows, err := testContext.db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
 		if err != nil {
 			t.Fatalf("Error getting Rows from Trackers: %s", err)
 		}
@@ -994,7 +858,7 @@ func TestMoveTrackersEnd(t *testing.T) {
 
 		// ----  check tasks -----=
 
-		rows, err = db.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
+		rows, err = testContext.db.Query(context.Background(), "SELECT id, read, read_by, bible_plan_fk FROM tracking.tasks")
 		if err != nil {
 			t.Fatalf("Error getting Rows from Tasks: %s", err)
 		}
@@ -1029,12 +893,4 @@ func TestMoveTrackersEnd(t *testing.T) {
 			t.Errorf("Diff is %d, should be %d", actDiff, test.diff)
 		}
 	}
-
-	t.Cleanup(func() {
-		err = clearTrackers(db)
-		if err != nil {
-			t.Fatalf("Clearing Trackers failed: %s", err)
-		}
-		defer serv.Close()
-	})
 }

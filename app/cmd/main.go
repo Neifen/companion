@@ -30,7 +30,7 @@ func main() {
 		log.Fatalf("error Initializing: %+v", err)
 	}
 
-	services := services.NewServices(store)
+	services := services.NewServicesProd(store)
 	api := server.NewAPIHandler(":1323", services)
 	api.Run()
 }

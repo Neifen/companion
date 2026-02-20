@@ -12,6 +12,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+type AuthServices interface {
+	SendVerification(token string, u *auth.UserModel)
+}
+
+type ProductionAuthServices struct {
+}
+
 func (s *Services) NewUser(ctx context.Context, u *auth.UserModel) error {
 	err := s.store.CreateTX(ctx)
 	if err != nil {
@@ -43,7 +50,7 @@ func (s *Services) NewUser(ctx context.Context, u *auth.UserModel) error {
 		return errors.WithMessage(err, "auth service: New User")
 	}
 
-	sendVerificationEmail(token, u)
+	s.auth.SendVerification(token, u)
 
 	err = s.store.CommitTX(ctx)
 	if err != nil {
@@ -53,7 +60,7 @@ func (s *Services) NewUser(ctx context.Context, u *auth.UserModel) error {
 	return nil
 }
 
-func sendVerificationEmail(token string, u *auth.UserModel) {
+func (ProductionAuthServices) SendVerification(token string, u *auth.UserModel) {
 	fmt.Printf("Hi %s, please verify email %s with token %s\n", u.Name, u.Email, token)
 }
 
@@ -75,7 +82,7 @@ func (s *Services) CheckVerificationToken(ctx context.Context, token string, uid
 		return errors.WithMessage(err, "auth service: Check Verfication Token")
 	}
 
-	if verification == nil || verification.UserUID == uid || verification.Purpose != auth.PurposeSignup {
+	if verification == nil || verification.UserUID != uid || verification.Purpose != auth.PurposeSignup {
 		return errors.New("auth service: Check Verfication Token. Invalid Verification")
 	}
 

@@ -35,7 +35,7 @@ func (pg *AuthStore) CreateVerification(ctx context.Context, u *VerificationToke
 }
 
 func (pg *AuthStore) ConsumeVerification(ctx context.Context, u *VerificationTokenModel) error {
-	_, err := pg.db.Exec(ctx, "UPDATE "+verificationTokensTable+" set consumed = $1 where id=$2", u.Consumed, u.ID)
+	_, err := pg.db.Exec(ctx, "UPDATE "+verificationTokensTable+" set consumed_at = $1 where id=$2", u.Consumed, u.ID)
 	if err != nil {
 		return errors.Wrapf(err, "db: Consume Verification Token for user %s ", u.UserUID)
 	}
@@ -44,7 +44,7 @@ func (pg *AuthStore) ConsumeVerification(ctx context.Context, u *VerificationTok
 }
 
 func (pg *AuthStore) UserVerified(ctx context.Context, uid uuid.UUID) error {
-	_, err := pg.db.Exec(ctx, "UPDATE "+usersTable+" set verified = true where id=$2", uid)
+	_, err := pg.db.Exec(ctx, "UPDATE "+usersTable+" set verified = true where id=$1", uid)
 	if err != nil {
 		return errors.Wrapf(err, "db: User Verified for user %s ", uid)
 	}

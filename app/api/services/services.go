@@ -11,8 +11,13 @@ func (s *Services) Close() {
 
 type Services struct {
 	store *storage.Storage
+	auth  AuthServices
 }
 
-func NewServices(store *storage.Storage) *Services {
-	return &Services{store: store}
+func NewServicesProd(store *storage.Storage) *Services {
+	return &Services{store: store, auth: ProductionAuthServices{}}
+}
+
+func NewTestServices(store *storage.Storage, auth AuthServices) *Services {
+	return &Services{store: store, auth: auth}
 }

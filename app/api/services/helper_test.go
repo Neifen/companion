@@ -366,7 +366,7 @@ func newTestService() (*services.Services, db.DB, error) {
 		return nil, nil, errors.Wrap(err, "couldnt write split verses")
 	}
 
-	return services.NewServices(store), db, nil
+	return services.NewTestServices(store, MockAuthServices{}), db, nil
 }
 
 func execScripts(db *pgxpool.Pool, sqlFiles []string) error {

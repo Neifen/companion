@@ -8,6 +8,14 @@ import (
 	"github.com/neifen/htmx-login/app/api/storage/auth"
 )
 
+type MockAuthServices struct{}
+
+var verificationToken string
+
+func (MockAuthServices) SendVerification(t string, u *auth.UserModel) {
+	verificationToken = t
+}
+
 func TestCrudUser(t *testing.T) {
 	testContext.resetAuth = true
 
@@ -202,8 +210,9 @@ func Test_SignupVerification(t *testing.T) {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	// err = testContext.serv.CheckVerificationToken(t.Context(), token, u.ID)
-
-	//todo: test verification actually
+	err = testContext.serv.CheckVerificationToken(t.Context(), verificationToken, u.ID)
+	if err != nil {
+		t.Errorf("failed to check Verification with token %s and err \n%+v\n", verificationToken, err)
+	}
 	//todo: add account state: UNVERIFIED, VERIFIED, SUSPENDED, DELETED
 }

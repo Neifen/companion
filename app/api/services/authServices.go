@@ -87,7 +87,7 @@ func (s *Services) CheckLongVerificationToken(ctx context.Context, ip, token str
 	}
 	defer s.store.RollbackTX(ctx)
 
-	err = s.checkIPRateLimit(ctx, ip)
+	err = s.ipRateLimit(ctx, ip)
 	if err != nil {
 		return errors.WithMessage(err, "auth service: Check Long Verification Token")
 	}
@@ -134,7 +134,7 @@ func (s *Services) CheckShortVerificationToken(ctx context.Context, ip, email, t
 	}
 	defer s.store.RollbackTX(ctx)
 
-	err = s.checkIPRateLimit(ctx, ip)
+	err = s.ipRateLimitCheckOnly(ctx, ip)
 	if err != nil {
 		return errors.WithMessage(err, "auth service: Check Short Verification Token")
 	}
@@ -144,7 +144,7 @@ func (s *Services) CheckShortVerificationToken(ctx context.Context, ip, email, t
 		return errors.WithMessage(err, "auth service: Check Short Verification Token")
 	}
 
-	err = s.checkTokenRateLimit(ctx, ip, u.ID)
+	err = s.uidIPRateLimit(ctx, ip, u.ID)
 	if err != nil {
 		return errors.WithMessage(err, "auth service: Check Short Verification Token")
 	}
@@ -227,12 +227,16 @@ func (s *Services) RequestResetPassword(ctx context.Context, ip, email string) e
 	}
 	defer s.store.RollbackTX(ctx)
 
+	if err := s.ipRateLimitCheckOnly(ctx, ip); err != nil {
+		return errors.WithMessage(err, "auth service: Request Reset Password")
+	}
+
 	u, err := s.store.Auth.ReadUserByEmail(ctx, email)
 	if err != nil {
 		return errors.WithMessage(err, "auth service: Request Reset Password")
 	}
 
-	if err := s.checkTokenRateLimit(ctx, ip, u.ID); err != nil {
+	if err := s.uidIPRateLimit(ctx, ip, u.ID); err != nil {
 		return errors.WithMessage(err, "auth service: Request Reset Password")
 	}
 
@@ -283,7 +287,7 @@ func (s *Services) ResetPasswordShort(ctx context.Context, ip, email, token, new
 	}
 	defer s.store.RollbackTX(ctx)
 
-	err = s.checkIPRateLimit(ctx, ip)
+	err = s.ipRateLimitCheckOnly(ctx, ip)
 	if err != nil {
 		return errors.WithMessage(err, "auth service: Reset Password Short")
 	}
@@ -293,7 +297,7 @@ func (s *Services) ResetPasswordShort(ctx context.Context, ip, email, token, new
 		return errors.WithMessage(err, "auth service: Request Reset Password")
 	}
 
-	err = s.checkTokenRateLimit(ctx, ip, u.ID)
+	err = s.uidIPRateLimit(ctx, ip, u.ID)
 	if err != nil {
 		return errors.WithMessage(err, "auth service: Reset Password Short")
 	}
@@ -343,7 +347,7 @@ func (s *Services) ResetPasswordLong(ctx context.Context, ip, token, newPw strin
 	}
 	defer s.store.RollbackTX(ctx)
 
-	err = s.checkIPRateLimit(ctx, ip)
+	err = s.ipRateLimit(ctx, ip)
 	if err != nil {
 		return errors.WithMessage(err, "auth service: Reset Password Long")
 	}
@@ -388,6 +392,46 @@ func (s *Services) ResetPasswordLong(ctx context.Context, ip, token, newPw strin
 	return nil
 }
 
+func (s *Services) ChangePassword(ctx context.Context, ip, email, oldPw, newPw string) error {
+
+	err := s.store.CreateTX(ctx)
+	if err != nil {
+		return errors.WithMessage(err, "auth service: Change Password")
+	}
+	defer s.store.RollbackTX(ctx)
+
+	err = s.ipRateLimitCheckOnly(ctx, ip)
+	if err != nil {
+		return errors.WithMessage(err, "auth service: Change Password")
+	}
+
+	u, err := s.store.Auth.ReadUserByEmail(ctx, email)
+	if err != nil {
+		return errors.WithMessage(err, "auth service: Change Password")
+	}
+
+	if !crypto.CheckPassword(oldPw, u.Pw) {
+		return errors.WithMessage(err, "auth service: Change Password")
+	}
+
+	newHashedPw, err := crypto.HashPassword(newPw)
+	if err != nil {
+		return errors.WithMessage(err, "auth service: Change Password")
+	}
+
+	err = s.store.Auth.UpdateUserPassword(ctx, u.ID, newHashedPw)
+	if err != nil {
+		return errors.WithMessage(err, "auth service: Change Password")
+	}
+
+	err = s.store.CommitTX(ctx)
+	if err != nil {
+		return errors.WithMessage(err, "auth service: Change Password")
+	}
+
+	return nil
+}
+
 type AuthResult struct {
 	User    *auth.UserModel
 	Access  *crypto.AccessToken
@@ -401,12 +445,17 @@ func (s *Services) Authenticate(ctx context.Context, email, pw, ip string, remem
 		return nil, errors.WithMessage(err, "service: Authenticate")
 	}
 
+	err = s.ipRateLimitCheckOnly(ctx, ip)
+	if err != nil {
+		return nil, errors.WithMessage(err, "service: Authenticate")
+	}
+
 	u, err := s.store.Auth.ReadUserByEmail(ctx, email)
 	if err != nil {
 		return nil, errors.WithMessage(err, "service: Authenticate")
 	}
 
-	err = s.checkTokenRateLimit(ctx, ip, u.ID)
+	err = s.uidIPRateLimit(ctx, ip, u.ID)
 	if err != nil {
 		return nil, errors.WithMessage(err, "service: Authenticate")
 	}

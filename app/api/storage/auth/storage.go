@@ -2,13 +2,13 @@
 package auth
 
 import (
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/neifen/htmx-login/app/api/storage/db"
 )
 
 type AuthStore struct {
-	db *pgxpool.Pool
+	db db.DB
 }
 
-func NewAuthStore(db *pgxpool.Pool) *AuthStore {
+func NewAuthStore(db db.DB) *AuthStore {
 	return &AuthStore{db}
 }

@@ -4,6 +4,8 @@ package crypto
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"fmt"
+	"math/big"
 
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
@@ -11,7 +13,7 @@ import (
 )
 
 func HashPassword(pw string) ([]byte, error) {
-	//todo: chat says this is not enough. it should be salted hasing
+	//todo: pepper
 	hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, errors.Wrap(err, "hashing: Hash Password")
@@ -36,6 +38,11 @@ func HashToken(token string) ([]byte, error) {
 	return sh[:], nil
 }
 
+func HashCode(code string) []byte {
+	sh := sha3.Sum256([]byte(code))
+	return sh[:]
+}
+
 func NewRandomHash() ([]byte, string) {
 	b := make([]byte, 32)
 	rand.Read(b) //error always empty
@@ -44,4 +51,16 @@ func NewRandomHash() ([]byte, string) {
 	sh := sha3.Sum256(b)
 
 	return sh[:], readableToken
+}
+
+func NewRandomCode() ([]byte, string, error) {
+	max := big.NewInt(999999)
+	n, err := rand.Int(rand.Reader, max)
+	if err != nil {
+		return nil, "", errors.Wrapf(err, "token: New Random Code")
+	}
+
+	token := fmt.Sprintf("%06d", n.Int64())
+	sh := HashCode(token)
+	return sh[:], token, nil
 }

@@ -15,6 +15,7 @@ const (
 	usersTable              = "auth.users"
 	refreshTokensTable      = "auth.refresh_tokens"
 	verificationTokensTable = "auth.verification_tokens"
+	ipTrackingTable         = "auth.ip_tracking"
 )
 
 func (pg *AuthStore) CreateVerification(ctx context.Context, u *VerificationTokenModel) error {
@@ -34,8 +35,16 @@ func (pg *AuthStore) CreateVerification(ctx context.Context, u *VerificationToke
 	return nil
 }
 
-func (pg *AuthStore) ConsumeVerification(ctx context.Context, u *VerificationTokenModel) error {
-	_, err := pg.db.Exec(ctx, "UPDATE "+verificationTokensTable+" set consumed_at = $1 where id=$2", u.Consumed, u.ID)
+func (pg *AuthStore) InvalidateVerificationToken(ctx context.Context, u *VerificationTokenModel) error {
+	_, err := pg.db.Exec(ctx, "UPDATE "+verificationTokensTable+" set purpose = 'invalid' where id=$1", u.ID)
+	if err != nil {
+		return errors.Wrapf(err, "db: Consume Verification Token for user %s ", u.UserUID)
+	}
+
+	return nil
+}
+func (pg *AuthStore) AddVerificationAttempt(ctx context.Context, u *VerificationTokenModel) error {
+	_, err := pg.db.Exec(ctx, "UPDATE "+verificationTokensTable+" set attempts = attempts + 1 where id=$1", u.ID)
 	if err != nil {
 		return errors.Wrapf(err, "db: Consume Verification Token for user %s ", u.UserUID)
 	}
@@ -43,10 +52,10 @@ func (pg *AuthStore) ConsumeVerification(ctx context.Context, u *VerificationTok
 	return nil
 }
 
-func (pg *AuthStore) UserVerified(ctx context.Context, uid uuid.UUID) error {
-	_, err := pg.db.Exec(ctx, "UPDATE "+usersTable+" set verified = true where id=$1", uid)
+func (pg *AuthStore) ConsumeVerification(ctx context.Context, u *VerificationTokenModel) error {
+	_, err := pg.db.Exec(ctx, "UPDATE "+verificationTokensTable+" set consumed_at = $1 where id=$2", u.Consumed, u.ID)
 	if err != nil {
-		return errors.Wrapf(err, "db: User Verified for user %s ", uid)
+		return errors.Wrapf(err, "db: Consume Verification Token for user %s ", u.UserUID)
 	}
 
 	return nil
@@ -78,6 +87,48 @@ func (pg *AuthStore) ReadVerification(ctx context.Context, hashedToken []byte) (
 	return model, nil
 }
 
+func (pg *AuthStore) GetIPAttempts(ctx context.Context, ip string) (uint16, error) {
+	row := pg.db.QueryRow(ctx, "SELECT count(*) FROM "+ipTrackingTable+" WHERE ip=$1 AND NOW() - INTERVAL '5 minutes' < created_at", ip)
+
+	var count uint16
+	err := row.Scan(&count)
+	if err != nil {
+		return 0, errors.Wrapf(err, "auth db: Get Ip Attempts for ip %s", ip)
+	}
+
+	return count, nil
+}
+
+func (pg *AuthStore) GetTrackingAttempts(ctx context.Context, ip string, uid uuid.UUID) (uint16, error) {
+	row := pg.db.QueryRow(ctx, "SELECT count(*) FROM "+ipTrackingTable+" WHERE ip=$1 AND user_id=$2 AND NOW() - INTERVAL '5 minutes' < created_at", ip, uid)
+
+	var count uint16
+	err := row.Scan(&count)
+	if err != nil {
+		return 0, errors.Wrapf(err, "auth db: Get Ip Attempts for ip %s", ip)
+	}
+
+	return count, nil
+}
+
+func (pg *AuthStore) AddIPAttempt(ctx context.Context, ip string) error {
+	_, err := pg.db.Exec(ctx, "INSERT INTO "+ipTrackingTable+"(ip) VALUES ($1)", ip)
+	if err != nil {
+		return errors.Wrapf(err, "auth db: Add Ip Attempt for ip %s", ip)
+	}
+
+	return nil
+}
+
+func (pg *AuthStore) AddTrackingAttempts(ctx context.Context, ip string, uid uuid.UUID) error {
+	_, err := pg.db.Exec(ctx, "INSERT INTO "+ipTrackingTable+"(ip, user_id) VALUES ($1, $2)", ip, uid)
+	if err != nil {
+		return errors.Wrapf(err, "auth db: Add Ip Attempt for ip %s", ip)
+	}
+
+	return nil
+}
+
 func (pg *AuthStore) CreateUser(ctx context.Context, u *UserModel) error {
 	args := pgx.NamedArgs{
 		"id":    u.ID,
@@ -94,6 +145,15 @@ func (pg *AuthStore) CreateUser(ctx context.Context, u *UserModel) error {
 	return nil
 }
 
+func (pg *AuthStore) UserVerified(ctx context.Context, uid uuid.UUID) error {
+	_, err := pg.db.Exec(ctx, "UPDATE "+usersTable+" set verified = true, status = 'VERIFIED' where id=$1", uid)
+	if err != nil {
+		return errors.Wrapf(err, "db: User Verified for user %s ", uid)
+	}
+
+	return nil
+}
+
 func (pg *AuthStore) UpdateUserPassword(ctx context.Context, uid uuid.UUID, pw []byte) error {
 	_, err := pg.db.Exec(ctx, "UPDATE "+usersTable+" set pw=$1 where id = $2 ", pw, uid)
 	if err != nil {
@@ -105,12 +165,13 @@ func (pg *AuthStore) UpdateUserPassword(ctx context.Context, uid uuid.UUID, pw [
 
 func (pg *AuthStore) UpdateUser(ctx context.Context, u *UserModel) error {
 	ags := pgx.NamedArgs{
-		"name":  u.Name,
-		"email": u.Email,
-		"pw":    u.Pw,
-		"id":    u.ID,
+		"name":   u.Name,
+		"email":  u.Email,
+		"pw":     u.Pw,
+		"id":     u.ID,
+		"status": u.Status,
 	}
-	ct, err := pg.db.Exec(ctx, "UPDATE "+usersTable+" set name = @name, email=@email, pw=@pw where id = @id ", ags)
+	ct, err := pg.db.Exec(ctx, "UPDATE "+usersTable+" set name = @name, email=@email, pw=@pw, status=@status where id = @id ", ags)
 	if err != nil {
 		return errors.Wrapf(err, "db: Update User %s, %s with ID %d", u.Name, u.Email, u.ID)
 	}
@@ -136,44 +197,48 @@ func (pg *AuthStore) DeleteUser(ctx context.Context, u *UserModel) error {
 }
 
 func (pg *AuthStore) ReadUserByEmail(ctx context.Context, emailReq string) (*UserModel, error) {
-	row := pg.db.QueryRow(ctx, "SELECT id, email, pw, name from "+usersTable+" where email=$1", emailReq)
+	row := pg.db.QueryRow(ctx, "SELECT id, email, pw, name, status from "+usersTable+" where email=$1", emailReq)
 
 	var id uuid.UUID
 	var email string
 	var pw []byte
 	var name string
+	var status string
 
-	err := row.Scan(&id, &email, &pw, &name)
+	err := row.Scan(&id, &email, &pw, &name, &status)
 	if err != nil {
 		return nil, errors.Wrapf(err, "db: ReadUserByEmail %s", emailReq)
 	}
 
 	return &UserModel{
-		ID:    id,
-		Email: email,
-		Pw:    pw,
-		Name:  name,
+		ID:     id,
+		Email:  email,
+		Pw:     pw,
+		Name:   name,
+		Status: status,
 	}, nil
 }
 
 func (pg *AuthStore) ReadUserByUID(ctx context.Context, idReq uuid.UUID) (*UserModel, error) {
-	row := pg.db.QueryRow(ctx, "SELECT id, email, pw, name from "+usersTable+" where id=$1", idReq)
+	row := pg.db.QueryRow(ctx, "SELECT id, email, pw, name, status from "+usersTable+" where id=$1", idReq)
 
 	var id uuid.UUID
 	var email string
 	var pw []byte
 	var name string
+	var status string
 
-	err := row.Scan(&id, &email, &pw, &name)
+	err := row.Scan(&id, &email, &pw, &name, &status)
 	if err != nil {
 		return nil, errors.Wrapf(err, "db: ReadUserByUID %s", idReq)
 	}
 
 	return &UserModel{
-		ID:    id,
-		Email: email,
-		Pw:    pw,
-		Name:  name,
+		ID:     id,
+		Email:  email,
+		Pw:     pw,
+		Name:   name,
+		Status: status,
 	}, nil
 }
 

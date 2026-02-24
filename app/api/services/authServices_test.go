@@ -10,10 +10,12 @@ import (
 
 type MockAuthServices struct{}
 
-var verificationToken string
+var longVerificationToken string
+var shortVerificationToken string
 
-func (MockAuthServices) SendVerification(t string, u *auth.UserModel) {
-	verificationToken = t
+func (MockAuthServices) SendVerification(shortToken, longToken string, u *auth.UserModel) {
+	longVerificationToken = longToken
+	shortVerificationToken = shortToken
 }
 
 func TestCrudUser(t *testing.T) {
@@ -106,7 +108,7 @@ func TestAuthentication(t *testing.T) {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	uResp, err := testContext.serv.Authenticate(t.Context(), "emailAuth@nate.ch", "pass", false)
+	uResp, err := testContext.serv.Authenticate(t.Context(), "emailAuth@nate.ch", "pass", "192.168.1.1", false)
 	if err != nil {
 		t.Fatalf("failed to Authenticate with err %+v", err)
 	}
@@ -144,7 +146,7 @@ func TestAuthentication(t *testing.T) {
 		t.Errorf("expected encrypted share token to expire in 7d, instead was %s", uResp.Access.Expiration)
 	}
 
-	uResp, err = testContext.serv.Authenticate(t.Context(), "emailAuth@nate.ch", "pass", true)
+	uResp, err = testContext.serv.Authenticate(t.Context(), "emailAuth@nate.ch", "pass", "192.168.1.2", true)
 	if err != nil {
 		t.Fatalf("failed to Authenticate with err %+v", err)
 	}
@@ -153,7 +155,7 @@ func TestAuthentication(t *testing.T) {
 		t.Errorf("expected encrypted share token to expire in 40d, instead was %s", uResp.Access.Expiration)
 	}
 
-	uResp, err = testContext.serv.Authenticate(t.Context(), "emaillAuth@nate.ch", "pass", false)
+	uResp, err = testContext.serv.Authenticate(t.Context(), "emaillAuth@nate.ch", "pass", "192.168.1.3", false)
 	if err == nil {
 		t.Errorf("failed to produce error when authenticating with wrong email")
 	}
@@ -161,7 +163,7 @@ func TestAuthentication(t *testing.T) {
 		t.Errorf("failed to produce nil user when authenticating with wrong email")
 	}
 
-	uResp, err = testContext.serv.Authenticate(t.Context(), "emailAuth@nate.ch", "pass2", false)
+	uResp, err = testContext.serv.Authenticate(t.Context(), "emailAuth@nate.ch", "pass2", "192.168.1.4", false)
 	if err == nil {
 		t.Errorf("failed to produce error when authenticating with wrong pass")
 	}
@@ -183,7 +185,7 @@ func TestRefreshToken(t *testing.T) {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	auth, err := testContext.serv.Authenticate(t.Context(), "emailRefresh@nate.ch", "pass", false)
+	auth, err := testContext.serv.Authenticate(t.Context(), "emailRefresh@nate.ch", "pass", "192.168.1.5", false)
 	if err != nil {
 		t.Fatalf("failed to Authenticate with err %+v", err)
 	}
@@ -198,9 +200,11 @@ func TestRefreshToken(t *testing.T) {
 	}
 }
 
-func Test_SignupVerification(t *testing.T) {
+func Test_ShortSignupVerification(t *testing.T) {
 	testContext.resetAuth = true
-	u, err := auth.NewUserModel("name", "emailverify@nate.ch", "pass")
+
+	email := "shortverify@nate.ch"
+	u, err := auth.NewUserModel("name", email, "pass")
 	if err != nil {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
@@ -210,9 +214,65 @@ func Test_SignupVerification(t *testing.T) {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	err = testContext.serv.CheckVerificationToken(t.Context(), verificationToken, u.ID)
+	err = testContext.serv.CheckShortVerificationToken(t.Context(), "192.168.1.1", email, shortVerificationToken)
 	if err != nil {
-		t.Errorf("failed to check Verification with token %s and err \n%+v\n", verificationToken, err)
+		t.Errorf("failed to check Verification with token %s and err \n%+v\n", shortVerificationToken, err)
 	}
 	//todo: add account state: UNVERIFIED, VERIFIED, SUSPENDED, DELETED
+}
+
+func Test_LongSignupVerification(t *testing.T) {
+	testContext.resetAuth = true
+	u, err := auth.NewUserModel("name", "longsignup@nate.ch", "pass")
+	if err != nil {
+		t.Fatalf("failed to create user with err \n%+v\n", err)
+	}
+
+	err = testContext.serv.NewUser(t.Context(), u)
+	if err != nil {
+		t.Fatalf("failed to create user with err \n%+v\n", err)
+	}
+
+	err = testContext.serv.CheckLongVerificationToken(t.Context(), "192.168.1.2", longVerificationToken)
+	if err != nil {
+		t.Errorf("failed to check Verification with token %s and err \n%+v\n", longVerificationToken, err)
+	}
+	//todo: add account state: UNVERIFIED, VERIFIED, SUSPENDED, DELETED
+}
+
+func Test_ResetPw(t *testing.T) {
+	testContext.resetAuth = true
+	u, err := auth.NewUserModel("name", "resetpw@nate.ch", "pass")
+	if err != nil {
+		t.Fatalf("failed to create user with err \n%+v\n", err)
+	}
+
+	err = testContext.serv.NewUser(t.Context(), u)
+	if err != nil {
+		t.Fatalf("failed to create user with err \n%+v\n", err)
+	}
+
+	err = testContext.serv.RequestResetPassword(t.Context(), "192.168.1.11", "resetPw@nate.ch")
+	if err != nil {
+		t.Errorf("failed to check Verification with token %s and err \n%+v\n", longVerificationToken, err)
+	}
+
+	err = testContext.serv.ResetPasswordLong(t.Context(), "192.168.1.11", longVerificationToken, "newpass")
+	if err != nil {
+		t.Errorf("failed to check Verification with token %s and err \n%+v\n", longVerificationToken, err)
+	}
+
+	err = testContext.serv.ResetPasswordShort(t.Context(), "192.168.1.11", shortVerificationToken, u.Email, "newpass2")
+	if err != nil {
+		t.Errorf("failed to check Verification with token %s and err \n%+v\n", shortVerificationToken, err)
+	}
+
+	res, err := testContext.serv.Authenticate(t.Context(), "resetPw@nate.ch", "newpass2", "192.168.1.13", true)
+	if err != nil {
+		t.Errorf("failed to authenticate with new pw %s and err \n%+v\n", "newpass2", err)
+	}
+
+	if res.User.ID != u.ID {
+		t.Errorf("expected user to be %s but was %s", u.ID, res.User.ID)
+	}
 }

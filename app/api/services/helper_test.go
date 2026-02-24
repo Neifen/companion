@@ -59,6 +59,12 @@ func doMain(m *testing.M) int {
 			fmt.Printf("failed to clear users with err \n%+v\n", err)
 			exitCode = 1
 		}
+
+		err = clearIPTracking()
+		if err != nil {
+			fmt.Printf("failed to clear iptracking with err \n%+v\n", err)
+			exitCode = 1
+		}
 	}
 
 	if testContext.resetPlans {
@@ -136,6 +142,17 @@ func clearUsers() error {
 		return errors.Errorf("verification_tokens table should be emty through delete cascade. Was %d instead", count)
 	}
 
+	fmt.Printf("Auth Users Rows cleaned up: %d\n", affected)
+	return nil
+}
+
+func clearIPTracking() error {
+	res, err := testContext.db.Exec(context.Background(), "DELETE FROM auth.ip_tracking")
+	if err != nil {
+		return errors.Wrap(err, "Could not clean up users table")
+	}
+
+	affected := res.RowsAffected()
 	fmt.Printf("Auth Users Rows cleaned up: %d\n", affected)
 	return nil
 }

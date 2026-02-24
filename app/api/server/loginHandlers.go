@@ -43,7 +43,7 @@ func (s *HandlerSession) handlePostLogin(c echo.Context) error {
 	pw := c.FormValue("password")
 	remember := c.FormValue("remember") == "on"
 
-	u, err := s.services.Authenticate(c.Request().Context(), email, pw, remember)
+	u, err := s.services.Authenticate(c.Request().Context(), c.RealIP(), email, pw, remember)
 	if err != nil {
 		fmt.Printf("api: handlePostLogin: \n%+v\n", err)
 		return s.redirectToLogin(c)

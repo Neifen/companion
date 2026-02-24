@@ -9,10 +9,11 @@ import (
 )
 
 type UserModel struct {
-	ID    uuid.UUID
-	Name  string
-	Email string
-	Pw    []byte
+	ID     uuid.UUID
+	Name   string
+	Email  string
+	Pw     []byte
+	Status string
 }
 
 type RefreshTokenModel struct {
@@ -29,9 +30,15 @@ type VerificationTokenModel struct {
 	TokenHash  []byte     `db:"token_hash"`
 	Expiration time.Time  `db:"expires_at"`
 	Consumed   *time.Time `db:"consumed_at"`
+	Attempts   int16      `db:"attempts"`
 	Channel    string     `db:"channel"`
 	Purpose    string     `db:"purpose"`
 }
+
+const (
+	ChannelLongEmail  = "lm"
+	ChannelShortEmail = "sm"
+)
 
 const (
 	PurposeSignup   = "signup"

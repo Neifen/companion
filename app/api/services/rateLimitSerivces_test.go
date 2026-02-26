@@ -1,6 +1,7 @@
 package services_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/neifen/htmx-login/app/api/services"
@@ -12,18 +13,19 @@ func Test_RateLimitAuthenticationShort(t *testing.T) {
 	testContext.resetAuth = true
 	email := "emailauth@test.ch"
 	pw := "pass"
+	ip := "192.168.2.1"
 
 	u, err := auth.NewUserModel("nate", email, pw)
 	if err != nil {
 		t.Fatalf("new User failed with error %+v", err)
 	}
 
-	if err := testContext.serv.NewUser(t.Context(), u); err != nil {
+	if err := testContext.serv.NewUser(t.Context(), ip, u); err != nil {
 		t.Fatalf("new User failed with error %+v", err)
 	}
 
-	for i := 0; i < 6; i++ {
-		a, err := testContext.serv.Authenticate(t.Context(), email, pw, "192.168.2.1", (i%2) == 0)
+	for i := range 9 {
+		a, err := testContext.serv.Authenticate(t.Context(), email, pw, ip, (i%2) == 0)
 		if err != nil {
 			t.Fatalf("authentication failed with error %+v", err)
 		}
@@ -37,9 +39,40 @@ func Test_RateLimitAuthenticationShort(t *testing.T) {
 		}
 	}
 
-	a, err := testContext.serv.Authenticate(t.Context(), email, pw, "192.168.2.1", false)
-	if err == nil {
+	a, err := testContext.serv.Authenticate(t.Context(), email, pw, ip, false)
+	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
 		t.Errorf("authentication was supposed to fail for 6th attempt with same ip")
+	}
+	if a != nil {
+		t.Errorf("user was supposed to be nil but was %v", a)
+	}
+}
+
+func Test_RateLimitAuthenticationRotating(t *testing.T) {
+	testContext.resetAuth = true
+	email := "emailauthrotate@test.ch"
+	pw := "pass"
+	ip := "192.168.2.2"
+
+	u, err := auth.NewUserModel("nate", email, pw)
+	if err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	if err := testContext.serv.NewUser(t.Context(), ip, u); err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	for i := range 399 {
+		_, err := testContext.serv.Authenticate(t.Context(), fmt.Sprintf("%s%d", email, i), pw, ip, (i%2) == 0)
+		if err == nil || errors.Is(err, services.ErrIPRateLimit) {
+			t.Fatalf("authentication failed with error %+v", err)
+		}
+	}
+
+	a, err := testContext.serv.Authenticate(t.Context(), email, pw, ip, false)
+	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
+		t.Errorf("authentication was supposed to fail for 499th attempt with same ip")
 	}
 	if a != nil {
 		t.Errorf("user was supposed to be nil but was %v", a)
@@ -50,59 +83,33 @@ func Test_RateLimitSignupShort(t *testing.T) {
 	testContext.resetAuth = true
 	email := "emailshort@test.ch"
 	pw := "pass"
+	ip := "192.168.2.3"
 
 	u, err := auth.NewUserModel("nate", email, pw)
 	if err != nil {
 		t.Fatalf("new User failed with error %+v", err)
 	}
 
-	if err := testContext.serv.NewUser(t.Context(), u); err != nil {
+	if err := testContext.serv.NewUser(t.Context(), ip, u); err != nil {
 		t.Fatalf("new User failed with error %+v", err)
 	}
 
 	for range 6 {
-		err := testContext.serv.CheckShortVerificationToken(t.Context(), "192.168.2.2", email, shortVerificationToken)
-		if err != nil {
+		err := testContext.serv.CheckShortVerificationToken(t.Context(), ip, email, shortVerificationToken)
+		if err != nil || errors.Is(err, services.ErrIPRateLimit) {
 			t.Fatalf("authentication failed with error %+v", err)
 		}
 	}
 
-	err = testContext.serv.CheckShortVerificationToken(t.Context(), "192.168.2.2", email, shortVerificationToken)
-	if err == nil {
+	err = testContext.serv.CheckShortVerificationToken(t.Context(), ip, email, shortVerificationToken)
+	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
 		t.Errorf("authentication was supposed to fail for 6th attempt with same ip")
 	}
 }
 
-func Test_RateLimitSignupLong(t *testing.T) {
+func Test_RateLimitSignupShort_Rotating(t *testing.T) {
 	testContext.resetAuth = true
-	pw := "pass"
-	ip := "192.168.2.3"
-
-	u, err := auth.NewUserModel("nate", "emaillong@test.ch", pw)
-	if err != nil {
-		t.Fatalf("new User failed with error %+v", err)
-	}
-
-	if err := testContext.serv.NewUser(t.Context(), u); err != nil {
-		t.Fatalf("new User failed with error %+v", err)
-	}
-
-	for range 251 {
-		err := testContext.serv.CheckLongVerificationToken(t.Context(), ip, longVerificationToken)
-		if err != nil {
-			t.Fatalf("authentication failed with error %+v", err)
-		}
-	}
-
-	err = testContext.serv.CheckLongVerificationToken(t.Context(), ip, longVerificationToken)
-	if err == nil {
-		t.Errorf("authentication was supposed to fail for 201th attempt with same ip")
-	}
-}
-
-func Test_RateLimitResetPwShort(t *testing.T) {
-	testContext.resetAuth = true
-	email := "emailresetshort@test.ch"
+	email := "emailshortrot@test.ch"
 	pw := "pass"
 	ip := "192.168.2.4"
 
@@ -111,7 +118,62 @@ func Test_RateLimitResetPwShort(t *testing.T) {
 		t.Fatalf("new User failed with error %+v", err)
 	}
 
-	if err := testContext.serv.NewUser(t.Context(), u); err != nil {
+	if err := testContext.serv.NewUser(t.Context(), ip, u); err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	for i := range 249 {
+		err := testContext.serv.CheckShortVerificationToken(t.Context(), ip, fmt.Sprintf("%d%s", i, email), shortVerificationToken)
+		if err == nil || errors.Is(err, services.ErrIPRateLimit) {
+			t.Fatalf("authentication exp %+v", err)
+		}
+	}
+
+	err = testContext.serv.CheckShortVerificationToken(t.Context(), ip, email, shortVerificationToken)
+	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
+		t.Errorf("authentication was supposed to fail for 251th attempt with same ip err: %v", err)
+	}
+}
+
+func Test_RateLimitSignupLong(t *testing.T) {
+	testContext.resetAuth = true
+	pw := "pass"
+	ip := "192.168.2.5"
+
+	u, err := auth.NewUserModel("nate", "emaillong@test.ch", pw)
+	if err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	if err := testContext.serv.NewUser(t.Context(), ip, u); err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	for range 249 {
+		err := testContext.serv.CheckLongVerificationToken(t.Context(), ip, longVerificationToken)
+		if err != nil || errors.Is(err, services.ErrIPRateLimit) {
+			t.Fatalf("authentication failed with error %+v", err)
+		}
+	}
+
+	err = testContext.serv.CheckLongVerificationToken(t.Context(), ip, longVerificationToken)
+	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
+		t.Errorf("authentication was supposed to fail for 251th attempt with same ip")
+	}
+}
+
+func Test_RateLimitResetPwShort(t *testing.T) {
+	testContext.resetAuth = true
+	email := "emailresetshort@test.ch"
+	pw := "pass"
+	ip := "192.168.2.6"
+
+	u, err := auth.NewUserModel("nate", email, pw)
+	if err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	if err := testContext.serv.NewUser(t.Context(), ip, u); err != nil {
 		t.Fatalf("new User failed with error %+v", err)
 	}
 
@@ -119,16 +181,48 @@ func Test_RateLimitResetPwShort(t *testing.T) {
 		t.Fatalf("request reset password failed with err %+v", err)
 	}
 
-	for range 5 {
+	for range 6 {
 		err := testContext.serv.ResetPasswordShort(t.Context(), ip, email, shortVerificationToken, "newPw")
-		if err != nil {
+		if err != nil || errors.Is(err, services.ErrIPRateLimit) {
 			t.Fatalf("authentication failed with error %+v", err)
 		}
 	}
 
 	err = testContext.serv.ResetPasswordShort(t.Context(), ip, email, shortVerificationToken, "newPw")
-	if err == nil {
+	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
 		t.Errorf("authentication was supposed to fail for 6th attempt with same ip")
+	}
+}
+
+func Test_RateLimitResetPwShort_Rotating(t *testing.T) {
+	testContext.resetAuth = true
+	email := "emailresetshortrot@test.ch"
+	pw := "pass"
+	ip := "192.168.2.7"
+
+	u, err := auth.NewUserModel("nate", email, pw)
+	if err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	if err := testContext.serv.NewUser(t.Context(), ip, u); err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	if err := testContext.serv.RequestResetPassword(t.Context(), ip, email); err != nil {
+		t.Fatalf("request reset password failed with err %+v", err)
+	}
+
+	for i := range 249 {
+		err := testContext.serv.ResetPasswordShort(t.Context(), ip, fmt.Sprintf("%d%s", i, email), shortVerificationToken, "newPw")
+		if err == nil || errors.Is(err, services.ErrIPRateLimit) {
+			t.Fatalf("authentication exp %+v", err)
+		}
+	}
+
+	err = testContext.serv.ResetPasswordShort(t.Context(), ip, email, shortVerificationToken, "newPw")
+	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
+		t.Errorf("authentication was supposed to fail for 251th attempt with same ip err: %v", err)
 	}
 }
 
@@ -136,26 +230,147 @@ func Test_RateLimitResetPwLong(t *testing.T) {
 	testContext.resetAuth = true
 	email := "emailresetlong@test.ch"
 	pw := "pass"
-	ip := "192.168.2.5"
+	ip := "192.168.2.8"
 
 	u, err := auth.NewUserModel("nate", email, pw)
 	if err != nil {
 		t.Fatalf("new User failed with error %+v", err)
 	}
 
-	if err := testContext.serv.NewUser(t.Context(), u); err != nil {
+	if err := testContext.serv.NewUser(t.Context(), ip, u); err != nil {
 		t.Fatalf("new User failed with error %+v", err)
 	}
 
-	for range 251 {
+	for range 249 {
 		err := testContext.serv.ResetPasswordLong(t.Context(), ip, "wrongOnPurpose", "newpw")
 		if err == nil || errors.Is(err, services.ErrIPRateLimit) {
-			t.Fatalf("%v authentication exp %+v", errors.As(err, &services.ErrIPRateLimit), err)
+			t.Fatalf("authentication exp %+v", err)
 		}
 	}
 
 	err = testContext.serv.ResetPasswordLong(t.Context(), ip, longVerificationToken, "newpw")
 	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
-		t.Errorf("authentication was supposed to fail for 201th attempt with same ip")
+		t.Errorf("authentication was supposed to fail for 251th attempt with same ip")
+	}
+}
+
+func Test_RateLimitRequestReset(t *testing.T) {
+	testContext.resetAuth = true
+	email := "emailresetreq@test.ch"
+	pw := "pass"
+	ip := "192.168.2.9"
+
+	u, err := auth.NewUserModel("nate", email, pw)
+	if err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	if err := testContext.serv.NewUser(t.Context(), ip, u); err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	for range 5 {
+		err = testContext.serv.RequestResetPassword(t.Context(), ip, email)
+		if err != nil || errors.Is(err, services.ErrIPRateLimit) {
+			t.Fatalf("authentication failed with error %+v", err)
+		}
+
+	}
+
+	err = testContext.serv.RequestResetPassword(t.Context(), ip, email)
+	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
+		t.Errorf("authentication was supposed to fail for 6th attempt with same ip")
+	}
+}
+
+func Test_RateLimitRequestReset_Rotating(t *testing.T) {
+	testContext.resetAuth = true
+	email := "emailresetreqrotate@test.ch"
+	pw := "pass"
+	ip := "192.168.2.10"
+
+	u, err := auth.NewUserModel("nate", email, pw)
+	if err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	if err := testContext.serv.NewUser(t.Context(), ip, u); err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	for i := range 199 {
+		err = testContext.serv.RequestResetPassword(t.Context(), ip, fmt.Sprintf("%s%d", email, i))
+		if err == nil || errors.Is(err, services.ErrIPRateLimit) {
+			t.Fatalf("authentication failed with error %+v", err)
+		}
+	}
+
+	err = testContext.serv.RequestResetPassword(t.Context(), ip, email)
+	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
+		t.Errorf("authentication was supposed to fail for 6th attempt with same ip")
+	}
+}
+
+func Test_RateLimitRefresh(t *testing.T) {
+	testContext.resetAuth = true
+	email := "emailrefresh@test.ch"
+	pw := "pass"
+	ip := "192.168.2.11"
+
+	u, err := auth.NewUserModel("nate", email, pw)
+	if err != nil {
+		t.Fatalf("refresh failed with error %+v", err)
+	}
+
+	if err := testContext.serv.NewUser(t.Context(), ip, u); err != nil {
+		t.Fatalf("refresh failed with error %+v", err)
+	}
+
+	a, err := testContext.serv.Authenticate(t.Context(), email, pw, ip, false)
+	if err != nil {
+		t.Fatalf("refresh failed with error %+v", err)
+	}
+
+	for range 199 {
+		_, err = testContext.serv.RefreshToken(t.Context(), ip, "false")
+		if err == nil || errors.Is(err, services.ErrIPRateLimit) {
+			t.Fatalf("refresh was supposed to fail for wrong token %+v", err)
+		}
+	}
+
+	refresh := a.Refresh.Token
+	_, err = testContext.serv.RefreshToken(t.Context(), ip, refresh)
+	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
+		t.Errorf("refresh was supposed to fail for 250th attempt with same ip")
+	}
+}
+
+// warn: slow
+func Test_RateLimitNewUser(t *testing.T) {
+	testContext.resetAuth = true
+	email := "emailnewuser@test.ch"
+	pw := "pass"
+	ip := "192.168.2.11"
+
+	for i := range 199 {
+		u, err := auth.NewUserModel("nate", fmt.Sprintf("%s%d", email, i), pw)
+		if err != nil {
+			t.Fatalf("new user failed with error %+v", err)
+		}
+
+		err = testContext.serv.NewUser(t.Context(), ip, u)
+		if err != nil {
+			t.Fatalf("new user failed with error %+v", err)
+		}
+	}
+
+	u, err := auth.NewUserModel("nate", email, pw)
+	if err != nil {
+		t.Fatalf("new user failed with error %+v", err)
+	}
+
+	err = testContext.serv.NewUser(t.Context(), ip, u)
+	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
+		t.Errorf("new user was supposed to fail for 200th attempt with same ip")
 	}
 }

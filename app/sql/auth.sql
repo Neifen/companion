@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS auth.verification_tokens(
 CREATE TABLE IF NOT EXISTS auth.ip_tracking(
     id bigserial primary key,
     ip TEXT not null,
-    user_id uuid references auth.users(id) on delete cascade,
+    user_id UUID references auth.users(id) on delete cascade,
+    context TEXT, -- auth/valid/fail
     created_at TIMESTAMP not null default now() --todo: cleanup needed
 );
 

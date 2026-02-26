@@ -15,7 +15,6 @@ const (
 	usersTable              = "auth.users"
 	refreshTokensTable      = "auth.refresh_tokens"
 	verificationTokensTable = "auth.verification_tokens"
-	ipTrackingTable         = "auth.ip_tracking"
 )
 
 func (pg *AuthStore) CreateVerification(ctx context.Context, u *VerificationTokenModel) error {
@@ -43,10 +42,11 @@ func (pg *AuthStore) InvalidateVerificationToken(ctx context.Context, u *Verific
 
 	return nil
 }
-func (pg *AuthStore) AddVerificationAttempt(ctx context.Context, u *VerificationTokenModel) error {
-	_, err := pg.db.Exec(ctx, "UPDATE "+verificationTokensTable+" set attempts = attempts + 1 where id=$1", u.ID)
+func (pg *AuthStore) AddVerificationAttempt(ctx context.Context, uid uuid.UUID) error {
+	_, err := pg.db.Exec(ctx, "UPDATE "+verificationTokensTable+" set attempts = attempts + 1 where user_id=$1", uid)
 	if err != nil {
-		return errors.Wrapf(err, "db: Consume Verification Token for user %s ", u.UserUID)
+		fmt.Printf("db: Add verification attempt for user %s with err \n%+s\n", uid, err)
+		return errors.Wrapf(err, "db: Add verification attempt for user %s ", uid)
 	}
 
 	return nil
@@ -62,71 +62,32 @@ func (pg *AuthStore) ConsumeVerification(ctx context.Context, u *VerificationTok
 }
 
 func (pg *AuthStore) ReadVerification(ctx context.Context, hashedToken []byte) (*VerificationTokenModel, error) {
-	row := pg.db.QueryRow(ctx, "SELECT id, user_id, channel, purpose, expires_at, consumed_at from "+verificationTokensTable+" where token_hash = $1", hashedToken)
+	row := pg.db.QueryRow(ctx, "SELECT id, user_id, channel, purpose, attempts, expires_at, consumed_at from "+verificationTokensTable+" where token_hash = $1", hashedToken)
 
 	var id int
 	var uid uuid.UUID
 	var channel string
 	var purpose string
+	var attempts int16
 	var expiration time.Time
 	var comsumed *time.Time
 
-	err := row.Scan(&id, &uid, &channel, &purpose, &expiration, &comsumed)
+	err := row.Scan(&id, &uid, &channel, &purpose, &attempts, &expiration, &comsumed)
 	if err != nil {
 		return nil, errors.Wrap(err, "db: Read Verification Token")
 	}
 
 	model := &VerificationTokenModel{
-		ID:       id,
-		UserUID:  uid,
-		Channel:  channel,
-		Purpose:  purpose,
-		Consumed: comsumed,
+		ID:         id,
+		UserUID:    uid,
+		Channel:    channel,
+		Purpose:    purpose,
+		Attempts:   attempts,
+		Consumed:   comsumed,
+		Expiration: expiration,
 	}
 
 	return model, nil
-}
-
-func (pg *AuthStore) GetIPAttempts(ctx context.Context, ip string) (uint16, error) {
-	row := pg.db.QueryRow(ctx, "SELECT count(*) FROM "+ipTrackingTable+" WHERE ip=$1 AND NOW() - INTERVAL '5 minutes' < created_at", ip)
-
-	var count uint16
-	err := row.Scan(&count)
-	if err != nil {
-		return 0, errors.Wrapf(err, "auth db: Get Ip Attempts for ip %s", ip)
-	}
-
-	return count, nil
-}
-
-func (pg *AuthStore) GetTrackingAttempts(ctx context.Context, ip string, uid uuid.UUID) (uint16, error) {
-	row := pg.db.QueryRow(ctx, "SELECT count(*) FROM "+ipTrackingTable+" WHERE ip=$1 AND user_id=$2 AND NOW() - INTERVAL '5 minutes' < created_at", ip, uid)
-
-	var count uint16
-	err := row.Scan(&count)
-	if err != nil {
-		return 0, errors.Wrapf(err, "auth db: Get Ip Attempts for ip %s", ip)
-	}
-
-	return count, nil
-}
-
-func (pg *AuthStore) AddIPAttempt(ctx context.Context, ip string) error {
-	_, err := pg.db.Exec(ctx, "INSERT INTO "+ipTrackingTable+"(ip) VALUES ($1)", ip)
-	if err != nil {
-		return errors.Wrapf(err, "auth db: Add Ip Attempt for ip %s", ip)
-	}
-
-	return nil
-}
-
-func (pg *AuthStore) AddTrackingAttempts(ctx context.Context, ip string, uid uuid.UUID) error {
-	_, err := pg.db.Exec(ctx, "INSERT INTO "+ipTrackingTable+"(ip, user_id) VALUES ($1, $2)", ip, uid)
-	if err != nil {
-		return errors.Wrapf(err, "auth db: Add Ip Attempt for ip %s", ip)
-	}
-
-	return nil
 }
 
 func (pg *AuthStore) CreateUser(ctx context.Context, u *UserModel) error {

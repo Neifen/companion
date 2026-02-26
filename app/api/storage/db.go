@@ -12,6 +12,7 @@ import (
 	"github.com/neifen/htmx-login/app/api/storage/bible"
 	"github.com/neifen/htmx-login/app/api/storage/companions"
 	"github.com/neifen/htmx-login/app/api/storage/db"
+	"github.com/neifen/htmx-login/app/api/storage/iptracking"
 	"github.com/neifen/htmx-login/app/api/storage/plans"
 	"github.com/neifen/htmx-login/app/api/storage/tracking"
 	"github.com/pkg/errors"
@@ -82,6 +83,7 @@ type Storage struct {
 	Plans      *plans.PlansStore
 	Tracking   *tracking.TrackingStore
 	Companions *companions.CompanionsStore
+	IPTracking *iptracking.IPTrackingStore
 }
 
 func NewDB() (*Storage, *pgxpool.Pool, error) {
@@ -111,6 +113,7 @@ func NewDB() (*Storage, *pgxpool.Pool, error) {
 		Plans:      plans.NewPlansStore(pgx),
 		Tracking:   tracking.NewTrackingStore(pgx),
 		Companions: companions.NewCompanionsStore(pgx),
+		IPTracking: iptracking.NewIPTrackingStore(pgx),
 	}, pgx, nil
 }
 

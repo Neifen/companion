@@ -77,7 +77,7 @@ func (s *HandlerSession) subHandleTokenRefresh(c echo.Context) error {
 		return fmt.Errorf("no refresh token in cookie %q", "refresh")
 	}
 
-	auth, err := s.services.RefreshToken(c.Request().Context(), refresh.Value)
+	auth, err := s.services.RefreshToken(c.Request().Context(), c.RealIP(), refresh.Value)
 	if err != nil {
 		errors.WithMessagef(err, "api: refresh token")
 	}
@@ -172,7 +172,7 @@ func (s *HandlerSession) handlePostSignup(c echo.Context) error {
 		return s.handleGetSignup(c)
 	}
 
-	err = s.services.NewUser(c.Request().Context(), u)
+	err = s.services.NewUser(c.Request().Context(), c.RealIP(), u)
 	if err != nil {
 		logging.Error(err)
 		// todo show error

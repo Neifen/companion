@@ -26,6 +26,9 @@ func (s *Services) ipRateLimit(ctx context.Context, ip string, trackingCtx iptra
 	if trackingCtx == iptracking.Verification && count >= 249 { // 250 attempts
 		return ErrIPRateLimit
 	}
+	if trackingCtx == iptracking.RequestSignupVerification && count >= 99 { // 100 attempts
+		return ErrIPRateLimit
+	}
 	if trackingCtx == iptracking.NewUser && count >= 199 { // 200 attempts
 		return ErrIPRateLimit
 	}
@@ -62,6 +65,9 @@ func (s *Services) ipUserRateLimit(ctx context.Context, ip string, uid uuid.UUID
 		return ErrIPRateLimit
 	}
 	if trackingCtx == iptracking.RequestPasswordReset && count >= 5 { // fail on 6th attempt
+		return ErrIPRateLimit
+	}
+	if trackingCtx == iptracking.RequestSignupVerification && count >= 5 { // fail on 6th attempt
 		return ErrIPRateLimit
 	}
 	// FailedAuthentication is used somewhere else

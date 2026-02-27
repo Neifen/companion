@@ -82,6 +82,66 @@ func (s *Services) NewUser(ctx context.Context, ip string, u *auth.UserModel) er
 	return nil
 }
 
+func (s *Services) RequestSignupVerificationTokens(ctx context.Context, ip string, u *auth.UserModel) error {
+	err := s.store.CreateTX(ctx)
+	if err != nil {
+		return errors.WithMessage(err, "auth service: Request Signup Verification Tokens")
+	}
+	defer s.store.RollbackTX(ctx)
+
+	err = s.ipRateLimit(ctx, ip, iptracking.RequestSignupVerification)
+	if err != nil {
+		return errors.WithMessage(err, "auth service: Request Signup Verification Tokens")
+	}
+
+	if err := s.ipUserRateLimit(ctx, ip, u.ID, iptracking.RequestSignupVerification); err != nil {
+		return errors.WithMessage(err, "auth service: Request Signup Verification Tokens")
+	}
+
+	if err := s.verifyVerificationTimeouts(ctx, auth.PurposeSignup, u.ID); err != nil {
+		return errors.WithMessage(err, "auth service: Request Signup Verification Tokens")
+	}
+
+	longHash, longToken := crypto.NewRandomHash()
+	exp := time.Now().Add(time.Hour)
+	longVerToken := &auth.VerificationTokenModel{
+		UserUID:    u.ID,
+		TokenHash:  longHash,
+		Channel:    auth.ChannelLongEmail, // default for now
+		Purpose:    auth.PurposeSignup,
+		Expiration: exp,
+	}
+
+	if err := s.store.Auth.CreateVerification(ctx, longVerToken); err != nil {
+		return errors.WithMessage(err, "auth service: Request Signup Verification Tokens")
+	}
+
+	shortHash, shortToken, err := crypto.NewRandomCode()
+	if err != nil {
+		return errors.WithMessage(err, "auth service: Request Signup Verification Tokens")
+	}
+	exp = time.Now().Add(time.Minute * 5)
+	shortVerToken := &auth.VerificationTokenModel{
+		UserUID:    u.ID,
+		TokenHash:  shortHash,
+		Channel:    auth.ChannelShortEmail, // default for now
+		Purpose:    auth.PurposeSignup,
+		Expiration: exp,
+	}
+	if err = s.store.Auth.CreateVerification(ctx, shortVerToken); err != nil {
+		return errors.WithMessage(err, "auth service: Request Signup Verification Tokens")
+	}
+
+	s.auth.SendVerification(shortToken, longToken, u)
+
+	err = s.store.CommitTX(ctx)
+	if err != nil {
+		return errors.WithMessage(err, "auth service: Request Signup Verification Tokens")
+	}
+
+	return nil
+}
+
 func (ProductionAuthServices) SendVerification(shortToken, longToken string, u *auth.UserModel) {
 	fmt.Printf("Hi %s, please verify email %s with short token %sor long token %s\n", u.Name, u.Email, shortToken, longToken)
 }
@@ -197,7 +257,7 @@ func (s *Services) CheckShortVerificationToken(ctx context.Context, ip, email, t
 	return nil
 }
 
-func (s *Services) verifyToken(ctx context.Context, verification *auth.VerificationTokenModel, uid uuid.UUID, purpose string) (uuid.UUID, error) {
+func (s *Services) verifyToken(ctx context.Context, verification *auth.VerificationTokenModel, uid uuid.UUID, purpose auth.VerificationPurpose) (uuid.UUID, error) {
 
 	if verification == nil {
 		return uuid.Nil, errors.New("auth service: Verify Token. This token doesn't exist")
@@ -237,6 +297,32 @@ func (s *Services) verifyToken(ctx context.Context, verification *auth.Verificat
 	return verification.UserUID, nil
 }
 
+var ErrWaitTimeout = errors.New("Wait 5 minutes for another token")
+
+func (s *Services) verifyVerificationTimeouts(ctx context.Context, purpose auth.VerificationPurpose, uid uuid.UUID) error {
+	v, err := s.store.Auth.ReadUserVerification(ctx, purpose, uid)
+	if err != nil {
+		return errors.WithMessage(err, "auth service: verify verification timeouts")
+	}
+
+	if v == nil {
+		return nil
+	}
+
+	if v.Consumed != nil || time.Now().After(v.Expiration) {
+		if err := s.store.Auth.DeleteVerificationToken(ctx, v); err != nil {
+			return errors.WithMessage(err, "auth service: verify verificaton timeouts")
+		}
+		return nil
+	}
+
+	if time.Now().After(v.CreatedAt.Add(time.Minute * 5)) {
+		return nil
+	}
+
+	return errors.Wrapf(ErrWaitTimeout, "auth service: auth service: verify verification timeouts for uid %s", uid)
+}
+
 func (s *Services) RequestResetPassword(ctx context.Context, ip, email string) error {
 	if err := s.store.CreateTX(ctx); err != nil {
 		return errors.WithMessage(err, "auth service: Reset Password")
@@ -253,6 +339,10 @@ func (s *Services) RequestResetPassword(ctx context.Context, ip, email string) e
 	}
 
 	if err := s.ipUserRateLimit(ctx, ip, u.ID, iptracking.RequestPasswordReset); err != nil {
+		return errors.WithMessage(err, "auth service: Request Reset Password")
+	}
+
+	if err := s.verifyVerificationTimeouts(ctx, auth.PurposePassword, u.ID); err != nil {
 		return errors.WithMessage(err, "auth service: Request Reset Password")
 	}
 

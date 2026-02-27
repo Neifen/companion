@@ -402,3 +402,33 @@ func Test_SuspendedVerification(t *testing.T) {
 		t.Fatalf("authentication expected error with pw %s and err \n%+v\n", "newpass2", err)
 	}
 }
+
+func Test_VerificationSignup(t *testing.T) {
+	testContext.resetAuth = true
+	email := "signupverificationtoken@test.ch"
+	pw := "pass"
+	ip := "192.168.1.10"
+	ctx := t.Context()
+
+	u, err := auth.NewUserModel("nate", email, pw)
+	if err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	if err := testContext.serv.NewUser(ctx, ip, u); err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	if err := testContext.serv.CheckLongVerificationToken(ctx, ip, longVerificationToken); err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	err = testContext.serv.RequestSignupVerificationTokens(ctx, ip, u)
+	if err != nil {
+		t.Errorf("request signup verification token was supposed to fail for second password reset request in 5mins")
+	}
+
+	if err := testContext.serv.CheckLongVerificationToken(ctx, ip, longVerificationToken); err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+}

@@ -1,26 +1,14 @@
 // Package iptracking is for db operations that target the iptracking table
 package iptracking
 
-type TrackingContext int
+type TrackingContext string
 
 const (
-	Verification TrackingContext = iota
-	Authentication
-	FailedAuthentication
-	RequestPasswordReset
-	NewUser
-	Refresh
+	Verification              TrackingContext = "verif"
+	Authentication            TrackingContext = "auth"
+	FailedAuthentication      TrackingContext = "fail"
+	RequestPasswordReset      TrackingContext = "reset"
+	RequestSignupVerification TrackingContext = "signup"
+	NewUser                   TrackingContext = "newUsr"
+	Refresh                   TrackingContext = "refresh"
 )
-
-var trackingContextName = map[TrackingContext]string{
-	Verification:         "verif",
-	Authentication:       "auth",
-	FailedAuthentication: "fail",
-	RequestPasswordReset: "reset",
-	NewUser:              "newUsr",
-	Refresh:              "refresh",
-}
-
-func (t TrackingContext) String() string {
-	return trackingContextName[t]
-}

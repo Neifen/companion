@@ -53,12 +53,55 @@ func (pg *AuthStore) AddVerificationAttempt(ctx context.Context, uid uuid.UUID) 
 }
 
 func (pg *AuthStore) ConsumeVerification(ctx context.Context, u *VerificationTokenModel) error {
-	_, err := pg.db.Exec(ctx, "UPDATE "+verificationTokensTable+" set consumed_at = $1 where id=$2", u.Consumed, u.ID)
+	_, err := pg.db.Exec(ctx, "UPDATE "+verificationTokensTable+" set consumed_at = $1 where purpose=$2 and user_id=$3", u.Consumed, u.Purpose, u.UserUID)
 	if err != nil {
 		return errors.Wrapf(err, "db: Consume Verification Token for user %s ", u.UserUID)
 	}
 
 	return nil
+}
+
+func (pg *AuthStore) DeleteVerificationToken(ctx context.Context, u *VerificationTokenModel) error {
+	_, err := pg.db.Exec(ctx, "DELETE FROM "+verificationTokensTable+" where id=$1", u.ID)
+	if err != nil {
+		return errors.Wrapf(err, "db: Delete verification Token for user %s ", u.UserUID)
+	}
+
+	return nil
+}
+
+func (pg *AuthStore) ReadUserVerification(ctx context.Context, purposeIn VerificationPurpose, uid uuid.UUID) (*VerificationTokenModel, error) {
+	row := pg.db.QueryRow(ctx, "SELECT id, channel, purpose, attempts, expires_at, consumed_at, created_at from "+verificationTokensTable+" where user_id = $1 and purpose=$2", uid, purposeIn)
+
+	var id int
+	var channel string
+	var purpose VerificationPurpose
+	var attempts int16
+	var expiration time.Time
+	var comsumed *time.Time
+	var createdAt time.Time
+
+	err := row.Scan(&id, &channel, &purpose, &attempts, &expiration, &comsumed, &createdAt)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+
+		return nil, errors.Wrapf(err, "db: Read User Verification Token with uid %s", uid)
+	}
+
+	model := &VerificationTokenModel{
+		ID:         id,
+		UserUID:    uid,
+		Channel:    channel,
+		Purpose:    purpose,
+		Attempts:   attempts,
+		Consumed:   comsumed,
+		Expiration: expiration,
+		CreatedAt:  createdAt,
+	}
+
+	return model, nil
 }
 
 func (pg *AuthStore) ReadVerification(ctx context.Context, hashedToken []byte) (*VerificationTokenModel, error) {
@@ -67,7 +110,7 @@ func (pg *AuthStore) ReadVerification(ctx context.Context, hashedToken []byte) (
 	var id int
 	var uid uuid.UUID
 	var channel string
-	var purpose string
+	var purpose VerificationPurpose
 	var attempts int16
 	var expiration time.Time
 	var comsumed *time.Time

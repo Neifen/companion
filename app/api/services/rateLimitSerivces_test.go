@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/neifen/htmx-login/app/api/services"
 	"github.com/neifen/htmx-login/app/api/storage/auth"
 	"github.com/pkg/errors"
@@ -254,32 +255,30 @@ func Test_RateLimitResetPwLong(t *testing.T) {
 	}
 }
 
-func Test_RateLimitRequestReset(t *testing.T) {
+func Test_WaitTimeout_Reset(t *testing.T) {
 	testContext.resetAuth = true
 	email := "emailresetreq@test.ch"
 	pw := "pass"
 	ip := "192.168.2.9"
+	ctx := t.Context()
 
 	u, err := auth.NewUserModel("nate", email, pw)
 	if err != nil {
 		t.Fatalf("new User failed with error %+v", err)
 	}
 
-	if err := testContext.serv.NewUser(t.Context(), ip, u); err != nil {
+	if err := testContext.serv.NewUser(ctx, ip, u); err != nil {
 		t.Fatalf("new User failed with error %+v", err)
 	}
 
-	for range 5 {
-		err = testContext.serv.RequestResetPassword(t.Context(), ip, email)
-		if err != nil || errors.Is(err, services.ErrIPRateLimit) {
-			t.Fatalf("authentication failed with error %+v", err)
-		}
-
+	err = testContext.serv.RequestResetPassword(ctx, ip, email)
+	if err != nil {
+		t.Fatalf("authentication failed with error %+v", err)
 	}
 
-	err = testContext.serv.RequestResetPassword(t.Context(), ip, email)
-	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
-		t.Errorf("authentication was supposed to fail for 6th attempt with same ip")
+	err = testContext.serv.RequestResetPassword(ctx, ip, email)
+	if err == nil || !errors.Is(err, services.ErrWaitTimeout) {
+		t.Errorf("authentication was supposed to fail for second password reset request in 5mins")
 	}
 }
 
@@ -345,32 +344,79 @@ func Test_RateLimitRefresh(t *testing.T) {
 	}
 }
 
-// warn: slow
 func Test_RateLimitNewUser(t *testing.T) {
 	testContext.resetAuth = true
 	email := "emailnewuser@test.ch"
 	pw := "pass"
-	ip := "192.168.2.11"
-
-	for i := range 199 {
-		u, err := auth.NewUserModel("nate", fmt.Sprintf("%s%d", email, i), pw)
-		if err != nil {
-			t.Fatalf("new user failed with error %+v", err)
-		}
-
-		err = testContext.serv.NewUser(t.Context(), ip, u)
-		if err != nil {
-			t.Fatalf("new user failed with error %+v", err)
-		}
-	}
+	ip := "192.168.2.12"
 
 	u, err := auth.NewUserModel("nate", email, pw)
 	if err != nil {
 		t.Fatalf("new user failed with error %+v", err)
 	}
 
+	for i := range 199 {
+		u.ID = uuid.New()
+		u.Email = fmt.Sprintf("%s%d", email, i)
+		err = testContext.serv.NewUser(t.Context(), ip, u)
+		if err != nil {
+			t.Fatalf("new user failed with error %+v", err)
+		}
+	}
+
+	u.ID = uuid.New()
+	u.Email = email
 	err = testContext.serv.NewUser(t.Context(), ip, u)
 	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
 		t.Errorf("new user was supposed to fail for 200th attempt with same ip")
+	}
+}
+
+func Test_WaitTimeout_Signup(t *testing.T) {
+	testContext.resetAuth = true
+	email := "signuptimeout@test.ch"
+	pw := "pass"
+	ip := "192.168.2.13"
+	ctx := t.Context()
+
+	u, err := auth.NewUserModel("nate", email, pw)
+	if err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	if err := testContext.serv.NewUser(ctx, ip, u); err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	err = testContext.serv.RequestSignupVerificationTokens(ctx, ip, u)
+	if err == nil || !errors.Is(err, services.ErrWaitTimeout) {
+		t.Errorf("request signup verification token was supposed to fail for second password reset request in 5mins")
+	}
+}
+
+func Test_Signup_Rotate(t *testing.T) {
+	testContext.resetAuth = true
+	email := "signuprotateemail@test.ch"
+	pw := "pass"
+	ip := "192.168.2.14"
+	ctx := t.Context()
+
+	u, err := auth.NewUserModel("nate", email, pw)
+	if err != nil {
+		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	for i := range 99 {
+		u.Email = fmt.Sprintf("%s%d", email, i)
+		err = testContext.serv.RequestSignupVerificationTokens(t.Context(), ip, u)
+		if err == nil || errors.Is(err, services.ErrIPRateLimit) {
+			t.Errorf("request signup verification token was supposed to fail but didn't or with wrong error %+v", err)
+		}
+	}
+
+	u.Email = email
+	err = testContext.serv.RequestSignupVerificationTokens(ctx, ip, u)
+	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
+		t.Errorf("request signup verification token was supposed to fail for second password reset request in 5mins")
 	}
 }

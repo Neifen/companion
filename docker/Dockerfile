@@ -1,6 +1,5 @@
 FROM golang:alpine AS builder
 
-WORKDIR /app
 COPY ./go.mod ./go.sum ./
 RUN go mod download
 
@@ -12,7 +11,7 @@ RUN GOOS=linux GOARCH=arm64 go build -o bin/bible-companion ./cmd/main.go
 
 FROM scratch
 
-COPY --from=builder app/bin/htmx-login-bin bin/htmx-login-bin
+COPY --from=builder bin/bible-companion bin/bible-companion
 
 EXPOSE 1323
-ENTRYPOINT ["bin/htmx-login-bin"]
+ENTRYPOINT ["bin/bible-companion"]

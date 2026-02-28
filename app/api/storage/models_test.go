@@ -2,7 +2,6 @@ package storage
 
 import (
 	"reflect"
-	"slices"
 	"testing"
 	"time"
 
@@ -15,11 +14,6 @@ func TestNewUserModel(t *testing.T) {
 	wantName := "testName"
 	wantEmail := "my@email.com"
 	unhashedPw := "testPw"
-
-	hashedPw, err := crypto.HashPassword(unhashedPw)
-	if err != nil {
-		t.Fatalf("Hashing failed %+v", err)
-	}
 
 	u, err := auth.NewUserModel(wantName, wantEmail, unhashedPw)
 	if err != nil {
@@ -36,12 +30,10 @@ func TestNewUserModel(t *testing.T) {
 
 	if u.ID == uuid.Nil {
 		t.Errorf(`NewUserModel(%q, %q, %q). UserModel.UID was empty`, wantName, wantEmail, unhashedPw)
-	} else {
-		t.Logf(`UID successful, was %s`, u.ID)
 	}
 
-	if !slices.Equal(u.Pw, hashedPw) {
-		t.Errorf(`NewUserModel(%q, %q, %q). UserModel.Name should be %q but was %q`, wantName, wantEmail, unhashedPw, hashedPw, u.Pw)
+	if !crypto.CheckPassword(unhashedPw, u.Pw) {
+		t.Error("Failed to Check password")
 	}
 }
 
@@ -49,11 +41,6 @@ func TestNewUserModelEmpty(t *testing.T) {
 	wantName := ""
 	wantEmail := ""
 	unhashedPw := ""
-
-	hashedPw, err := crypto.HashPassword(unhashedPw)
-	if err != nil {
-		t.Fatalf("Hashing failed %+v", err)
-	}
 
 	u, err := auth.NewUserModel(wantName, wantEmail, unhashedPw)
 	if err != nil {
@@ -70,12 +57,10 @@ func TestNewUserModelEmpty(t *testing.T) {
 
 	if u.ID == uuid.Nil {
 		t.Errorf(`NewUserModel(%q, %q, %q). UserModel.UID was empty`, wantName, wantEmail, unhashedPw)
-	} else {
-		t.Logf(`UID successful, was %s`, u.ID)
 	}
 
-	if !slices.Equal(u.Pw, hashedPw) {
-		t.Errorf(`NewUserModel(%q, %q, %q). UserModel.Name should be %q but was %q`, wantName, wantEmail, unhashedPw, hashedPw, u.Pw)
+	if !crypto.CheckPassword(unhashedPw, u.Pw) {
+		t.Error("Failed to Check password")
 	}
 }
 

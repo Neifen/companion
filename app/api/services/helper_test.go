@@ -15,14 +15,13 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/neifen/companion/app/api/services"
 	"github.com/neifen/companion/app/api/storage"
-	"github.com/neifen/companion/app/api/storage/db"
 	"github.com/pkg/errors"
 )
 
 var testContext TestContext
 
 type TestContext struct {
-	db              db.DB
+	db              *pgxpool.Pool
 	serv            *services.Services
 	resetPlans      bool
 	resetTracking   bool
@@ -53,28 +52,6 @@ func doMain(m *testing.M) int {
 
 	fmt.Println("Tests done, clean up")
 
-	if testContext.resetAuth {
-		err = clearUsers()
-		if err != nil {
-			fmt.Printf("failed to clear users with err \n%+v\n", err)
-			exitCode = 1
-		}
-
-		err = clearIPTracking()
-		if err != nil {
-			fmt.Printf("failed to clear iptracking with err \n%+v\n", err)
-			exitCode = 1
-		}
-	}
-
-	if testContext.resetPlans {
-		err = clearPlans()
-		if err != nil {
-			fmt.Printf("failed to clear users with err \n%+v\n", err)
-			exitCode = 1
-		}
-	}
-
 	if testContext.resetCompanions {
 		err = clearCompanions()
 		if err != nil {
@@ -87,6 +64,28 @@ func doMain(m *testing.M) int {
 		err = clearTrackers()
 		if err != nil {
 			fmt.Printf("failed to clear users with err \n%+v\n", err)
+			exitCode = 1
+		}
+	}
+
+	if testContext.resetPlans {
+		err = clearPlans()
+		if err != nil {
+			fmt.Printf("failed to clear users with err \n%+v\n", err)
+			exitCode = 1
+		}
+	}
+
+	if testContext.resetAuth {
+		err = clearUsers()
+		if err != nil {
+			fmt.Printf("failed to clear users with err \n%+v\n", err)
+			exitCode = 1
+		}
+
+		err = clearIPTracking()
+		if err != nil {
+			fmt.Printf("failed to clear iptracking with err \n%+v\n", err)
 			exitCode = 1
 		}
 	}
@@ -213,31 +212,31 @@ func loadEnv() error {
 	return nil
 }
 
-func insertSplitVersesPlan(db *pgxpool.Pool) error {
+func insertSplitVersesPlan(db *pgxpool.Pool) (int, error) {
 	tx, err := db.Begin(context.Background())
 	if err != nil {
-		return errors.Wrap(err, "first insert")
+		return -1, errors.Wrap(err, "first insert")
 	}
 	_, err = tx.Exec(context.Background(), `INSERT INTO plans.plans( name, plan_desc)
     VALUES ('split chapters', 'This is like the plan that is shown by default but with long chapters split. Is just a canonical plan')
 ON CONFLICT
     DO NOTHING;`)
 	if err != nil {
-		return errors.Wrap(err, "first insert")
+		return -1, errors.Wrap(err, "first insert")
 	}
 
 	row := tx.QueryRow(context.Background(), "select max(id) from plans.plans")
-	var plansID int32
+	var plansID int
 	err = row.Scan(&plansID)
 	if err != nil {
-		return errors.Wrap(err, "query plans ID")
+		return -1, errors.Wrap(err, "query plans ID")
 	}
 
 	row = tx.QueryRow(context.Background(), "select avg(chapter_word_count) from static.chapters")
 	var avg float32
 	err = row.Scan(&avg)
 	if err != nil {
-		return errors.Wrap(err, "query avg")
+		return -1, errors.Wrap(err, "query avg")
 	}
 
 	rows, err := tx.Query(context.Background(), `    
@@ -262,7 +261,7 @@ ON CONFLICT
 		group by v.chapter_fk)
     v on v.chapter_fk = c.id`)
 	if err != nil {
-		return errors.Wrap(err, "query deets")
+		return -1, errors.Wrap(err, "query deets")
 	}
 	defer rows.Close()
 
@@ -332,7 +331,7 @@ ON CONFLICT
 			values ($1, $2, $3, $4, $5, $6)
 			`, plansID, chapter.ID, versesLengths[insertIter], sum, ids, versesDesc[insertIter])
 				if err != nil {
-					return errors.Wrap(err, "insert plans.bible_plans")
+					return -1, errors.Wrap(err, "insert plans.bible_plans")
 				}
 			}
 
@@ -345,7 +344,7 @@ ON CONFLICT
 			values ($1, $2, $3, $4)
 			`, plansID, chapter.ID, chapter.length, sum)
 			if err != nil {
-				return errors.Wrap(err, "insert plans.bible_plans")
+				return -1, errors.Wrap(err, "insert plans.bible_plans")
 			}
 		}
 
@@ -353,13 +352,13 @@ ON CONFLICT
 
 	err = tx.Commit(context.Background())
 	if err != nil {
-		return errors.Wrap(err, "commit")
+		return -1, errors.Wrap(err, "commit")
 	}
-	return nil
+	return plansID, nil
 
 }
 
-func newTestService() (*services.Services, db.DB, error) {
+func newTestService() (*services.Services, *pgxpool.Pool, error) {
 	err := loadEnv()
 	if err != nil {
 		return nil, nil, err
@@ -378,12 +377,8 @@ func newTestService() (*services.Services, db.DB, error) {
 		return nil, nil, errors.Wrap(err, "couldnt exec script")
 	}
 
-	err = insertSplitVersesPlan(db)
-	if err != nil {
-		return nil, nil, errors.Wrap(err, "couldnt write split verses")
-	}
-
-	return services.NewTestServices(store, MockAuthServices{}), db, nil
+	serv := services.NewTestServices(store, MockAuthServices{})
+	return serv, db, nil
 }
 
 func execScripts(db *pgxpool.Pool, sqlFiles []string) error {

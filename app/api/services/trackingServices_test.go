@@ -354,13 +354,14 @@ func TestCreateTrackerDouble(t *testing.T) {
 
 func TestCreateTrackerDifferentDays(t *testing.T) {
 	testContext.resetTracking = true
+	testContext.resetPlans = true
 
-	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
-	var planID int
-	err := testContext.db.QueryRow(context.Background(), "select max(id) from plans.plans").Scan(&planID)
+	planID, err := insertSplitVersesPlan(testContext.db)
 	if err != nil {
 		t.Fatalf("Getting max id failed: %s", err)
 	}
+
+	userID, _ := uuid.Parse("550e8400-e29b-41d4-a716-446655440000")
 	timeRanges := []int{2, 3, 10, 100, 200, 300, 400, 500, 600}
 	//timeRanges := []int{1000}
 
@@ -399,11 +400,11 @@ func TestCreateTrackerDifferentDays(t *testing.T) {
 		to := singleTracker.EndDate
 
 		if from.Year() != begin.Year() && from.Month() != begin.Month() && from.Day() != begin.Day() {
-			t.Errorf("From Date is %s, should be %s", from, begin)
+			t.Errorf("Tracker from Date is %s, should be %s", from, begin)
 		}
 
 		if to.Year() != inXDays.Year() && to.Month() != inXDays.Month() && to.Day() != inXDays.Day() {
-			t.Errorf("To Date is %s, should be %s", to, inXDays)
+			t.Errorf("Tracker to Date is %s, should be %s", to, inXDays)
 		}
 
 		// ----  check tasks -----=
@@ -423,7 +424,7 @@ func TestCreateTrackerDifferentDays(t *testing.T) {
 		}
 
 		if count-1 != timeRange {
-			t.Errorf("There should be %d, instead was %d", timeRange, count)
+			t.Errorf("Tasks counting ready_by days: there should be %d, instead was %d", timeRange, count)
 		}
 	}
 }

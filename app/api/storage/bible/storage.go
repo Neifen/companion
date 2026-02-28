@@ -1,12 +1,12 @@
 // Package bible implements all bible relatied db queries
 package bible
 
-import "github.com/jackc/pgx/v5/pgxpool"
+import "github.com/neifen/htmx-login/app/api/storage/db"
 
 type BibleStore struct {
-	db *pgxpool.Pool
+	db db.DB
 }
 
-func NewBibleStore(db *pgxpool.Pool) *BibleStore {
+func NewBibleStore(db db.DB) *BibleStore {
 	return &BibleStore{db}
 }

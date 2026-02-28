@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"fmt"
 	"net/mail"
 	"time"
 
@@ -14,7 +13,7 @@ import (
 )
 
 type AuthServices interface {
-	SendVerification(shortToken, longToken string, u *auth.UserModel)
+	SendVerification(shortToken, longToken string, u *auth.UserModel) error
 }
 
 type ProductionAuthServices struct {
@@ -142,8 +141,8 @@ func (s *Services) RequestSignupVerificationTokens(ctx context.Context, ip strin
 	return nil
 }
 
-func (ProductionAuthServices) SendVerification(shortToken, longToken string, u *auth.UserModel) {
-	fmt.Printf("Hi %s, please verify email %s with short token %sor long token %s\n", u.Name, u.Email, shortToken, longToken)
+func (ProductionAuthServices) SendVerification(shortToken, longToken string, u *auth.UserModel) error {
+	return sendSignupMail(shortToken, longToken, u)
 }
 
 func (s *Services) CheckLongVerificationToken(ctx context.Context, ip, token string) error {

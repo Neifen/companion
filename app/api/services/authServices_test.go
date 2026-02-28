@@ -16,9 +16,11 @@ type MockAuthServices struct{}
 var longVerificationToken string
 var shortVerificationToken string
 
-func (MockAuthServices) SendVerification(shortToken, longToken string, u *auth.UserModel) {
+func (MockAuthServices) SendVerification(shortToken, longToken string, u *auth.UserModel) error {
 	longVerificationToken = longToken
 	shortVerificationToken = shortToken
+
+	return nil
 }
 
 func TestCrudUser(t *testing.T) {

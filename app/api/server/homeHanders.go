@@ -11,8 +11,16 @@ import (
 	"github.com/neifen/htmx-login/app/view"
 )
 
+func ctxUser(c echo.Context) *userReq {
+	var u *userReq
+	if temp := c.Get("u"); temp != nil {
+		u = temp.(*userReq)
+	}
+	return u
+}
+
 func (s *HandlerSession) handleGetHome(c echo.Context) error {
-	u := c.Get("u").(*userReq)
+	u := ctxUser(c)
 	return s.viewHome(c, u)
 }
 
@@ -66,7 +74,7 @@ func (s *HandlerSession) viewHome(c echo.Context, u *userReq) error {
 
 // e.GET("/track-before/:date", s.handleGetBeforeItem, pasetoMiddleOpt())
 func (s *HandlerSession) handleGetBeforeItem(c echo.Context) error {
-	u := c.Get("u").(*userReq)
+	u := ctxUser(c)
 	date, err := time.Parse("January 2, 2006", c.Param("date"))
 	if err != nil {
 		fmt.Println(err)
@@ -85,7 +93,7 @@ func (s *HandlerSession) handleGetBeforeItem(c echo.Context) error {
 
 // e.GET("/track-after/:date", s.handleGetAfterItem, pasetoMiddleOpt())
 func (s *HandlerSession) handleGetAfterItem(c echo.Context) error {
-	u := c.Get("u").(*userReq)
+	u := ctxUser(c)
 	date, err := time.Parse("January 2, 2006", c.Param("date"))
 	if err != nil {
 		fmt.Println(err)
@@ -104,7 +112,7 @@ func (s *HandlerSession) handleGetAfterItem(c echo.Context) error {
 
 // e.POST("/check-trackeditem/:itemId/:checked", s.handleCheckTrackeItem)
 func (s *HandlerSession) handleCheckTrackeItem(c echo.Context) error {
-	u := c.Get("u").(*userReq)
+	u := ctxUser(c)
 	itemID, err := strconv.ParseInt(c.Param("itemId"), 10, 64)
 	if err != nil {
 		fmt.Println(err)
@@ -134,7 +142,7 @@ func (s *HandlerSession) handleCheckTrackeItem(c echo.Context) error {
 
 // e.GET("/plan-settings", s.handlePlanSettings)
 func (s *HandlerSession) handlePlanSettings(c echo.Context) error {
-	u := c.Get("u").(*userReq)
+	u := ctxUser(c)
 	if u == nil {
 		return view.ErrorHTML(c, "not logged in")
 	}
@@ -154,7 +162,7 @@ func (s *HandlerSession) handleDeletePlanConfirm(c echo.Context) error {
 
 // e.POST("/plan-settings/delete-plan", s.handleDeletePlan, pasetoMiddle())
 func (s *HandlerSession) handleDeletePlan(c echo.Context) error {
-	u := c.Get("u").(*userReq)
+	u := ctxUser(c)
 	if u == nil {
 		return view.ErrorHTML(c, "not logged in")
 	}
@@ -214,7 +222,7 @@ func (s *HandlerSession) handleJoinPlanConfirm(c echo.Context) error {
 // e.POST("/join-plan/:planId/:start/:end", s.handleJoinPlan, pasetoMiddle())
 func (s *HandlerSession) handleJoinPlan(c echo.Context) error {
 	// todo change all
-	u := c.Get("u").(*userReq)
+	u := ctxUser(c)
 	if u == nil {
 		return view.ErrorHTML(c, "not logged in")
 	}
@@ -302,7 +310,7 @@ func (s *HandlerSession) handleMoveEndPopup(c echo.Context) error {
 
 // e.GET("/reset-plan", s.moveStart, pasetoMiddle())?moveEnd
 func (s *HandlerSession) moveStart(c echo.Context) error {
-	u := c.Get("u").(*userReq)
+	u := ctxUser(c)
 	start := c.Param("start")
 
 	moveEndRaw := c.QueryParam("moveEnd")
@@ -325,7 +333,7 @@ func (s *HandlerSession) moveStart(c echo.Context) error {
 
 // e.POST("/move-end/:end", s.moveEnd, pasetoMiddle())?resetStart
 func (s *HandlerSession) moveEnd(c echo.Context) error {
-	u := c.Get("u").(*userReq)
+	u := ctxUser(c)
 	end := c.Param("end")
 	resetStartRaw := c.QueryParam("resetStart")
 	resetStart, err := strconv.ParseBool(resetStartRaw)

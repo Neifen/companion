@@ -27,7 +27,7 @@ func userFromToken(c echo.Context) (*userReq, error) {
 	if err != nil {
 		_, errRef := c.Cookie("refresh")
 		if errRef != nil {
-			fmt.Printf("No access nor refresh token -> login %+v", errRef)
+			fmt.Printf("No access nor refresh token -> login \n%+v\n", errRef)
 			return nil, nil
 		}
 

@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/neifen/htmx-login/app/api/crypto"
+	"github.com/neifen/companion/app/api/crypto"
 	"github.com/pkg/errors"
 )
 

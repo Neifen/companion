@@ -6,8 +6,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
-	"github.com/neifen/htmx-login/app/api/services"
-	"github.com/neifen/htmx-login/app/api/storage"
+	"github.com/neifen/companion/app/api/services"
+	"github.com/neifen/companion/app/api/storage"
 )
 
 type APIServer struct {

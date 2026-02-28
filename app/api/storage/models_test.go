@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/neifen/htmx-login/app/api/crypto"
-	"github.com/neifen/htmx-login/app/api/storage/auth"
+	"github.com/neifen/companion/app/api/crypto"
+	"github.com/neifen/companion/app/api/storage/auth"
 )
 
 func TestNewUserModel(t *testing.T) {

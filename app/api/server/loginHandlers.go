@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"net/http"
 
-	view2 "github.com/neifen/htmx-login/app/view"
+	view2 "github.com/neifen/companion/app/view"
 
 	"github.com/pkg/errors"
 
 	"github.com/labstack/echo/v4"
-	"github.com/neifen/htmx-login/app/api/crypto"
-	"github.com/neifen/htmx-login/app/api/logging"
-	"github.com/neifen/htmx-login/app/api/services"
-	"github.com/neifen/htmx-login/app/api/storage/auth"
+	"github.com/neifen/companion/app/api/crypto"
+	"github.com/neifen/companion/app/api/logging"
+	"github.com/neifen/companion/app/api/services"
+	"github.com/neifen/companion/app/api/storage/auth"
 )
 
 type HandlerSession struct {

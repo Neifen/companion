@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/neifen/htmx-login/app/api/storage/bible"
+	"github.com/neifen/companion/app/api/storage/bible"
 )
 
 func TestParseVerse(t *testing.T) {

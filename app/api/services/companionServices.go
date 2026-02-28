@@ -9,7 +9,7 @@ import (
 	"github.com/gomarkdown/markdown/html"
 	"github.com/gomarkdown/markdown/parser"
 	"github.com/microcosm-cc/bluemonday"
-	"github.com/neifen/htmx-login/app/api/storage/companions"
+	"github.com/neifen/companion/app/api/storage/companions"
 	"github.com/pkg/errors"
 )
 

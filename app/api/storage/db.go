@@ -8,13 +8,13 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/neifen/htmx-login/app/api/storage/auth"
-	"github.com/neifen/htmx-login/app/api/storage/bible"
-	"github.com/neifen/htmx-login/app/api/storage/companions"
-	"github.com/neifen/htmx-login/app/api/storage/db"
-	"github.com/neifen/htmx-login/app/api/storage/iptracking"
-	"github.com/neifen/htmx-login/app/api/storage/plans"
-	"github.com/neifen/htmx-login/app/api/storage/tracking"
+	"github.com/neifen/companion/app/api/storage/auth"
+	"github.com/neifen/companion/app/api/storage/bible"
+	"github.com/neifen/companion/app/api/storage/companions"
+	"github.com/neifen/companion/app/api/storage/db"
+	"github.com/neifen/companion/app/api/storage/iptracking"
+	"github.com/neifen/companion/app/api/storage/plans"
+	"github.com/neifen/companion/app/api/storage/tracking"
 	"github.com/pkg/errors"
 )
 

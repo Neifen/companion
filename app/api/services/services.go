@@ -1,7 +1,7 @@
 package services
 
 import (
-	"github.com/neifen/htmx-login/app/api/storage"
+	"github.com/neifen/companion/app/api/storage"
 )
 
 // Close DO NOT CALL THIS OTHER THAN AT END OF TEST OR MAIN

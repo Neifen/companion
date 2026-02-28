@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neifen/htmx-login/app/api/storage/bible"
-	"github.com/neifen/htmx-login/app/api/storage/plans"
+	"github.com/neifen/companion/app/api/storage/bible"
+	"github.com/neifen/companion/app/api/storage/plans"
 	"github.com/pkg/errors"
 )
 

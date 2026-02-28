@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/neifen/htmx-login/app/api/crypto"
+	"github.com/neifen/companion/app/api/crypto"
 	"github.com/pkg/errors"
 )
 

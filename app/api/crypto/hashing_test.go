@@ -1,10 +1,9 @@
 package crypto
 
 import (
-	"slices"
 	"testing"
 
-	"golang.org/x/crypto/sha3"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func TestHashPassword(t *testing.T) {
@@ -15,13 +14,9 @@ func TestHashPassword(t *testing.T) {
 		t.Fatalf("Hashing failed %+v", err)
 	}
 
-	sh := sha3.New256()
-	sh.Write([]byte(inputPw))
-
-	expected := sh.Sum(nil)
-
-	if !slices.Equal(expected, pw) {
-		t.Errorf(`HashPassword(%q) = %q, expected %q`, inputPw, pw, expected)
+	err = bcrypt.CompareHashAndPassword(pw, []byte(inputPw))
+	if err != nil {
+		t.Fatalf("error with comparing pw: \n%+v\n", err)
 	}
 }
 
@@ -33,13 +28,9 @@ func TestHashPasswordEmpty(t *testing.T) {
 		t.Fatalf("Hashing failed %+v", err)
 	}
 
-	sh := sha3.New256()
-	sh.Write([]byte(inputPw))
-
-	expected := sh.Sum(nil)
-
-	if !slices.Equal(expected, pw) {
-		t.Errorf(`HashPassword(%q) = %q, expected %q`, inputPw, pw, expected)
+	err = bcrypt.CompareHashAndPassword(pw, []byte(inputPw))
+	if err != nil {
+		t.Fatalf("error with comparing pw: \n%+v\n", err)
 	}
 }
 
@@ -51,12 +42,8 @@ func TestHashPasswordEmojis(t *testing.T) {
 		t.Fatalf("Hashing failed %+v", err)
 	}
 
-	sh := sha3.New256()
-	sh.Write([]byte(inputPw))
-
-	expected := sh.Sum(nil)
-
-	if !slices.Equal(expected, pw) {
-		t.Errorf(`HashPassword(%q) = %q, expected %q`, inputPw, pw, expected)
+	err = bcrypt.CompareHashAndPassword(pw, []byte(inputPw))
+	if err != nil {
+		t.Fatalf("error with comparing pw: \n%+v\n", err)
 	}
 }

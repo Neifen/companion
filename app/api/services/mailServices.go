@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/neifen/htmx-login/app/api/storage/auth"
+	"github.com/neifen/companion/app/api/storage/auth"
 	"github.com/pkg/errors"
 	"github.com/resend/resend-go/v3"
 )

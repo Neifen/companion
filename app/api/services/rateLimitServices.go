@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/neifen/htmx-login/app/api/storage/iptracking"
+	"github.com/neifen/companion/app/api/storage/iptracking"
 	"github.com/pkg/errors"
 )
 

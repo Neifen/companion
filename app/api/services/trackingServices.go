@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/neifen/htmx-login/app/api/storage/tracking"
+	"github.com/neifen/companion/app/api/storage/tracking"
 	"github.com/pkg/errors"
 )
 

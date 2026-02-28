@@ -1,8 +1,8 @@
-package view //import github.com/neifen/htmx-login/app/view
+package view //import github.com/neifen/companion/app/view
 
 import "github.com/labstack/echo/v4"
 import "fmt"
-import "github.com/neifen/htmx-login/app/entities"
+import "github.com/neifen/companion/app/entities"
 
 func HomeHTMLReplace(c echo.Context, bible *entities.TrackedBible, u *entities.ViewUser, welcome bool) error {
 	return ReplaceUrl("/", c, home(bible, u, welcome))

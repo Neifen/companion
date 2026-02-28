@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neifen/htmx-login/app/api/services"
-	"github.com/neifen/htmx-login/app/api/storage/auth"
+	"github.com/neifen/companion/app/api/services"
+	"github.com/neifen/companion/app/api/storage/auth"
 	"github.com/pkg/errors"
 )
 

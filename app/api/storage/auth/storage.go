@@ -2,7 +2,7 @@
 package auth
 
 import (
-	"github.com/neifen/htmx-login/app/api/storage/db"
+	"github.com/neifen/companion/app/api/storage/db"
 )
 
 type AuthStore struct {

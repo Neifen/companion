@@ -5,8 +5,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
-	"github.com/neifen/htmx-login/app/api/crypto"
-	"github.com/neifen/htmx-login/app/api/storage/auth"
+	"github.com/neifen/companion/app/api/crypto"
+	"github.com/neifen/companion/app/api/storage/auth"
 	"github.com/pkg/errors"
 )
 

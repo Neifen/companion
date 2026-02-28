@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/neifen/htmx-login/app/api/storage/bible"
-	"github.com/neifen/htmx-login/app/api/storage/tracking"
-	"github.com/neifen/htmx-login/app/entities"
+	"github.com/neifen/companion/app/api/storage/bible"
+	"github.com/neifen/companion/app/api/storage/tracking"
+	"github.com/neifen/companion/app/entities"
 )
 
 func chapterModelToEntity(model []bible.ChapterModel) *entities.TrackedBible {

@@ -13,9 +13,9 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
-	"github.com/neifen/htmx-login/app/api/services"
-	"github.com/neifen/htmx-login/app/api/storage"
-	"github.com/neifen/htmx-login/app/api/storage/db"
+	"github.com/neifen/companion/app/api/services"
+	"github.com/neifen/companion/app/api/storage"
+	"github.com/neifen/companion/app/api/storage/db"
 	"github.com/pkg/errors"
 )
 

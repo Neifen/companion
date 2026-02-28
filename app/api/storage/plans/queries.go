@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/neifen/htmx-login/app/api/storage/bible"
+	"github.com/neifen/companion/app/api/storage/bible"
 	"github.com/pkg/errors"
 )
 

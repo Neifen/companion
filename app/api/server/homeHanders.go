@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/labstack/echo/v4"
-	"github.com/neifen/htmx-login/app/entities"
-	"github.com/neifen/htmx-login/app/view"
+	"github.com/neifen/companion/app/entities"
+	"github.com/neifen/companion/app/view"
 )
 
 func ctxUser(c echo.Context) *userReq {

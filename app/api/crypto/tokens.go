@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -8,7 +9,6 @@ import (
 
 	"aidanwoods.dev/go-paseto"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 )
 
 type AccessToken struct {
@@ -20,7 +20,7 @@ type AccessToken struct {
 func (t *AccessToken) UserID() (uuid.UUID, error) {
 	uid, err := t.Token.GetString("user-id")
 	if err != nil {
-		return uuid.Nil, errors.Wrapf(err, "crypto: token.getUserID")
+		return uuid.Nil, fmt.Errorf("crypto: token.getUserID %w", err)
 	}
 
 	return uuid.Parse(uid)
@@ -33,7 +33,7 @@ func encryptedKey(t paseto.Token) (string, error) {
 
 	secretKey, err := paseto.V4SymmetricKeyFromHex(priv)
 	if err != nil {
-		return "", errors.Wrap(err, "could not create private key")
+		return "", fmt.Errorf("could not create private key %w", err)
 	}
 
 	encrypted := t.V4Encrypt(secretKey, nil)
@@ -93,27 +93,31 @@ func (t *RefreshToken) AddToCookie() *http.Cookie {
 // For Accesstoken normally use public keys (asymetric encryption) are used so that thirdparties can also verify the token.
 // asymetric is slower but allows verification with public key.
 
+var ErrNoAccessToken = errors.New("no access token")
+var ErrInvalidAccessToken = errors.New("access token invalid")
+
 func ValidTokenFromCookies(cookie *http.Cookie) (*AccessToken, error) {
-	if cookie == nil {
-		return nil, fmt.Errorf("cannot validate token from cookie, cookie empty")
+	if cookie == nil || cookie.Value == "" {
+		return nil, ErrNoAccessToken
 	}
 
 	priv := os.Getenv("TOKEN_LOCAL_KEY")
 	symKey, err := paseto.V4SymmetricKeyFromHex(priv)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create private key")
+		return nil, fmt.Errorf("could not create private key %w", err)
 	}
 
 	parser := paseto.NewParser()
 	token, err := parser.ParseV4Local(symKey, cookie.Value, nil)
 	if err != nil {
-		return nil, errors.Wrapf(err, "token invalid (expiration: %s)", cookie.Expires)
+		err = fmt.Errorf("token invalid (expiration %s): %w", cookie.Expires, err)
+		return nil, errors.Join(err, ErrInvalidAccessToken)
 	}
 
 	// token.GetExpiration loses some very detailed info, but cookie doesn't seem to have them at all
 	exp, err := token.GetExpiration()
 	if err != nil {
-		return nil, errors.Wrapf(err, "token without expiration date")
+		return nil, errors.Join(err, ErrInvalidAccessToken)
 	}
 	return &AccessToken{Token: *token, Expiration: exp, Encrypted: cookie.Value}, nil
 }
@@ -132,7 +136,7 @@ func NewAccessToken(uid uuid.UUID) (*AccessToken, error) {
 
 	symKey, err := encryptedKey(token)
 	if err != nil {
-		return nil, errors.Wrap(err, "could not create symetric key for new refresh token")
+		return nil, fmt.Errorf("could not create symetric key for new refresh token %w", err)
 	}
 
 	return &AccessToken{

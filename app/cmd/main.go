@@ -1,33 +1,35 @@
 package main
 
 import (
-	"errors"
-	"log"
-
 	"github.com/joho/godotenv"
 	"github.com/neifen/companion/app/api/server"
 	"github.com/neifen/companion/app/api/services"
 	"github.com/neifen/companion/app/api/storage"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
+	// if I want it even faster
+	// zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+
 	// 1. load env variable
 	err := loadEnv()
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal().Err(err).Msg("failed to load environment variables")
 	}
 
 	store, _, err := storage.NewDB()
 	if err != nil {
 		// need to be able to set up db, otherwise fail
-		log.Fatal(err)
+		log.Err(err)
 	}
 	defer store.Close()
 
 	err = store.InitDB()
 	if err != nil {
 		// need to be able to set up db, otherwise fail
-		log.Fatalf("error Initializing: %+v", err)
+		log.Fatal().Err(err).Msg("failed to init db")
 	}
 
 	services := services.NewServicesProd(store)
@@ -43,7 +45,7 @@ func loadEnv() error {
 
 	err = godotenv.Load("/run/secrets/dot-env")
 	if err != nil {
-		return errors.New("error loading secret .env file")
+		return errors.Wrap(err, "error loading secret .env file")
 	}
 
 	return nil

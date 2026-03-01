@@ -553,7 +553,7 @@ type AuthResult struct {
 	Refresh *crypto.RefreshToken
 }
 
-func (s *Services) Authenticate(ctx context.Context, email, pw, ip string, remember bool) (*AuthResult, error) {
+func (s *Services) Authenticate(ctx context.Context, ip, email, pw string, remember bool) (*AuthResult, error) {
 	err := s.store.CreateTX(ctx)
 	defer s.store.RollbackTX(ctx)
 	if err != nil {

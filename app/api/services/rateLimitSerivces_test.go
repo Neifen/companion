@@ -26,7 +26,7 @@ func Test_RateLimitAuthenticationShort(t *testing.T) {
 	}
 
 	for i := range 9 {
-		a, err := testContext.serv.Authenticate(t.Context(), email, pw, ip, (i%2) == 0)
+		a, err := testContext.serv.Authenticate(t.Context(), ip, email, pw, (i%2) == 0)
 		if err != nil {
 			t.Fatalf("authentication failed with error %+v", err)
 		}
@@ -40,7 +40,7 @@ func Test_RateLimitAuthenticationShort(t *testing.T) {
 		}
 	}
 
-	a, err := testContext.serv.Authenticate(t.Context(), email, pw, ip, false)
+	a, err := testContext.serv.Authenticate(t.Context(), ip, email, pw, false)
 	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
 		t.Errorf("authentication was supposed to fail for 6th attempt with same ip")
 	}
@@ -65,13 +65,13 @@ func Test_RateLimitAuthenticationRotating(t *testing.T) {
 	}
 
 	for i := range 399 {
-		_, err := testContext.serv.Authenticate(t.Context(), fmt.Sprintf("%s%d", email, i), pw, ip, (i%2) == 0)
+		_, err := testContext.serv.Authenticate(t.Context(), ip, fmt.Sprintf("%s%d", email, i), pw, (i%2) == 0)
 		if err == nil || errors.Is(err, services.ErrIPRateLimit) {
 			t.Fatalf("authentication failed with error %+v", err)
 		}
 	}
 
-	a, err := testContext.serv.Authenticate(t.Context(), email, pw, ip, false)
+	a, err := testContext.serv.Authenticate(t.Context(), ip, email, pw, false)
 	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
 		t.Errorf("authentication was supposed to fail for 499th attempt with same ip")
 	}
@@ -325,7 +325,7 @@ func Test_RateLimitRefresh(t *testing.T) {
 		t.Fatalf("refresh failed with error %+v", err)
 	}
 
-	a, err := testContext.serv.Authenticate(t.Context(), email, pw, ip, false)
+	a, err := testContext.serv.Authenticate(t.Context(), ip, email, pw, false)
 	if err != nil {
 		t.Fatalf("refresh failed with error %+v", err)
 	}

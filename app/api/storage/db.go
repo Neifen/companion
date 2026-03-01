@@ -67,8 +67,6 @@ func (s *Storage) CommitTX(ctx context.Context) error {
 
 // Close DO NOT CALL THIS OTHER THAN AT END OF TEST OR MAIN
 func (s *Storage) Close() {
-	stat := s.pgx.Stat()
-	fmt.Printf("Total: %d, Idle: %d, Acquired: %d\n", stat.TotalConns(), stat.IdleConns(), stat.AcquiredConns())
 	s.pgx.Close()
 }
 
@@ -77,8 +75,7 @@ type Storage struct {
 	tx  pgx.Tx
 	db  db.DB
 
-	Auth *auth.AuthStore
-
+	Auth       *auth.AuthStore
 	Bible      *bible.BibleStore
 	Plans      *plans.PlansStore
 	Tracking   *tracking.TrackingStore

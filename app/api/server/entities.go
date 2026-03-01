@@ -1,13 +1,11 @@
 package server
 
 import (
-	"fmt"
-
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/neifen/companion/app/api/crypto"
 	"github.com/neifen/companion/app/api/storage/auth"
-	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 )
 
 type userReq struct {
@@ -22,27 +20,32 @@ func userFromModel(u *auth.UserModel) *userReq {
 	}
 }
 
-func userFromToken(c echo.Context) (*userReq, error) {
+func userFromToken(c echo.Context) *uuid.UUID {
 	cookie, err := c.Cookie("token")
 	if err != nil {
-		_, errRef := c.Cookie("refresh")
-		if errRef != nil {
-			fmt.Printf("No access nor refresh token -> login \n%+v\n", errRef)
-			return nil, nil
-		}
-
-		return nil, errors.Wrap(err, "access token removed, try refresh")
+		return nil
 	}
 
 	token, err := crypto.ValidTokenFromCookies(cookie)
 	if err != nil {
-		return nil, errors.Wrap(err, "getting user from cookies")
+		if err == crypto.ErrNoAccessToken || err == crypto.ErrInvalidAccessToken {
+			log.Info().Err(err)
+		} else {
+			log.Err(err).Msg("Get user from token, fatal error")
+		}
+		return nil
 	}
 
 	uid, err := token.UserID()
 	if err != nil {
-		return nil, errors.Wrap(err, "getting userID from token")
+		log.Err(err).Msg("Get user from token, fatal error")
+		return nil
 	}
 
-	return &userReq{name: "todo:find another way to get name", id: uid}, nil
+	return &uid
+}
+
+func canRefresh(c echo.Context) bool {
+	_, err := c.Cookie("refresh")
+	return err == nil
 }

@@ -116,7 +116,7 @@ func TestAuthentication(t *testing.T) {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	uResp, err := testContext.serv.Authenticate(t.Context(), "emailAuth@nate.ch", "pass", ip, false)
+	uResp, err := testContext.serv.Authenticate(t.Context(), ip, "emailAuth@nate.ch", "pass", false)
 	if err != nil {
 		t.Fatalf("failed to Authenticate with err %+v", err)
 	}
@@ -154,7 +154,7 @@ func TestAuthentication(t *testing.T) {
 		t.Errorf("expected encrypted share token to expire in 7d, instead was %s", uResp.Access.Expiration)
 	}
 
-	uResp, err = testContext.serv.Authenticate(t.Context(), "emailAuth@nate.ch", "pass", "192.168.1.2", true)
+	uResp, err = testContext.serv.Authenticate(t.Context(), "192.168.1.2", "emailAuth@nate.ch", "pass", true)
 	if err != nil {
 		t.Fatalf("failed to Authenticate with err %+v", err)
 	}
@@ -163,7 +163,7 @@ func TestAuthentication(t *testing.T) {
 		t.Errorf("expected encrypted share token to expire in 40d, instead was %s", uResp.Access.Expiration)
 	}
 
-	uResp, err = testContext.serv.Authenticate(t.Context(), "emaillAuth@nate.ch", "pass", "192.168.1.3", false)
+	uResp, err = testContext.serv.Authenticate(t.Context(), "192.168.1.3", "emaillAuth@nate.ch", "pass", false)
 	if err == nil {
 		t.Errorf("failed to produce error when authenticating with wrong email")
 	}
@@ -171,7 +171,7 @@ func TestAuthentication(t *testing.T) {
 		t.Errorf("failed to produce nil user when authenticating with wrong email")
 	}
 
-	uResp, err = testContext.serv.Authenticate(t.Context(), "emailAuth@nate.ch", "pass2", "192.168.1.4", false)
+	uResp, err = testContext.serv.Authenticate(t.Context(), "192.168.1.4", "emailAuth@nate.ch", "pass2", false)
 	if err == nil {
 		t.Errorf("failed to produce error when authenticating with wrong pass")
 	}
@@ -193,7 +193,7 @@ func TestRefreshToken(t *testing.T) {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	auth, err := testContext.serv.Authenticate(t.Context(), "emailRefresh@nate.ch", "pass", ip, false)
+	auth, err := testContext.serv.Authenticate(t.Context(), ip, "emailRefresh@nate.ch", "pass", false)
 	if err != nil {
 		t.Fatalf("failed to Authenticate with err %+v", err)
 	}
@@ -311,12 +311,12 @@ func Test_ChangePw(t *testing.T) {
 		t.Errorf("failed to change pw with old pw pass and new pw %s and err \n%+v\n", "newpassp", err)
 	}
 
-	_, err = testContext.serv.Authenticate(t.Context(), "changepw@nate.ch", "pass", ip, true)
+	_, err = testContext.serv.Authenticate(t.Context(), ip, "changepw@nate.ch", "pass", true)
 	if err == nil {
 		t.Errorf("expected error for signing up with old pw")
 	}
 
-	res, err := testContext.serv.Authenticate(t.Context(), "changepw@nate.ch", "newpassp", ip, true)
+	res, err := testContext.serv.Authenticate(t.Context(), ip, "changepw@nate.ch", "newpassp", true)
 	if err != nil {
 		t.Fatalf("failed to authenticate with new pw %s and err \n%+v\n", "newpass2", err)
 	}
@@ -341,13 +341,13 @@ func Test_SuspendedUser(t *testing.T) {
 	}
 
 	for i := range 6 {
-		_, err = testContext.serv.Authenticate(t.Context(), email, "pass2", fmt.Sprintf("%s%d", ip, i), true)
+		_, err = testContext.serv.Authenticate(t.Context(), fmt.Sprintf("%s%d", ip, i), email, "pass2", true)
 		if err == nil || errors.Is(err, services.ErrFailedLimit) {
 			t.Fatalf("authentication expected error %+v", err)
 		}
 	}
 
-	_, err = testContext.serv.Authenticate(t.Context(), email, "pass", ip, true)
+	_, err = testContext.serv.Authenticate(t.Context(), ip, email, "pass", true)
 	if err == nil || !errors.Is(err, services.ErrFailedLimit) {
 		t.Fatalf("authentication expected error with pw %s and err \n%+v\n", "newpass2", err)
 	}

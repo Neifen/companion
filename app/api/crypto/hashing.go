@@ -8,6 +8,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/sha3"
 )
@@ -25,6 +26,8 @@ func HashPassword(pw string) ([]byte, error) {
 func CheckPassword(pw string, hash []byte) bool {
 
 	err := bcrypt.CompareHashAndPassword(hash, []byte(pw))
+	b, _ := HashPassword(pw)
+	log.Debug().Err(err).Bytes("pw", b).Msg("check password didnt work, should be")
 	return err == nil
 }
 

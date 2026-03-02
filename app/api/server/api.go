@@ -60,23 +60,31 @@ func (api *APIServer) Run() {
 	e.POST("/move-start/:start", s.moveStart, s.authorizeToken) // ?moveEnd
 	e.POST("/move-end/:end", s.moveEnd, s.authorizeToken)       // ?resetStart
 
+	// settings
+	// e.GET("/edit-user", s.editUser)
+	// e.POST("/edit-user", s.editUser)
+
 	// login
 	e.GET("/login", s.handleGetLogin, s.guestOnly)
 	e.POST("/login", s.handlePostLogin, s.guestOnly)
 
-	e.GET("/signup", s.handleGetSignup, s.guestOnly)
-	e.POST("/signup", s.handlePostSignup, s.guestOnly)
-	//e.GET("/verify_signup", s.handleGetVerifySignup) // todo
+	// verifications
+	e.GET("/signup", s.getSignup, s.guestOnly)                           // todo - gets the signup page
+	e.POST("/signup", s.signupForm, s.guestOnly)                         // todo - send signup form
+	e.GET("/verify-signup", s.getVerify, s.authorizeTokenOptional)       // todo - verify long token
+	e.POST("/verify-signup", s.verifyShort, s.authorizeToken)            // todo - verify short token
+	e.POST("/renew-signup-token", s.renewSignupTokens, s.authorizeToken) // todo - renew the tokens
 
-	e.POST("/token/logout", s.handlePostLogout) //to be able to access refresh token
+	// e.GET("/recovery", s.handleGetRecovery, s.guestOnly)
+	// e.POST("/recovery", s.handleRecovery, s.guestOnly)                    // todo - send signup form
+	// e.GET("/verify-recovery", s.handleGetVerifySignup, s.guestOnly)       // todo - verify long token
+	// e.POST("/verify-recovery", s.handleGetVerifySignup, s.guestOnly)      // todo - verify short token
+	// e.POST("/renew-recovery-token", s.handleGetVerifySignup, s.guestOnly) // todo - renew the tokens
 
-	e.GET("/recovery", s.handleGetRecovery)
-	// e.GET("/reset_password", s.handleGetPasswordReset) //fixme
-	// e.POST("/reset_password", s.handlePostPasswordReset) //TODO
-
-	// need
+	// todo: not needed anymore
 	e.POST("/token/refresh", s.handleTokenRefresh)
 	e.GET("/token/refresh", s.handleTokenRefresh)
+	e.POST("/token/logout", s.handlePostLogout) //to be able to access refresh token
 
 	//e.Use(authorizeToken())
 	//e.GET(HOME_PATH, s.handleGetHome, authorizeToken())

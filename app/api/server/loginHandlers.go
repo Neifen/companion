@@ -42,7 +42,7 @@ func (s *HandlerSession) handlePostLogin(c echo.Context) error {
 		return redirectToLogin(c)
 	}
 
-	tokenToCookie(*u.Access, *u.Refresh, c)
+	tokenToCookie(u.Access, u.Refresh, c)
 	userReq := userFromModel(u.User)
 
 	return s.replaceHome(c, userReq)
@@ -76,7 +76,7 @@ func (s *HandlerSession) subHandleTokenRefresh(c echo.Context) error {
 		errors.WithMessagef(err, "api: refresh token")
 	}
 
-	tokenToCookie(*auth.Access, *auth.Refresh, c)
+	tokenToCookie(auth.Access, auth.Refresh, c)
 
 	returnURL := c.QueryParam("return")
 	if returnURL != "" {
@@ -104,7 +104,7 @@ func (s *HandlerSession) refreshToken(c echo.Context) (*uuid.UUID, error) {
 	}
 
 	//todo: check if that works
-	tokenToCookie(*auth.Access, *auth.Refresh, c)
+	tokenToCookie(auth.Access, auth.Refresh, c)
 	return &auth.User.ID, nil
 }
 
@@ -116,7 +116,7 @@ func redirectToTokenRefresh(c echo.Context) error {
 	return c.String(http.StatusUnauthorized, "Unauthorized")
 }
 
-func tokenToCookie(token crypto.AccessToken, refresh crypto.RefreshToken, c echo.Context) {
+func tokenToCookie(token *crypto.AccessToken, refresh *crypto.RefreshToken, c echo.Context) {
 	tokenC := token.AddToCookie()
 	c.SetCookie(tokenC)
 
@@ -157,12 +157,36 @@ func (s *HandlerSession) handleGetRecovery(c echo.Context) error {
 	return view.RenderView(c, child)
 }
 
-func (s *HandlerSession) handleGetSignup(c echo.Context) error {
+func (s *HandlerSession) getSignup(c echo.Context) error {
 	child := view.Signup()
 	return view.RenderView(c, child)
 }
 
-func (s *HandlerSession) handlePostSignup(c echo.Context) error {
+func (s *HandlerSession) getVerify(c echo.Context) error {
+	longToken := c.QueryParam("ltoken")
+	if longToken == "" {
+		return s.renderVerify(c)
+	}
+
+	ip := c.RealIP()
+	ctx := c.Request().Context()
+	u, err := s.services.CheckLongVerificationToken(ctx, ip, longToken)
+	if err != nil {
+		//todo: show error
+		return s.renderVerify(c)
+	}
+
+	uq := userFromModel(u)
+	// todo: go to welcome page
+	return s.replaceHome(c, uq)
+}
+
+func (s *HandlerSession) renderVerify(c echo.Context) error {
+	child := view.Verify()
+	return view.RenderView(c, child)
+}
+
+func (s *HandlerSession) signupForm(c echo.Context) error {
 	email := c.FormValue("email")
 	pw := c.FormValue("password")
 	name := c.FormValue("name")
@@ -171,47 +195,77 @@ func (s *HandlerSession) handlePostSignup(c echo.Context) error {
 	if err != nil {
 		log.Err(err)
 		// todo show error
-		return s.handleGetSignup(c)
+		return s.getSignup(c)
 	}
 
-	err = s.services.NewUser(c.Request().Context(), c.RealIP(), u)
+	ctx := c.Request().Context()
+	ip := c.RealIP()
+
+	err = s.services.NewUser(ctx, ip, u)
 	if err != nil {
 		log.Err(err)
 		// todo show error
-		return s.handleGetSignup(c)
+		return s.getSignup(c)
 	}
 
-	//todo success
-	return redirectToLogin(c)
+	access, err := s.services.CreateAccessToken(u.ID)
+	if err != nil {
+		log.Err(err)
+		// todo show error
+		return redirectToLogin(c)
+	}
+
+	refresh, err := s.services.CreateRefreshToken(ctx, u.ID, false)
+	if err != nil {
+		log.Err(err)
+		// todo show error
+		return redirectToLogin(c)
+	}
+
+	tokenToCookie(access, refresh, c)
+	return s.getVerify(c)
 }
 
-//func (s *HandlerSession) handleGetVerifySignup(c echo.Context) error {
-//	if u := userFromToken(c); u.isLoggedIn {
-//		return s.redirectToHome(c, u)
-//	}
-//
-//	key := c.FormValue("key")
-//
-//	//todo
-//	// - create a table that links user to unencrypted key, with expiration. Set user to unidentified (add column)
-//	// - in sign up, create new item
-//	// - decrypt key, find item
-//	// - get user from that, set user to identified
-//	// - remove signup verification row
-//	// - logged in, redirect
-//
-//	u := storage.NewUserModel(name, email, pw)
-//	err := s.store.CreateUser(u)
-//
-//	if err != nil {
-//		logging.Error(err)
-//		// todo show error
-//		return s.handleGetSignup(c)
-//	}
-//
-//	//todo success
-//	return s.redirectToLogin(c)
-//}
+func (s *HandlerSession) verifyShort(c echo.Context) error {
+	shortToken := c.FormValue("stoken")
+	if shortToken == "" {
+		return s.renderVerify(c)
+	}
+
+	uid := userFromToken(c)
+
+	ip := c.RealIP()
+	ctx := c.Request().Context()
+	u, err := s.services.CheckShortVerificationToken(ctx, ip, shortToken, *uid)
+	if err != nil {
+		//todo: show error
+		return s.renderVerify(c)
+	}
+
+	uq := userFromModel(u)
+	// todo: go to welcome page
+	return s.replaceHome(c, uq)
+}
+
+func (s *HandlerSession) renewSignupTokens(c echo.Context) error {
+	uid := userFromToken(c)
+	ip := c.RealIP()
+	ctx := c.Request().Context()
+
+	u, err := s.services.GetUserByID(ctx, *uid)
+	if err != nil {
+		//todo: show error
+		return redirectToLogin(c)
+	}
+
+	err = s.services.RequestSignupVerificationTokens(ctx, ip, u)
+	if err != nil {
+		//todo: show error
+		return redirectToLogin(c)
+	}
+
+	return s.renderVerify(c)
+}
 
 func redirectToLogin(c echo.Context) error {
 	child := view.Login()

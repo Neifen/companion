@@ -223,9 +223,13 @@ func Test_ShortSignupVerification(t *testing.T) {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	err = testContext.serv.CheckShortVerificationToken(t.Context(), ip, email, shortVerificationToken)
+	ures, err := testContext.serv.CheckShortVerificationToken(t.Context(), ip, shortVerificationToken, u.ID)
 	if err != nil {
 		t.Errorf("failed to check Verification with token %s and err \n%+v\n", shortVerificationToken, err)
+	}
+
+	if ures.ID != u.ID {
+		t.Fatalf("User long verification expected %+v but was %+v", u, ures)
 	}
 	//todo: add account state: UNVERIFIED, VERIFIED, SUSPENDED, DELETED
 }
@@ -243,9 +247,13 @@ func Test_LongSignupVerification(t *testing.T) {
 		t.Fatalf("failed to create user with err \n%+v\n", err)
 	}
 
-	err = testContext.serv.CheckLongVerificationToken(t.Context(), ip, longVerificationToken)
+	ures, err := testContext.serv.CheckLongVerificationToken(t.Context(), ip, longVerificationToken)
 	if err != nil {
 		t.Errorf("failed to check Verification with token %s and err \n%+v\n", longVerificationToken, err)
+	}
+
+	if ures.ID != u.ID {
+		t.Fatalf("User long verification expected %+v but was %+v", u, ures)
 	}
 	//todo: add account state: UNVERIFIED, VERIFIED, SUSPENDED, DELETED
 }
@@ -281,7 +289,7 @@ func Test_ResetPw(t *testing.T) {
 		t.Fatalf("failed to check Verification with token %s and err \n%+v\n", shortVerificationToken, err)
 	}
 
-	res, err := testContext.serv.Authenticate(ctx, email, "newpass2", ip, true)
+	res, err := testContext.serv.Authenticate(ctx, ip, email, "newpass2", true)
 	if err != nil {
 		t.Fatalf("failed to authenticate with new pw %s and err \n%+v\n", "newpass2", err)
 	}
@@ -376,20 +384,20 @@ func Test_SuspendedVerification(t *testing.T) {
 	}
 
 	for range 5 {
-		err = testContext.serv.CheckShortVerificationToken(ctx, ip, email, "falseToken")
+		_, err = testContext.serv.CheckShortVerificationToken(ctx, ip, "falseToken", u.ID)
 		if err == nil || errors.Is(err, services.ErrFailedLimit) {
 			t.Fatalf("authentication expected error %+v", err)
 		}
 	}
 
-	err = testContext.serv.CheckShortVerificationToken(ctx, ip, email, shortUserVer)
+	_, err = testContext.serv.CheckShortVerificationToken(ctx, ip, shortUserVer, u.ID)
 	if err == nil || !errors.Is(err, services.ErrFailedLimit) {
 		t.Fatalf("authentication expected error with pw %s and err \n%+v\n", "newpass2", err)
 	}
 
 	ip = "192.168.1.9"
 
-	err = testContext.serv.CheckLongVerificationToken(ctx, ip, longUserVer)
+	_, err = testContext.serv.CheckLongVerificationToken(ctx, ip, longUserVer)
 	if err == nil || !errors.Is(err, services.ErrFailedLimit) {
 		t.Fatalf("authentication expected error with pw %s and err \n%+v\n", "newpass2", err)
 	}
@@ -421,8 +429,13 @@ func Test_VerificationSignup(t *testing.T) {
 		t.Fatalf("new User failed with error %+v", err)
 	}
 
-	if err := testContext.serv.CheckLongVerificationToken(ctx, ip, longVerificationToken); err != nil {
+	ures, err := testContext.serv.CheckLongVerificationToken(ctx, ip, longVerificationToken)
+	if err != nil {
 		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	if ures.ID != u.ID {
+		t.Fatalf("User long verification expected %+v but was %+v", u, ures)
 	}
 
 	err = testContext.serv.RequestSignupVerificationTokens(ctx, ip, u)
@@ -430,7 +443,12 @@ func Test_VerificationSignup(t *testing.T) {
 		t.Errorf("request signup verification token was supposed to fail for second password reset request in 5mins")
 	}
 
-	if err := testContext.serv.CheckLongVerificationToken(ctx, ip, longVerificationToken); err != nil {
+	ures, err = testContext.serv.CheckLongVerificationToken(ctx, ip, longVerificationToken)
+	if err != nil {
 		t.Fatalf("new User failed with error %+v", err)
+	}
+
+	if ures.ID != u.ID {
+		t.Fatalf("User short verification expected %+v but was %+v", u, ures)
 	}
 }

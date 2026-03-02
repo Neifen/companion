@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"net/mail"
 	"time"
 
@@ -145,74 +146,79 @@ func (ProductionAuthServices) SendVerification(shortToken, longToken string, u *
 	return sendSignupMail(shortToken, longToken, u)
 }
 
-func (s *Services) CheckLongVerificationToken(ctx context.Context, ip, token string) error {
+func (s *Services) CheckLongVerificationToken(ctx context.Context, ip, token string) (*auth.UserModel, error) {
 	err := s.store.CreateTX(ctx)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Check Long Verification Token")
+		return nil, fmt.Errorf("auth service: Check Long Verification Token %w", err)
 	}
 	defer s.store.RollbackTX(ctx)
 
 	err = s.ipRateLimit(ctx, ip, iptracking.Verification)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Check Long Verification Token")
+		return nil, fmt.Errorf("auth service: Check Long Verification Token %w", err)
 	}
 
 	hashed, err := crypto.HashToken(token)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Check Long Verification Token")
+		return nil, fmt.Errorf("auth service: Check Long Verification Token %w", err)
 	}
 
 	verification, err := s.store.Auth.ReadVerification(ctx, hashed)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Check Long Verification Token")
+		return nil, fmt.Errorf("auth service: Check Long Verification Token %w", err)
 	}
 
 	uid, err := s.verifyToken(ctx, verification, uuid.Nil, auth.PurposeSignup)
 	if err != nil {
 		// no Attempt count possible with long token -> need to rely on ip tracker
-		return errors.WithMessage(err, "auth service: Check Long Verification Token")
+		return nil, fmt.Errorf("auth service: Check Long Verification Token %w", err)
 	}
 
 	now := time.Now()
 	verification.Consumed = &now
 	err = s.store.Auth.ConsumeVerification(ctx, verification)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Check Long Verification Token")
+		return nil, fmt.Errorf("auth service: Check Long Verification Token %w", err)
 	}
 
 	err = s.store.Auth.UserVerified(ctx, uid)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Check Long Verification Token")
+		return nil, fmt.Errorf("auth service: Check Long Verification Token %w", err)
+	}
+
+	u, err := s.store.Auth.ReadUserByUID(ctx, uid)
+	if err != nil {
+		return nil, fmt.Errorf("auth service: Check Long Verification Token %w", err)
 	}
 
 	err = s.store.CommitTX(ctx)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Check Long Verification Token")
+		return nil, fmt.Errorf("auth service: Check Long Verification Token %w", err)
 	}
 
-	return nil
+	return u, nil
 }
 
-func (s *Services) CheckShortVerificationToken(ctx context.Context, ip, email, token string) error {
+func (s *Services) CheckShortVerificationToken(ctx context.Context, ip, token string, uid uuid.UUID) (*auth.UserModel, error) {
 	err := s.store.CreateTX(ctx)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Check Short Verification Token")
+		return nil, fmt.Errorf("auth service: Check Short Verification Token %w", err)
 	}
 	defer s.store.RollbackTX(ctx)
 
 	err = s.ipRateLimit(ctx, ip, iptracking.Verification)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Check Short Verification Token")
+		return nil, fmt.Errorf("auth service: Check Short Verification Token %w", err)
 	}
 
-	u, err := s.store.Auth.ReadUserByEmail(ctx, email)
+	u, err := s.store.Auth.ReadUserByUID(ctx, uid)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Check Short Verification Token")
+		return nil, fmt.Errorf("auth service: Check Short Verification Token %w", err)
 	}
 
 	err = s.ipUserRateLimit(ctx, ip, u.ID, iptracking.Verification)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Check Short Verification Token")
+		return nil, fmt.Errorf("auth service: Check Short Verification Token %w", err)
 	}
 
 	hashed := crypto.HashCode(token)
@@ -220,40 +226,40 @@ func (s *Services) CheckShortVerificationToken(ctx context.Context, ip, email, t
 	if err != nil {
 		s.store.Auth.AddVerificationAttempt(ctx, u.ID)
 		if err := s.store.CommitTX(ctx); err != nil {
-			return errors.WithMessage(err, "auth service: Check Short Verification Token")
+			return nil, fmt.Errorf("auth service: Check Short Verification Token %w", err)
 		}
 
-		return errors.WithMessage(err, "auth service: Check Short Verification Token")
+		return nil, fmt.Errorf("auth service: Check Short Verification Token %w", err)
 	}
 
 	_, err = s.verifyToken(ctx, verification, u.ID, auth.PurposeSignup)
 	if err != nil {
 		s.store.Auth.AddVerificationAttempt(ctx, u.ID)
 		if err := s.store.CommitTX(ctx); err != nil {
-			return errors.WithMessage(err, "auth service: Check Short Verification Token")
+			return nil, fmt.Errorf("auth service: Check Short Verification Token %w", err)
 		}
 
-		return errors.WithMessage(err, "auth service: Check Short Verification Token")
+		return nil, fmt.Errorf("auth service: Check Short Verification Token %w", err)
 	}
 
 	now := time.Now()
 	verification.Consumed = &now
 	err = s.store.Auth.ConsumeVerification(ctx, verification)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Check Short Verification Token")
+		return nil, fmt.Errorf("auth service: Check Short Verification Token %w", err)
 	}
 
 	err = s.store.Auth.UserVerified(ctx, u.ID)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Check Short Verification Token")
+		return nil, fmt.Errorf("auth service: Check Short Verification Token %w", err)
 	}
 
 	err = s.store.CommitTX(ctx)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Check Short Verification Token")
+		return nil, fmt.Errorf("auth service: Check Short Verification Token %w", err)
 	}
 
-	return nil
+	return u, nil
 }
 
 func (s *Services) verifyToken(ctx context.Context, verification *auth.VerificationTokenModel, uid uuid.UUID, purpose auth.VerificationPurpose) (uuid.UUID, error) {

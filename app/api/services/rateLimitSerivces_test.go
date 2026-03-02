@@ -96,13 +96,13 @@ func Test_RateLimitSignupShort(t *testing.T) {
 	}
 
 	for range 6 {
-		err := testContext.serv.CheckShortVerificationToken(t.Context(), ip, email, shortVerificationToken)
+		_, err := testContext.serv.CheckShortVerificationToken(t.Context(), ip, shortVerificationToken, u.ID)
 		if err != nil || errors.Is(err, services.ErrIPRateLimit) {
 			t.Fatalf("authentication failed with error %+v", err)
 		}
 	}
 
-	err = testContext.serv.CheckShortVerificationToken(t.Context(), ip, email, shortVerificationToken)
+	_, err = testContext.serv.CheckShortVerificationToken(t.Context(), ip, shortVerificationToken, u.ID)
 	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
 		t.Errorf("authentication was supposed to fail for 6th attempt with same ip")
 	}
@@ -123,14 +123,14 @@ func Test_RateLimitSignupShort_Rotating(t *testing.T) {
 		t.Fatalf("new User failed with error %+v", err)
 	}
 
-	for i := range 249 {
-		err := testContext.serv.CheckShortVerificationToken(t.Context(), ip, fmt.Sprintf("%d%s", i, email), shortVerificationToken)
+	for range 249 {
+		_, err := testContext.serv.CheckShortVerificationToken(t.Context(), ip, shortVerificationToken, uuid.New())
 		if err == nil || errors.Is(err, services.ErrIPRateLimit) {
 			t.Fatalf("authentication exp %+v", err)
 		}
 	}
 
-	err = testContext.serv.CheckShortVerificationToken(t.Context(), ip, email, shortVerificationToken)
+	_, err = testContext.serv.CheckShortVerificationToken(t.Context(), ip, shortVerificationToken, u.ID)
 	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
 		t.Errorf("authentication was supposed to fail for 251th attempt with same ip err: %v", err)
 	}
@@ -151,13 +151,13 @@ func Test_RateLimitSignupLong(t *testing.T) {
 	}
 
 	for range 249 {
-		err := testContext.serv.CheckLongVerificationToken(t.Context(), ip, longVerificationToken)
+		_, err := testContext.serv.CheckLongVerificationToken(t.Context(), ip, longVerificationToken)
 		if err != nil || errors.Is(err, services.ErrIPRateLimit) {
 			t.Fatalf("authentication failed with error %+v", err)
 		}
 	}
 
-	err = testContext.serv.CheckLongVerificationToken(t.Context(), ip, longVerificationToken)
+	_, err = testContext.serv.CheckLongVerificationToken(t.Context(), ip, longVerificationToken)
 	if err == nil || !errors.Is(err, services.ErrIPRateLimit) {
 		t.Errorf("authentication was supposed to fail for 251th attempt with same ip")
 	}

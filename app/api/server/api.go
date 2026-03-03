@@ -2,6 +2,7 @@
 package server
 
 import (
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/neifen/companion/app/api/services"
@@ -29,27 +30,24 @@ func (api *APIServer) Run() {
 	s := NewHanderSession(api.services)
 
 	// home
-	e.GET("/", s.handleGetHome, s.authorizeTokenOptional)
+	e.GET("/", s.entry, s.authorizeTokenOptional)
+	e.GET("/welcome", s.welcome, s.authorizeTokenOptional)
+
+	e.GET("/home", s.dashboard, s.authorizeToken)
+
 	e.GET("/track-after/:date", s.handleGetAfterItem, s.authorizeTokenOptional)
 	e.GET("/track-before/:date", s.handleGetBeforeItem, s.authorizeTokenOptional)
 
-	e.POST("/check-trackeditem/:itemId/:checked", s.handleCheckTrackeItem, s.authorizeTokenOptional)
-
-	e.GET("/welcome", s.handleGetHome)
-	e.GET("/details-verse/:verseId", s.handleGetHome) //?planId=
-	e.GET("/details-book/:bookId", s.handleGetHome)   //?planId=
-
-	e.GET("/start-plan", s.handleGetHome)
-	e.POST("/start-plan/:planId", s.handleGetHome)
+	e.POST("/check-trackeditem/:itemId/:checked", s.handleCheckTrackedItem, s.authorizeTokenOptional)
 
 	// plan settings
 	e.GET("/plan-settings", s.handlePlanSettings, s.authorizeToken)
 	e.GET("/plan-settings/delete-plan", s.handleDeletePlanConfirm)
-	e.POST("/plan-settings/delete-plan", s.handleDeletePlan, s.authorizeToken)
+	e.POST("/plan-settings/delete-plan", s.handleDeletePlan, s.authorizeToken, s.loadUser)
 
 	e.GET("/join-plan", s.handleJoinPlanWindow)
 	e.GET("/join-plan/confirm", s.handleJoinPlanConfirm) // ?start (because of js) ?end
-	e.POST("/join-plan/:planId/:start/:end", s.handleJoinPlan, s.authorizeToken)
+	e.POST("/join-plan/:planId/:start/:end", s.handleJoinPlan, s.authorizeToken, s.loadUser)
 
 	// /plan-settings/join-plan
 	e.GET("/move-start-confirm", s.handleConfirmMoveStart) // ?start (because of js) ?moveEnd
@@ -59,10 +57,6 @@ func (api *APIServer) Run() {
 	e.GET("/move-end-popup/:end", s.handleMoveEndPopup)         // ?resetStart
 	e.POST("/move-start/:start", s.moveStart, s.authorizeToken) // ?moveEnd
 	e.POST("/move-end/:end", s.moveEnd, s.authorizeToken)       // ?resetStart
-
-	// settings
-	// e.GET("/edit-user", s.editUser)
-	// e.POST("/edit-user", s.editUser)
 
 	// login
 	e.GET("/login", s.handleGetLogin, s.guestOnly)
@@ -81,23 +75,43 @@ func (api *APIServer) Run() {
 	// e.POST("/verify-recovery", s.handleGetVerifySignup, s.guestOnly)      // todo - verify short token
 	// e.POST("/renew-recovery-token", s.handleGetVerifySignup, s.guestOnly) // todo - renew the tokens
 
+	// settings
+	// e.GET("/edit-user", s.editUser)
+	// e.POST("/edit-user", s.editUser)
+
 	// todo: not needed anymore
 	e.POST("/token/refresh", s.handleTokenRefresh)
 	e.GET("/token/refresh", s.handleTokenRefresh)
 	e.POST("/token/logout", s.handlePostLogout) //to be able to access refresh token
 
-	//e.Use(authorizeToken())
-	//e.GET(HOME_PATH, s.handleGetHome, authorizeToken())
-	e.GET("/home", s.handleGetHome, s.authorizeToken)
-
 	e.Logger.Fatal(e.Start(api.apiPath))
+}
+
+func (s *HandlerSession) loadUser(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+
+		uid := ctxUID(c)
+		if uid == uuid.Nil {
+			return redirectToLogin(c)
+		}
+
+		ctx := c.Request().Context()
+		u, err := s.services.GetUserByID(ctx, uid)
+		if err != nil {
+			//todo: not sure thats right
+			return redirectToLogin(c)
+		}
+
+		c.Set("u", u)
+		return next(c)
+	}
 }
 
 func (s *HandlerSession) authorizeToken(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		u := userFromToken(c)
 		if u != nil {
-			c.Set("u", u)
+			c.Set("uid", u)
 			return next(c)
 		}
 
@@ -109,7 +123,7 @@ func (s *HandlerSession) authorizeToken(next echo.HandlerFunc) echo.HandlerFunc 
 				//todo: logging
 				return redirectToLogin(c)
 			}
-			c.Set("u", uid)
+			c.Set("uid", uid)
 			return next(c)
 		}
 
@@ -121,7 +135,7 @@ func (s *HandlerSession) authorizeTokenOptional(next echo.HandlerFunc) echo.Hand
 	return func(c echo.Context) error {
 		u := userFromToken(c)
 		if u != nil {
-			c.Set("u", u)
+			c.Set("uid", u)
 			return next(c)
 		}
 
@@ -138,7 +152,7 @@ func (s *HandlerSession) guestOnly(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		uid := userFromToken(c)
 		if uid != nil {
-			return s.redirect(c, uid)
+			return s.redirect(c, *uid)
 		}
 
 		if canRefresh(c) {
@@ -146,7 +160,7 @@ func (s *HandlerSession) guestOnly(next echo.HandlerFunc) echo.HandlerFunc {
 				Msg("middleware guestOnly: access token validation unsuccessful, try refresh token")
 			uid, err := s.refreshToken(c)
 			if err != nil {
-				return s.redirect(c, uid)
+				return s.redirect(c, *uid)
 			}
 			return next(c)
 		}

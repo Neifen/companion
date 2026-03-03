@@ -43,10 +43,7 @@ func (s *HandlerSession) handlePostLogin(c echo.Context) error {
 	}
 
 	tokenToCookie(u.Access, u.Refresh, c)
-	userReq := userFromModel(u.User)
-
-	return s.replaceHome(c, userReq)
-
+	return s.replaceEntry(c, u.User.ID)
 }
 
 // Depricated: this used to be a redirect, we now do it in the background with RefreshToken
@@ -138,7 +135,7 @@ func (s *HandlerSession) handlePostLogout(c echo.Context) error {
 	clearCookie("token", "/", c)
 	clearCookie("refresh", "/", c)
 
-	return s.replaceHome(c, nil)
+	return s.replaceEntry(c, uuid.Nil)
 }
 
 func clearCookie(name, path string, c echo.Context) {
@@ -176,9 +173,7 @@ func (s *HandlerSession) getVerify(c echo.Context) error {
 		return s.renderVerify(c)
 	}
 
-	uq := userFromModel(u)
-	// todo: go to welcome page
-	return s.replaceHome(c, uq)
+	return s.replaceOnobarding(c, u.ID)
 }
 
 func (s *HandlerSession) renderVerify(c echo.Context) error {
@@ -242,9 +237,7 @@ func (s *HandlerSession) verifyShort(c echo.Context) error {
 		return s.renderVerify(c)
 	}
 
-	uq := userFromModel(u)
-	// todo: go to welcome page
-	return s.replaceHome(c, uq)
+	return s.replaceOnobarding(c, u.ID)
 }
 
 func (s *HandlerSession) renewSignupTokens(c echo.Context) error {
@@ -272,10 +265,8 @@ func redirectToLogin(c echo.Context) error {
 	return view.ReplaceUrl("/login", c, child)
 }
 
-func (s *HandlerSession) redirect(c echo.Context, uid *uuid.UUID) error {
+func (s *HandlerSession) redirect(c echo.Context, uid uuid.UUID) error {
 	// todo: check if there is a redirect parameter, if not go home
 
-	//todo: also we need a fix for this
-	u := &userReq{id: *uid}
-	return s.replaceHome(c, u)
+	return s.replaceEntry(c, uid)
 }

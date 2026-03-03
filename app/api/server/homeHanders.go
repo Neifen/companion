@@ -6,82 +6,133 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/neifen/companion/app/entities"
 	"github.com/neifen/companion/app/view"
+	"github.com/rs/zerolog/log"
 )
 
 func ctxUser(c echo.Context) *userReq {
 	var u *userReq
-	if temp := c.Get("u"); temp != nil {
+	if temp := c.Get("uid"); temp != nil {
 		u = temp.(*userReq)
 	}
 	return u
 }
 
-func (s *HandlerSession) handleGetHome(c echo.Context) error {
-	u := ctxUser(c)
-	return s.viewHome(c, u)
+func ctxUID(c echo.Context) uuid.UUID {
+	var uid uuid.UUID
+	if temp := c.Get("uid"); temp != nil {
+		uid = temp.(uuid.UUID)
+	}
+	return uid
 }
 
-func (s *HandlerSession) replaceHome(c echo.Context, u *userReq) error {
+func (s *HandlerSession) entry(c echo.Context) error {
+	u := ctxUID(c)
+	return s.viewEntry(c, u)
+}
+
+func (s *HandlerSession) dashboard(c echo.Context) error {
+	u := ctxUID(c)
+	return s.viewDashboard(c, u)
+}
+
+func (s *HandlerSession) welcome(c echo.Context) error {
+	return s.viewWelcome(c)
+}
+
+// rename replaceEntry?
+func (s *HandlerSession) replaceEntry(c echo.Context, uid uuid.UUID) error {
 	// might have to push the url
 	c.Response().Header().Set("HX-Replace-Url", "/")
-	return s.viewHome(c, u)
+	return s.viewEntry(c, uid)
 }
 
-func (s *HandlerSession) viewHome(c echo.Context, u *userReq) error {
-	var bible *entities.TrackedBible
-
-	welcome := u == nil
-	if !welcome {
-		tracker, hasMore, err := s.services.ReadTasksFrom(c.Request().Context(), u.id, time.Now().AddDate(0, 0, -2))
-		if err != nil {
-			fmt.Println(err)
-			return c.JSON(http.StatusInternalServerError, err) // todo do better
-		}
-
-		if len(tracker) != 0 {
-			bible = trackerModelToEntity(tracker, hasMore)
-		} else {
-			// todo: show welcome for new user
-			welcome = true
-		}
+func (s *HandlerSession) viewEntry(c echo.Context, uid uuid.UUID) error {
+	if uid == uuid.Nil {
+		return s.viewWelcome(c)
 	}
 
-	//todo: show welcome for not logged in
-	if welcome {
-		chapters, err := s.services.GetPlansChapters(c.Request().Context(), 0)
-		// todo real errors
-		if err != nil {
-			fmt.Printf("Issue with getting welcome screen: \n%+v\n", err)
-			return c.JSON(http.StatusInternalServerError, err) // todo do better
-		}
+	//todo: might be a good idea to save the onboarding status in user?
+	tracker, _, err := s.services.ReadTasksFrom(c.Request().Context(), uid, time.Now().AddDate(0, 0, -2))
+	if err != nil {
+		log.Err(err)
+		//todo: with error
+		return s.viewEmptyDashboard(c, uid)
+	}
 
-		bible = chapterModelToEntity(chapters)
+	if len(tracker) != 0 {
+		return s.viewOnboarding(c, uid)
+	}
+
+	return s.viewDashboard(c, uid)
+}
+
+func (s *HandlerSession) viewWelcome(c echo.Context) error {
+	return view.Welcome(c)
+}
+
+func (s *HandlerSession) replaceOnobarding(c echo.Context, uid uuid.UUID) error {
+	// might have to push the url
+	c.Response().Header().Set("HX-Replace-Url", "/")
+	return s.viewOnboarding(c, uid)
+}
+
+func (s *HandlerSession) viewOnboarding(c echo.Context, uid uuid.UUID) error {
+	chapters, err := s.services.GetPlansChapters(c.Request().Context(), 0)
+	// todo real errors
+	if err != nil {
+		fmt.Printf("Issue with getting welcome screen: \n%+v\n", err)
+		return c.JSON(http.StatusInternalServerError, err) // todo do better
+	}
+
+	bible := chapterModelToEntity(chapters)
+
+	name := ""
+	viewU := entities.NewViewUser(name, true)
+	return view.HomeHTML(c, bible, viewU, true)
+
+}
+
+func (s *HandlerSession) viewDashboard(c echo.Context, uid uuid.UUID) error {
+	var bible *entities.TrackedBible
+
+	tracker, hasMore, err := s.services.ReadTasksFrom(c.Request().Context(), uid, time.Now().AddDate(0, 0, -2))
+	if err != nil {
+		fmt.Println(err)
+		return c.JSON(http.StatusInternalServerError, err) // todo do better
+	}
+
+	bible = trackerModelToEntity(tracker, hasMore)
+
+	name := ""
+	viewU := entities.NewViewUser(name, true)
+	return view.HomeHTML(c, bible, viewU, false)
+}
+
+func (s *HandlerSession) viewEmptyDashboard(c echo.Context, uid uuid.UUID) error {
+	bible := &entities.TrackedBible{
+		HasMore:       false,
+		TrackedGroups: []*entities.TrackedGroup{},
 	}
 
 	name := ""
-	loggedIn := false
-	if u != nil {
-		name = u.name //todo: we're doing it different
-		loggedIn = true
-	}
-
-	viewU := entities.NewViewUser(name, loggedIn)
-	return view.HomeHTML(c, bible, viewU, welcome)
+	viewU := entities.NewViewUser(name, true)
+	return view.HomeHTML(c, bible, viewU, false)
 }
 
 // e.GET("/track-before/:date", s.handleGetBeforeItem, pasetoMiddleOpt())
 func (s *HandlerSession) handleGetBeforeItem(c echo.Context) error {
-	u := ctxUser(c)
+	uid := ctxUID(c)
 	date, err := time.Parse("January 2, 2006", c.Param("date"))
 	if err != nil {
 		fmt.Println(err)
 		return view.ErrorHTML(c, "Something went wrong, contact admin")
 	}
 
-	tracker, hasMore, err := s.services.ReadTasksUntil(c.Request().Context(), u.id, date)
+	tracker, hasMore, err := s.services.ReadTasksUntil(c.Request().Context(), uid, date)
 	// todo real errors
 	if err != nil {
 		fmt.Println(err)
@@ -93,14 +144,14 @@ func (s *HandlerSession) handleGetBeforeItem(c echo.Context) error {
 
 // e.GET("/track-after/:date", s.handleGetAfterItem, pasetoMiddleOpt())
 func (s *HandlerSession) handleGetAfterItem(c echo.Context) error {
-	u := ctxUser(c)
+	uid := ctxUID(c)
 	date, err := time.Parse("January 2, 2006", c.Param("date"))
 	if err != nil {
 		fmt.Println(err)
 		return view.ErrorHTML(c, "Something went wrong, contact admin")
 	}
 
-	tracker, hasMore, err := s.services.ReadTasksFrom(c.Request().Context(), u.id, date.AddDate(0, 0, 1))
+	tracker, hasMore, err := s.services.ReadTasksFrom(c.Request().Context(), uid, date.AddDate(0, 0, 1))
 	// todo real errors
 	if err != nil {
 		fmt.Println(err)
@@ -111,8 +162,7 @@ func (s *HandlerSession) handleGetAfterItem(c echo.Context) error {
 }
 
 // e.POST("/check-trackeditem/:itemId/:checked", s.handleCheckTrackeItem)
-func (s *HandlerSession) handleCheckTrackeItem(c echo.Context) error {
-	u := ctxUser(c)
+func (s *HandlerSession) handleCheckTrackedItem(c echo.Context) error {
 	itemID, err := strconv.ParseInt(c.Param("itemId"), 10, 64)
 	if err != nil {
 		fmt.Println(err)
@@ -123,12 +173,6 @@ func (s *HandlerSession) handleCheckTrackeItem(c echo.Context) error {
 	if err != nil {
 		fmt.Println(err)
 		return view.TrackerCheckHTMLError(c, itemID, !checked, err.Error())
-	}
-
-	if u == nil {
-		// todo: use cookies
-		// keep track of checked items in cookies, and then write down when logged in
-		return nil
 	}
 
 	if err = s.services.CheckTask(c.Request().Context(), itemID, checked); err != nil {
@@ -142,11 +186,9 @@ func (s *HandlerSession) handleCheckTrackeItem(c echo.Context) error {
 
 // e.GET("/plan-settings", s.handlePlanSettings)
 func (s *HandlerSession) handlePlanSettings(c echo.Context) error {
-	u := ctxUser(c)
-	if u == nil {
-		return view.ErrorHTML(c, "not logged in")
-	}
-	settings, err := s.services.ReadUserTracker(c.Request().Context(), u.id)
+	uid := ctxUID(c)
+
+	settings, err := s.services.ReadUserTracker(c.Request().Context(), uid)
 	if err != nil {
 		return view.ErrorHTML(c, err.Error())
 	}
@@ -162,18 +204,15 @@ func (s *HandlerSession) handleDeletePlanConfirm(c echo.Context) error {
 
 // e.POST("/plan-settings/delete-plan", s.handleDeletePlan, pasetoMiddle())
 func (s *HandlerSession) handleDeletePlan(c echo.Context) error {
-	u := ctxUser(c)
-	if u == nil {
-		return view.ErrorHTML(c, "not logged in")
-	}
-	if err := s.services.DeleteUserTracker(c.Request().Context(), u.id); err != nil {
+	uid := ctxUID(c)
+	if err := s.services.DeleteUserTracker(c.Request().Context(), uid); err != nil {
 		fmt.Println("Could not delete tracker: ", err)
 		return view.ErrorHTML(c, "Could not delete the plan")
 	}
 
 	c.Response().Header().Add("HX-Retarget", "#base")
 	c.Response().Header().Add("HX-Reswap", "innerHTML")
-	return s.viewHome(c, u)
+	return s.viewEmptyDashboard(c, uid)
 }
 
 // e.GET("/join-plan", s.handleJoinPlanWindow)
@@ -222,10 +261,7 @@ func (s *HandlerSession) handleJoinPlanConfirm(c echo.Context) error {
 // e.POST("/join-plan/:planId/:start/:end", s.handleJoinPlan, pasetoMiddle())
 func (s *HandlerSession) handleJoinPlan(c echo.Context) error {
 	// todo change all
-	u := ctxUser(c)
-	if u == nil {
-		return view.ErrorHTML(c, "not logged in")
-	}
+	uid := ctxUID(c)
 
 	planIDRaw := c.Param("planId")
 	startRaw := c.Param("start")
@@ -237,7 +273,7 @@ func (s *HandlerSession) handleJoinPlan(c echo.Context) error {
 		return view.ErrorHTML(c, "Issue creating new Plan")
 	}
 
-	err = s.services.CreateTracker(c.Request().Context(), u.id, planID, startRaw, endRaw)
+	err = s.services.CreateTracker(c.Request().Context(), uid, planID, startRaw, endRaw)
 	if err != nil {
 		fmt.Println("Could not create tracker: ", err)
 		return view.ErrorHTML(c, "Issue creating new Plan")
@@ -245,7 +281,7 @@ func (s *HandlerSession) handleJoinPlan(c echo.Context) error {
 
 	c.Response().Header().Add("HX-Retarget", "#base")
 	c.Response().Header().Add("HX-Reswap", "innerHTML")
-	return s.viewHome(c, u)
+	return s.viewDashboard(c, uid)
 }
 
 // e.GET("/reset-plan", s.handleConfirmMoveStart) + query param start
@@ -310,7 +346,7 @@ func (s *HandlerSession) handleMoveEndPopup(c echo.Context) error {
 
 // e.GET("/reset-plan", s.moveStart, pasetoMiddle())?moveEnd
 func (s *HandlerSession) moveStart(c echo.Context) error {
-	u := ctxUser(c)
+	uid := ctxUID(c)
 	start := c.Param("start")
 
 	moveEndRaw := c.QueryParam("moveEnd")
@@ -320,7 +356,7 @@ func (s *HandlerSession) moveStart(c echo.Context) error {
 		moveEnd = false
 	}
 
-	err = s.services.MoveTrackerStart(c.Request().Context(), u.id, start, moveEnd)
+	err = s.services.MoveTrackerStart(c.Request().Context(), uid, start, moveEnd)
 	if err != nil {
 		fmt.Println(err)
 		return view.ErrorHTML(c, "Something went wrong, contact admin")
@@ -328,12 +364,12 @@ func (s *HandlerSession) moveStart(c echo.Context) error {
 
 	c.Response().Header().Add("HX-Retarget", "#base")
 	c.Response().Header().Add("HX-Reswap", "innerHTML")
-	return s.viewHome(c, u)
+	return s.viewDashboard(c, uid)
 }
 
 // e.POST("/move-end/:end", s.moveEnd, pasetoMiddle())?resetStart
 func (s *HandlerSession) moveEnd(c echo.Context) error {
-	u := ctxUser(c)
+	uid := ctxUID(c)
 	end := c.Param("end")
 	resetStartRaw := c.QueryParam("resetStart")
 	resetStart, err := strconv.ParseBool(resetStartRaw)
@@ -342,12 +378,12 @@ func (s *HandlerSession) moveEnd(c echo.Context) error {
 		resetStart = false
 	}
 
-	err = s.services.MoveTrackerEnd(c.Request().Context(), u.id, end, resetStart)
+	err = s.services.MoveTrackerEnd(c.Request().Context(), uid, end, resetStart)
 	if err != nil {
 		fmt.Println(err)
 		return view.ErrorHTML(c, "Something went wrong, contact admin")
 	}
 	c.Response().Header().Add("HX-Retarget", "#base")
 	c.Response().Header().Add("HX-Reswap", "innerHTML")
-	return s.viewHome(c, u)
+	return s.viewDashboard(c, uid)
 }

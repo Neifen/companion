@@ -12,19 +12,8 @@ import (
 
 	"github.com/labstack/echo/v4"
 	"github.com/neifen/companion/app/api/crypto"
-	"github.com/neifen/companion/app/api/services"
 	"github.com/neifen/companion/app/api/storage/auth"
 )
-
-type HandlerSession struct {
-	services *services.Services
-}
-
-func NewHanderSession(services *services.Services) *HandlerSession {
-	return &HandlerSession{
-		services: services,
-	}
-}
 
 func (s *HandlerSession) handleGetLogin(c echo.Context) error {
 	child := view.Login()

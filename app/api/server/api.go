@@ -21,14 +21,14 @@ func NewAPIHandler(path string, serv *services.Services) *APIServer {
 func (api *APIServer) Run() {
 	e := echo.New()
 
-	e.Use(middleware.Logger())
+	e.Use(zeroLogging)
 	e.Use(middleware.Recover()) // so panics don't crash everything
 	e.Static("/static", "app/assets")
 
 	s := NewHanderSession(api.services)
 
 	// home
-	e.GET("/", s.entry, s.authorizeTokenOptional)
+	e.GET("/", s.entry, s.authorizeTokenOptional, s.loadUser)
 	e.GET("/welcome", s.welcome, s.authorizeTokenOptional)
 
 	e.GET("/home", s.dashboard, s.authorizeToken)
@@ -41,11 +41,11 @@ func (api *APIServer) Run() {
 	// plan settings
 	e.GET("/plan-settings", s.handlePlanSettings, s.authorizeToken)
 	e.GET("/plan-settings/delete-plan", s.handleDeletePlanConfirm)
-	e.POST("/plan-settings/delete-plan", s.handleDeletePlan, s.authorizeToken, s.loadUser)
+	e.POST("/plan-settings/delete-plan", s.handleDeletePlan, s.authorizeToken)
 
 	e.GET("/join-plan", s.handleJoinPlanWindow)
 	e.GET("/join-plan/confirm", s.handleJoinPlanConfirm) // ?start (because of js) ?end
-	e.POST("/join-plan/:planId/:start/:end", s.handleJoinPlan, s.authorizeToken, s.loadUser)
+	e.POST("/join-plan/:planId/:start/:end", s.handleJoinPlan, s.authorizeToken)
 
 	// /plan-settings/join-plan
 	e.GET("/move-start-confirm", s.handleConfirmMoveStart) // ?start (because of js) ?moveEnd
@@ -59,13 +59,14 @@ func (api *APIServer) Run() {
 	// login
 	e.GET("/login", s.handleGetLogin, s.guestOnly)
 	e.POST("/login", s.handlePostLogin, s.guestOnly)
+	e.POST("/logout", s.handlePostLogout) //to be able to access refresh token
 
 	// verifications
-	e.GET("/signup", s.getSignup, s.guestOnly)                           // todo - gets the signup page
-	e.POST("/signup", s.signupForm, s.guestOnly)                         // todo - send signup form
-	e.GET("/verify-signup", s.getVerify, s.authorizeTokenOptional)       // todo - verify long token
-	e.POST("/verify-signup", s.verifyShort, s.authorizeToken)            // todo - verify short token
-	e.POST("/renew-signup-token", s.renewSignupTokens, s.authorizeToken) // todo - renew the tokens
+	e.GET("/signup", s.getSignup, s.guestOnly)                                       // todo - gets the signup page
+	e.POST("/signup", s.signupForm, s.guestOnly)                                     // todo - send signup form
+	e.GET("/verify-signup", s.getVerify, s.authorizeTokenOptional)                   // todo - verify long token
+	e.POST("/verify-signup", s.verifyShort, s.authorizeToken)                        // todo - verify short token
+	e.POST("/renew-signup-token", s.renewSignupTokens, s.authorizeToken, s.loadUser) // todo - renew the tokens
 
 	// e.GET("/recovery", s.handleGetRecovery, s.guestOnly)
 	// e.POST("/recovery", s.handleRecovery, s.guestOnly)                    // todo - send signup form

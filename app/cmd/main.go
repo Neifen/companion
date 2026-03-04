@@ -1,17 +1,31 @@
 package main
 
 import (
+	"os"
+	"time"
+
 	"github.com/joho/godotenv"
 	"github.com/neifen/companion/app/api/server"
 	"github.com/neifen/companion/app/api/services"
 	"github.com/neifen/companion/app/api/storage"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
 func main() {
 	// if I want it even faster
 	// zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	// Pretty console writer
+	output := zerolog.ConsoleWriter{
+		Out:        os.Stdout,
+		TimeFormat: time.RFC3339,
+	}
+
+	log.Logger = zerolog.New(output).
+		With().
+		Timestamp().
+		Logger()
 
 	// 1. load env variable
 	err := loadEnv()

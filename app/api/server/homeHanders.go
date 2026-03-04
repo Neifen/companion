@@ -7,19 +7,20 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
+	"github.com/neifen/companion/app/api/storage/auth"
 	"github.com/neifen/companion/app/entities"
 	"github.com/neifen/companion/app/view"
 	"github.com/rs/zerolog/log"
 )
 
 func (s *HandlerSession) entry(c echo.Context) error {
-	u := ctxUID(c)
+	u := ctxUser(c)
 	return s.routeEntry(c, u)
 }
 
 func (s *HandlerSession) dashboard(c echo.Context) error {
-	u := ctxUID(c)
-	return s.viewDashboard(c, u)
+	uid := ctxUID(c)
+	return s.viewDashboard(c, uid)
 }
 
 func (s *HandlerSession) welcome(c echo.Context) error {
@@ -27,38 +28,43 @@ func (s *HandlerSession) welcome(c echo.Context) error {
 }
 
 // /////////////////// Replacements ////////////////////
-func (s *HandlerSession) replaceEntry(c echo.Context, uid uuid.UUID) error {
+func (s *HandlerSession) replaceEntry(c echo.Context, u *auth.UserModel) error {
 	// might have to push the url
 	c.Response().Header().Set("HX-Replace-Url", "/")
-	return s.routeEntry(c, uid)
+	return s.routeEntry(c, u)
 }
 
 func (s *HandlerSession) replaceOnobarding(c echo.Context, uid uuid.UUID) error {
 	// might have to push the url
-	c.Response().Header().Set("HX-Replace-Url", "/")
-	return s.viewOnboarding(c, uid)
+	return replaceUID(c, "/", uid, s.viewOnboarding)
+}
+
+// todo: test
+func replaceUID(c echo.Context, url string, uid uuid.UUID, next func(echo.Context, uuid.UUID) error) error {
+	if c.Request().Header.Get("HX-Request") != "true" {
+		return c.Redirect(http.StatusSeeOther, url)
+	}
+
+	c.Response().Header().Set("HX-Replace-Url", url)
+	return next(c, uid)
 }
 
 // /////////////////// Routing Entry ////////////////////
 
-func (s *HandlerSession) routeEntry(c echo.Context, uid uuid.UUID) error {
-	if uid == uuid.Nil {
+func (s *HandlerSession) routeEntry(c echo.Context, u *auth.UserModel) error {
+	if u == nil {
 		return s.viewWelcome(c)
 	}
 
-	//todo: might be a good idea to save the onboarding status in user?
-	tracker, _, err := s.services.ReadTasksFrom(c.Request().Context(), uid, time.Now().AddDate(0, 0, -2))
-	if err != nil {
-		log.Err(err)
-		//todo: with error
-		return s.viewEmptyDashboard(c, uid)
+	if u.Status == auth.StatusUnverified {
+		return s.getVerify(c)
 	}
 
-	if len(tracker) != 0 {
-		return s.viewOnboarding(c, uid)
+	if u.Status == auth.StatusNewUser {
+		return s.viewOnboarding(c, u.ID)
 	}
 
-	return s.viewDashboard(c, uid)
+	return s.viewDashboard(c, u.ID)
 }
 
 // ////////////////////// Views ///////////////////////////////
@@ -87,8 +93,14 @@ func (s *HandlerSession) viewDashboard(c echo.Context, uid uuid.UUID) error {
 
 	tracker, hasMore, err := s.services.ReadTasksFrom(c.Request().Context(), uid, time.Now().AddDate(0, 0, -2))
 	if err != nil {
-		fmt.Println(err)
-		return c.JSON(http.StatusInternalServerError, err) // todo do better
+		log.Err(err)
+		//todo: with error
+		return s.viewEmptyDashboard(c, uid)
+	}
+
+	if len(tracker) == 0 {
+		return s.viewEmptyDashboard(c, uid)
+
 	}
 
 	bible = trackerModelToEntity(tracker, hasMore)

@@ -70,11 +70,11 @@ func (pg *AuthStore) DeleteVerificationToken(ctx context.Context, u *Verificatio
 	return nil
 }
 
-func (pg *AuthStore) ReadUserVerification(ctx context.Context, purposeIn VerificationPurpose, uid uuid.UUID) (*VerificationTokenModel, error) {
-	row := pg.db.QueryRow(ctx, "SELECT id, channel, purpose, attempts, expires_at, consumed_at, created_at from "+verificationTokensTable+" where user_id = $1 and purpose=$2", uid, purposeIn)
+func (pg *AuthStore) ReadUserVerification(ctx context.Context, purposeIn VerificationPurpose, channelIn VerificationChannel, uid uuid.UUID) (*VerificationTokenModel, error) {
+	row := pg.db.QueryRow(ctx, "SELECT id, channel, purpose, attempts, expires_at, consumed_at, created_at from "+verificationTokensTable+" where user_id = $1 and purpose=$2 and channel=$3 AND consumed_at is null", uid, purposeIn, channelIn)
 
 	var id int
-	var channel string
+	var channel VerificationChannel
 	var purpose VerificationPurpose
 	var attempts int16
 	var expiration time.Time
@@ -109,7 +109,7 @@ func (pg *AuthStore) ReadVerification(ctx context.Context, hashedToken []byte) (
 
 	var id int
 	var uid uuid.UUID
-	var channel string
+	var channel VerificationChannel
 	var purpose VerificationPurpose
 	var attempts int16
 	var expiration time.Time
@@ -150,7 +150,7 @@ func (pg *AuthStore) CreateUser(ctx context.Context, u *UserModel) error {
 }
 
 func (pg *AuthStore) UserVerified(ctx context.Context, uid uuid.UUID) error {
-	_, err := pg.db.Exec(ctx, "UPDATE "+usersTable+" set verified = true, status = 'VERIFIED' where id=$1", uid)
+	_, err := pg.db.Exec(ctx, "UPDATE "+usersTable+" set verified = true, status = 'NEWUSER' where id=$1", uid)
 	if err != nil {
 		return errors.Wrapf(err, "db: User Verified for user %s ", uid)
 	}
@@ -207,7 +207,7 @@ func (pg *AuthStore) ReadUserByEmail(ctx context.Context, emailReq string) (*Use
 	var email string
 	var pw []byte
 	var name string
-	var status string
+	var status UserStatus
 
 	err := row.Scan(&id, &email, &pw, &name, &status)
 	if err != nil {
@@ -230,7 +230,7 @@ func (pg *AuthStore) ReadUserByUID(ctx context.Context, idReq uuid.UUID) (*UserM
 	var email string
 	var pw []byte
 	var name string
-	var status string
+	var status UserStatus
 
 	err := row.Scan(&id, &email, &pw, &name, &status)
 	if err != nil {

@@ -162,7 +162,7 @@ templ home(bible *entities.TrackedBible, u *entities.ViewUser, welcome bool) {
 					</div>
 					<div class="flex space-x-2">
 						if u.IsLoggedIn {
-							<button hx-post="/token/logout" hx-target="#base" hx-push-url="true" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Logout</button>
+							<button hx-post="/logout" hx-target="#base" hx-push-url="true" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Logout</button>
 						} else {
 							<button hx-get="/login" hx-target="#base" hx-push-url="true" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Login</button>
 							<button hx-get="/signup" hx-target="#base" hx-push-url="true" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Sign Up</button>

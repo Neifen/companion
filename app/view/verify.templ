@@ -1,16 +1,26 @@
 package view //import github.com/neifen/companion/app/view
 
-templ Verify() {
+import "time"
+
+templ Verify(exp time.Time) {
 	<div class="w-full max-w-md bg-white rounded-lg shadow-lg p-8 text-center">
 		<h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Verify</h2>
 		<p>
 			Please verify your account. You should have gotten an email with a 6 digit code. Please enter this code in the field bellow. 
 			<br/>
-			The code will expire in 5 minutes. You will then be able to request a new one
 		</p>
 		<form>
 			<div class="mb-4">
-				<label for="stoken" class="block text-sm font-medium text-gray-700 mb-2">Unique code</label>
+				if exp.Before(time.Now()) {
+					<label for="stoken" class="block text-sm font-medium text-gray-700 mb-2">
+						<a hx-post="/renew-signup-token" hx-target="#base" hx-push-url="true" class="text-blue-600 hover:underline cursor-pointer">Renew</a>
+					</label>
+				} else {
+					// <div hx-get="/your-update-url" hx-trigger="every 10s" hx-swap="innerHTML">
+					// 	<!-- Initial content goes here. This will be replaced by the server's response. -->
+					// </div>
+					<label for="stoken" class="block text-sm font-medium text-gray-700 mb-2">The code will expire in 5 minutes. You will then be able to request a new one</label>
+				}
 				<input
 					type="stoken"
 					name="stoken"
@@ -29,8 +39,8 @@ templ Verify() {
 			</button>
 		</form>
 		<p class="mt-6 text-center text-sm text-gray-600">
-			Already have an account? 
-			<a hx-get="/login" hx-target="#base" class="text-blue-600 hover:underline cursor-pointer">Log in</a>
+			Made a mistake? 
+			<a hx-post="/logout" hx-target="#base" hx-push-url="true" class="text-blue-600 hover:underline cursor-pointer">Logout</a>
 		</p>
 	</div>
 }

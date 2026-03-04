@@ -13,7 +13,7 @@ type UserModel struct {
 	Name   string
 	Email  string
 	Pw     []byte
-	Status string
+	Status UserStatus
 }
 
 type RefreshTokenModel struct {
@@ -32,13 +32,25 @@ type VerificationTokenModel struct {
 	Consumed   *time.Time          `db:"consumed_at"`
 	CreatedAt  time.Time           `db:"created_at"`
 	Attempts   int16               `db:"attempts"`
-	Channel    string              `db:"channel"`
+	Channel    VerificationChannel `db:"channel"`
 	Purpose    VerificationPurpose `db:"purpose"`
 }
 
+type VerificationChannel string
+
 const (
-	ChannelLongEmail  = "lm"
-	ChannelShortEmail = "sm"
+	ChannelLongEmail  VerificationChannel = "lm"
+	ChannelShortEmail VerificationChannel = "sm"
+)
+
+type UserStatus string
+
+const (
+	StatusUnverified UserStatus = "UNVERIFIED"
+	StatusNewUser    UserStatus = "NEWUSER"
+	StatusVerified   UserStatus = "VERIFIED"
+	StatusSuspended  UserStatus = "SUSPENDED"
+	StatusDeleted    UserStatus = "DELETED"
 )
 
 type VerificationPurpose string

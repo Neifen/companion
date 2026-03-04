@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS auth.users(
     email citext NOT NULL UNIQUE,
     pw bytea NOT NULL,
     verified boolean not null default false, -- todo: or verification status (pending, active, disabled)
-    status text not null default 'UNVERIFIED', --account state: UNVERIFIED, VERIFIED, SUSPENDED, DELETED
+    status text not null default 'UNVERIFIED', --account state: UNVERIFIED, NEWUSER, VERIFIED, SUSPENDED, DELETED
     created_at timestamptz NOT NULL DEFAULT NOW(),
     updated_at timestamptz NOT NULL DEFAULT NOW()
 );

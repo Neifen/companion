@@ -19,18 +19,6 @@ func NewHanderSession(services *services.Services) *HandlerSession {
 	}
 }
 
-type userReq struct {
-	name string
-	id   uuid.UUID
-}
-
-func userFromModel(u *auth.UserModel) *userReq {
-	return &userReq{
-		name: u.Name,
-		id:   u.ID,
-	}
-}
-
 func userFromToken(c echo.Context) *uuid.UUID {
 	cookie, err := c.Cookie("token")
 	if err != nil {
@@ -61,12 +49,17 @@ func canRefresh(c echo.Context) bool {
 	return err == nil
 }
 
-func ctxUser(c echo.Context) *userReq {
-	var u *userReq
-	if temp := c.Get("uid"); temp != nil {
-		u = temp.(*userReq)
+func ctxUser(c echo.Context) *auth.UserModel {
+	var u *auth.UserModel
+	if temp := c.Get("u"); temp != nil {
+		u = temp.(*auth.UserModel)
 	}
 	return u
+}
+
+func setCtxUser(c echo.Context, u *auth.UserModel) {
+	c.Set("uid", u.ID)
+	c.Set("u", u)
 }
 
 func ctxUID(c echo.Context) uuid.UUID {

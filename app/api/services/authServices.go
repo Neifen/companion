@@ -82,6 +82,19 @@ func (s *Services) NewUser(ctx context.Context, ip string, u *auth.UserModel) er
 	return nil
 }
 
+func (s *Services) GetVerificationTokenExpiration(ctx context.Context, uid uuid.UUID) (time.Time, error) {
+	v, err := s.store.Auth.ReadUserVerification(ctx, auth.PurposeSignup, auth.ChannelShortEmail, uid)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("auth service: get verification token expiration for %s %w", uid, err)
+	}
+	if v == nil {
+		// no more token, just allow refresh
+		return time.Time{}, nil
+	}
+
+	return v.Expiration, nil
+}
+
 func (s *Services) RequestSignupVerificationTokens(ctx context.Context, ip string, u *auth.UserModel) error {
 	err := s.store.CreateTX(ctx)
 	if err != nil {
@@ -305,7 +318,8 @@ func (s *Services) verifyToken(ctx context.Context, verification *auth.Verificat
 var ErrWaitTimeout = errors.New("Wait 5 minutes for another token")
 
 func (s *Services) verifyVerificationTimeouts(ctx context.Context, purpose auth.VerificationPurpose, uid uuid.UUID) error {
-	v, err := s.store.Auth.ReadUserVerification(ctx, purpose, uid)
+	// short channel is fine, both were created at same time
+	v, err := s.store.Auth.ReadUserVerification(ctx, purpose, auth.ChannelShortEmail, uid)
 	if err != nil {
 		return errors.WithMessage(err, "auth service: verify verification timeouts")
 	}

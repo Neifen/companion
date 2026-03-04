@@ -32,7 +32,7 @@ func (s *HandlerSession) handlePostLogin(c echo.Context) error {
 	}
 
 	tokenToCookie(u.Access, u.Refresh, c)
-	return s.replaceEntry(c, u.User.ID)
+	return s.replaceEntry(c, u.User)
 }
 
 // Depricated: this used to be a redirect, we now do it in the background with RefreshToken
@@ -94,14 +94,6 @@ func (s *HandlerSession) refreshToken(c echo.Context) (*uuid.UUID, error) {
 	return &auth.User.ID, nil
 }
 
-func redirectToTokenRefresh(c echo.Context) error {
-	if c.Request().Header.Get("HX-Request") != "true" {
-		// standard redirect
-		return c.Redirect(http.StatusTemporaryRedirect, ("token/refresh?return=" + c.Request().URL.Path))
-	}
-	return c.String(http.StatusUnauthorized, "Unauthorized")
-}
-
 func tokenToCookie(token *crypto.AccessToken, refresh *crypto.RefreshToken, c echo.Context) {
 	tokenC := token.AddToCookie()
 	c.SetCookie(tokenC)
@@ -124,7 +116,7 @@ func (s *HandlerSession) handlePostLogout(c echo.Context) error {
 	clearCookie("token", "/", c)
 	clearCookie("refresh", "/", c)
 
-	return s.replaceEntry(c, uuid.Nil)
+	return s.replaceEntry(c, nil)
 }
 
 func clearCookie(name, path string, c echo.Context) {
@@ -151,7 +143,8 @@ func (s *HandlerSession) getSignup(c echo.Context) error {
 func (s *HandlerSession) getVerify(c echo.Context) error {
 	longToken := c.QueryParam("ltoken")
 	if longToken == "" {
-		return s.renderVerify(c)
+		uid := ctxUID(c)
+		return s.renderVerify(c, uid)
 	}
 
 	ip := c.RealIP()
@@ -159,14 +152,30 @@ func (s *HandlerSession) getVerify(c echo.Context) error {
 	u, err := s.services.CheckLongVerificationToken(ctx, ip, longToken)
 	if err != nil {
 		//todo: show error
-		return s.renderVerify(c)
+		return s.renderVerify(c, u.ID)
 	}
 
 	return s.replaceOnobarding(c, u.ID)
 }
 
-func (s *HandlerSession) renderVerify(c echo.Context) error {
-	child := view.Verify()
+func (s *HandlerSession) replaceVerify(c echo.Context, uid uuid.UUID) error {
+	// might have to push the url
+	c.Response().Header().Set("HX-Replace-Url", "/verify-signup")
+	return s.renderVerify(c, uid)
+}
+
+func (s *HandlerSession) renderVerify(c echo.Context, uid uuid.UUID) error {
+
+	ctx := c.Request().Context()
+	exp, err := s.services.GetVerificationTokenExpiration(ctx, uid)
+	if err != nil {
+		//todo: add error
+		log.Err(err)
+	}
+	fmt.Printf("exp %s\n", exp)
+	log.Info().Any("exp", exp)
+
+	child := view.Verify(exp)
 	return view.RenderView(c, child)
 }
 
@@ -207,46 +216,45 @@ func (s *HandlerSession) signupForm(c echo.Context) error {
 	}
 
 	tokenToCookie(access, refresh, c)
+	setCtxUser(c, u)
+
 	return s.getVerify(c)
 }
 
 func (s *HandlerSession) verifyShort(c echo.Context) error {
 	shortToken := c.FormValue("stoken")
-	if shortToken == "" {
-		return s.renderVerify(c)
-	}
+	uid := ctxUID(c)
 
-	uid := userFromToken(c)
+	if shortToken == "" {
+		return s.renderVerify(c, uid)
+	}
 
 	ip := c.RealIP()
 	ctx := c.Request().Context()
-	u, err := s.services.CheckShortVerificationToken(ctx, ip, shortToken, *uid)
+	u, err := s.services.CheckShortVerificationToken(ctx, ip, shortToken, uid)
 	if err != nil {
 		//todo: show error
-		return s.renderVerify(c)
+		return s.renderVerify(c, u.ID)
 	}
 
 	return s.replaceOnobarding(c, u.ID)
 }
 
 func (s *HandlerSession) renewSignupTokens(c echo.Context) error {
-	uid := userFromToken(c)
 	ip := c.RealIP()
 	ctx := c.Request().Context()
 
-	u, err := s.services.GetUserByID(ctx, *uid)
+	u := ctxUser(c)
+
+	err := s.services.RequestSignupVerificationTokens(ctx, ip, u)
 	if err != nil {
 		//todo: show error
+		log.Err(err)
+
 		return redirectToLogin(c)
 	}
 
-	err = s.services.RequestSignupVerificationTokens(ctx, ip, u)
-	if err != nil {
-		//todo: show error
-		return redirectToLogin(c)
-	}
-
-	return s.renderVerify(c)
+	return s.replaceVerify(c, u.ID)
 }
 
 func redirectToLogin(c echo.Context) error {
@@ -257,5 +265,11 @@ func redirectToLogin(c echo.Context) error {
 func (s *HandlerSession) redirect(c echo.Context, uid uuid.UUID) error {
 	// todo: check if there is a redirect parameter, if not go home
 
-	return s.replaceEntry(c, uid)
+	ctx := c.Request().Context()
+	u, err := s.services.GetUserByID(ctx, uid)
+	if err != nil {
+		log.Err(err)
+	}
+
+	return s.replaceEntry(c, u)
 }

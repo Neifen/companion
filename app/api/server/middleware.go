@@ -1,6 +1,8 @@
 package server
 
 import (
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/rs/zerolog/log"
@@ -11,14 +13,17 @@ func (s *HandlerSession) loadUser(next echo.HandlerFunc) echo.HandlerFunc {
 
 		uid := ctxUID(c)
 		if uid == uuid.Nil {
-			return redirectToLogin(c)
+			c.Set("u", nil)
+			return next(c)
 		}
 
 		ctx := c.Request().Context()
 		u, err := s.services.GetUserByID(ctx, uid)
 		if err != nil {
-			//todo: not sure thats right
-			return redirectToLogin(c)
+			log.Err(err).Any("uid", uid).Msg("loading user middleware")
+
+			c.Set("u", nil)
+			return next(c)
 		}
 
 		c.Set("u", u)
@@ -28,9 +33,9 @@ func (s *HandlerSession) loadUser(next echo.HandlerFunc) echo.HandlerFunc {
 
 func (s *HandlerSession) authorizeToken(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		u := userFromToken(c)
-		if u != nil {
-			c.Set("uid", u)
+		uid := userFromToken(c)
+		if uid != nil {
+			c.Set("uid", *uid)
 			return next(c)
 		}
 
@@ -42,7 +47,7 @@ func (s *HandlerSession) authorizeToken(next echo.HandlerFunc) echo.HandlerFunc 
 				//todo: logging
 				return redirectToLogin(c)
 			}
-			c.Set("uid", uid)
+			c.Set("uid", *uid)
 			return next(c)
 		}
 
@@ -52,18 +57,50 @@ func (s *HandlerSession) authorizeToken(next echo.HandlerFunc) echo.HandlerFunc 
 
 func (s *HandlerSession) authorizeTokenOptional(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
-		u := userFromToken(c)
-		if u != nil {
-			c.Set("uid", u)
+		uid := userFromToken(c)
+		if uid != nil {
+			c.Set("uid", *uid)
 			return next(c)
 		}
 
 		if canRefresh(c) {
-			s.refreshToken(c)
+			uid, err := s.refreshToken(c)
+			if err == nil && uid != nil {
+				c.Set("uid", *uid)
+			}
 		}
 
 		// not logged in
 		return next(c)
+	}
+}
+
+func (s *HandlerSession) authorizeTokenVerify(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		uid := userFromToken(c)
+		longToken := c.QueryParam("ltoken")
+		hasToken := longToken == ""
+
+		if uid != nil {
+			c.Set("uid", *uid)
+			return next(c)
+		}
+
+		if canRefresh(c) {
+			uid, err := s.refreshToken(c)
+			if err == nil && uid != nil {
+				c.Set("uid", *uid)
+				return next(c)
+			}
+		}
+
+		// not logged in
+		if hasToken {
+			return next(c)
+		}
+
+		// no token, needs to be logged in
+		return redirectToLogin(c)
 	}
 }
 
@@ -86,5 +123,29 @@ func (s *HandlerSession) guestOnly(next echo.HandlerFunc) echo.HandlerFunc {
 
 		// continue to guest only page (login/signup/etc)
 		return next(c)
+	}
+}
+
+func zeroLogging(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		start := time.Now()
+
+		err := next(c)
+
+		stop := time.Now()
+		latency := stop.Sub(start)
+
+		req := c.Request()
+		res := c.Response()
+
+		log.Debug().
+			Str("method", req.Method).
+			Str("path", req.URL.Path).
+			Int("status", res.Status).
+			Dur("latency", latency).
+			Str("ip", c.RealIP()).
+			Msg("request")
+
+		return err
 	}
 }

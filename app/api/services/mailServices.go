@@ -7,10 +7,14 @@ import (
 	"github.com/neifen/companion/app/api/storage/auth"
 	"github.com/pkg/errors"
 	"github.com/resend/resend-go/v3"
+	"github.com/rs/zerolog/log"
 )
 
 func sendSignupMail(short, long string, u *auth.UserModel) error {
 	apiToken := os.Getenv("RESEND_TOKEN")
+	base := os.Getenv("URL")
+	url := fmt.Sprintf("%s/verify-signup?ltoken=%s", base, long)
+
 	client := resend.NewClient(apiToken)
 
 	emailTemp := &resend.EmailTemplate{
@@ -18,7 +22,7 @@ func sendSignupMail(short, long string, u *auth.UserModel) error {
 		Variables: map[string]any{
 			"USER_NAME":  u.Name,
 			"CODE":       short,
-			"VERIFY_URL": long,
+			"VERIFY_URL": url,
 		},
 	}
 
@@ -32,6 +36,12 @@ func sendSignupMail(short, long string, u *auth.UserModel) error {
 		return errors.Wrapf(err, "mail service: send signup email to %s with uid %s", u.Email, u.ID)
 	}
 
-	fmt.Printf("mail service: sent signup email %s to %s with uid %s", sent.Id, u.Email, u.ID) //todo: real logging
+	log.Info().
+		Str("email", u.Email).
+		Any("user", u.ID).
+		Str("email-ID", sent.Id).
+		Str("short", short).
+		Str("url", url).
+		Msg("mail service: sent signup email")
 	return nil
 }

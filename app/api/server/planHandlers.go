@@ -10,8 +10,8 @@ import (
 	"github.com/neifen/companion/app/view"
 )
 
-// e.GET("/plan-settings", s.handlePlanSettings)
-func (s *HandlerSession) handlePlanSettings(c echo.Context) error {
+// e.GET("/plan-settings", s.showPlanSettings)
+func (s *HandlerSession) showPlanSettings(c echo.Context) error {
 	uid := ctxUID(c)
 
 	settings, err := s.services.ReadUserTracker(c.Request().Context(), uid)
@@ -28,8 +28,8 @@ func (s *HandlerSession) handleDeletePlanConfirm(c echo.Context) error {
 	return view.ConfirmDeletePlan(c)
 }
 
-// e.POST("/plan-settings/delete-plan", s.handleDeletePlan, pasetoMiddle())
-func (s *HandlerSession) handleDeletePlan(c echo.Context) error {
+// e.POST("/plan-settings/delete-plan", s.deletePlan, pasetoMiddle())
+func (s *HandlerSession) deletePlan(c echo.Context) error {
 	uid := ctxUID(c)
 	if err := s.services.DeleteUserTracker(c.Request().Context(), uid); err != nil {
 		fmt.Println("Could not delete tracker: ", err)
@@ -38,11 +38,11 @@ func (s *HandlerSession) handleDeletePlan(c echo.Context) error {
 
 	c.Response().Header().Add("HX-Retarget", "#base")
 	c.Response().Header().Add("HX-Reswap", "innerHTML")
-	return s.viewEmptyDashboard(c, uid)
+	return s.emptyDashboardPage(c, uid)
 }
 
-// e.GET("/join-plan", s.handleJoinPlanWindow)
-func (s *HandlerSession) handleJoinPlanWindow(c echo.Context) error {
+// e.GET("/join-plan", s.joinPlanWindow)
+func (s *HandlerSession) joinPlanWindow(c echo.Context) error {
 	fromSettingsRaw := c.QueryParam("fromSettings")
 	fromSettings, err := strconv.ParseBool(fromSettingsRaw)
 	if err != nil {
@@ -63,8 +63,8 @@ func (s *HandlerSession) handleJoinPlanWindow(c echo.Context) error {
 	return view.NewTracker(c, fromSettings, plans) // todo change
 }
 
-// e.GET("/join-plan/confirm", s.handleJoinPlanConfirm)
-func (s *HandlerSession) handleJoinPlanConfirm(c echo.Context) error {
+// e.GET("/join-plan/confirm", s.confirmJoinPlan)
+func (s *HandlerSession) confirmJoinPlan(c echo.Context) error {
 	start := c.QueryParam("start")
 	end := c.QueryParam("end")
 	plan := c.QueryParam("plan")
@@ -84,8 +84,8 @@ func (s *HandlerSession) handleJoinPlanConfirm(c echo.Context) error {
 	return view.ConfirmAddTracker(c, plan, start, end, startTime.Format("January 02, 2006"), endTime.Format("January 02, 2006")) // todo change
 }
 
-// e.POST("/join-plan/:planId/:start/:end", s.handleJoinPlan, pasetoMiddle())
-func (s *HandlerSession) handleJoinPlan(c echo.Context) error {
+// e.POST("/join-plan/:planId/:start/:end", s.joinPlan, pasetoMiddle())
+func (s *HandlerSession) joinPlan(c echo.Context) error {
 	// todo change all
 	uid := ctxUID(c)
 
@@ -107,11 +107,11 @@ func (s *HandlerSession) handleJoinPlan(c echo.Context) error {
 
 	c.Response().Header().Add("HX-Retarget", "#base")
 	c.Response().Header().Add("HX-Reswap", "innerHTML")
-	return s.viewDashboard(c, uid)
+	return s.dashboardPage(c, uid)
 }
 
-// e.GET("/reset-plan", s.handleConfirmMoveStart) + query param start
-func (s *HandlerSession) handleConfirmMoveStart(c echo.Context) error {
+// e.GET("/reset-plan", s.confirmPlanMoveStart) + query param start
+func (s *HandlerSession) confirmPlanMoveStart(c echo.Context) error {
 	startShort := c.QueryParam("start")
 	moveEndRaw := c.QueryParam("moveEnd")
 	moveEnd, err := strconv.ParseBool(moveEndRaw)
@@ -127,8 +127,8 @@ func (s *HandlerSession) handleConfirmMoveStart(c echo.Context) error {
 	return view.ConfirmStartPlanPopup(c, start.Format("January 02, 2006"), startShort, moveEnd)
 }
 
-// e.GET("/move-end-confirm", s.handleConfirmMoveEnd) + query param end
-func (s *HandlerSession) handleConfirmMoveEnd(c echo.Context) error {
+// e.GET("/move-end-confirm", s.confirmPlanMoveEnd) + query param end
+func (s *HandlerSession) confirmPlanMoveEnd(c echo.Context) error {
 	endShort := c.QueryParam("end")
 	resetStartRaw := c.QueryParam("resetStart")
 	resetStart, err := strconv.ParseBool(resetStartRaw)
@@ -144,8 +144,8 @@ func (s *HandlerSession) handleConfirmMoveEnd(c echo.Context) error {
 	return view.ConfirmEndPlanPopup(c, end.Format("January 02, 2006"), endShort, resetStart)
 }
 
-// e.GET("/move-start-popup", s.handleMoveStartPopup)
-func (s *HandlerSession) handleMoveStartPopup(c echo.Context) error {
+// e.GET("/move-start-popup", s.showMoveStart)
+func (s *HandlerSession) showMoveStart(c echo.Context) error {
 	start := c.Param("start")
 	moveEndRaw := c.QueryParam("moveEnd")
 	moveEnd, err := strconv.ParseBool(moveEndRaw)
@@ -157,8 +157,8 @@ func (s *HandlerSession) handleMoveStartPopup(c echo.Context) error {
 	return view.EditStartPopup(c, start, moveEnd)
 }
 
-// e.GET("/move-end-popup", s.handleMoveEndPopup)
-func (s *HandlerSession) handleMoveEndPopup(c echo.Context) error {
+// e.GET("/move-end-popup", s.showMoveEnd)
+func (s *HandlerSession) showMoveEnd(c echo.Context) error {
 	end := c.Param("end")
 	resetStartRaw := c.QueryParam("resetStart")
 	resetStart, err := strconv.ParseBool(resetStartRaw)
@@ -190,7 +190,7 @@ func (s *HandlerSession) moveStart(c echo.Context) error {
 
 	c.Response().Header().Add("HX-Retarget", "#base")
 	c.Response().Header().Add("HX-Reswap", "innerHTML")
-	return s.viewDashboard(c, uid)
+	return s.dashboardPage(c, uid)
 }
 
 // e.POST("/move-end/:end", s.moveEnd, pasetoMiddle())?resetStart
@@ -211,5 +211,5 @@ func (s *HandlerSession) moveEnd(c echo.Context) error {
 	}
 	c.Response().Header().Add("HX-Retarget", "#base")
 	c.Response().Header().Add("HX-Reswap", "innerHTML")
-	return s.viewDashboard(c, uid)
+	return s.dashboardPage(c, uid)
 }

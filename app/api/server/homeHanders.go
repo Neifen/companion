@@ -20,11 +20,11 @@ func (s *HandlerSession) entry(c echo.Context) error {
 
 func (s *HandlerSession) dashboard(c echo.Context) error {
 	uid := ctxUID(c)
-	return s.viewDashboard(c, uid)
+	return s.dashboardPage(c, uid)
 }
 
 func (s *HandlerSession) welcome(c echo.Context) error {
-	return s.viewWelcome(c)
+	return s.welcomePage(c)
 }
 
 // /////////////////// Replacements ////////////////////
@@ -36,10 +36,10 @@ func (s *HandlerSession) replaceEntry(c echo.Context, u *auth.UserModel) error {
 
 func (s *HandlerSession) replaceOnobarding(c echo.Context, uid uuid.UUID) error {
 	// might have to push the url
-	return replaceUID(c, "/", uid, s.viewOnboarding)
+	return replaceUID(c, "/", uid, s.onboardingPage)
 }
 
-// todo: test
+// todo: uid/user -> authUser object
 func replaceUID(c echo.Context, url string, uid uuid.UUID, next func(echo.Context, uuid.UUID) error) error {
 	if c.Request().Header.Get("HX-Request") != "true" {
 		return c.Redirect(http.StatusSeeOther, url)
@@ -53,26 +53,27 @@ func replaceUID(c echo.Context, url string, uid uuid.UUID, next func(echo.Contex
 
 func (s *HandlerSession) routeEntry(c echo.Context, u *auth.UserModel) error {
 	if u == nil {
-		return s.viewWelcome(c)
+		return s.welcomePage(c)
 	}
 
 	if u.Status == auth.StatusUnverified {
-		return s.getVerify(c)
+		return s.showVerify(c)
 	}
 
 	if u.Status == auth.StatusNewUser {
-		return s.viewOnboarding(c, u.ID)
+		return s.onboardingPage(c, u.ID)
 	}
 
-	return s.viewDashboard(c, u.ID)
+	return s.dashboardPage(c, u.ID)
 }
 
 // ////////////////////// Views ///////////////////////////////
 
-func (s *HandlerSession) viewWelcome(c echo.Context) error {
+func (s *HandlerSession) welcomePage(c echo.Context) error {
 	return view.Welcome(c)
 }
-func (s *HandlerSession) viewOnboarding(c echo.Context, uid uuid.UUID) error {
+
+func (s *HandlerSession) onboardingPage(c echo.Context, uid uuid.UUID) error {
 	chapters, err := s.services.GetPlansChapters(c.Request().Context(), 0)
 	// todo real errors
 	if err != nil {
@@ -88,18 +89,18 @@ func (s *HandlerSession) viewOnboarding(c echo.Context, uid uuid.UUID) error {
 
 }
 
-func (s *HandlerSession) viewDashboard(c echo.Context, uid uuid.UUID) error {
+func (s *HandlerSession) dashboardPage(c echo.Context, uid uuid.UUID) error {
 	var bible *entities.TrackedBible
 
 	tracker, hasMore, err := s.services.ReadTasksFrom(c.Request().Context(), uid, time.Now().AddDate(0, 0, -2))
 	if err != nil {
 		log.Err(err)
 		//todo: with error
-		return s.viewEmptyDashboard(c, uid)
+		return s.emptyDashboardPage(c, uid)
 	}
 
 	if len(tracker) == 0 {
-		return s.viewEmptyDashboard(c, uid)
+		return s.emptyDashboardPage(c, uid)
 
 	}
 
@@ -110,7 +111,7 @@ func (s *HandlerSession) viewDashboard(c echo.Context, uid uuid.UUID) error {
 	return view.HomeHTML(c, bible, viewU, false)
 }
 
-func (s *HandlerSession) viewEmptyDashboard(c echo.Context, uid uuid.UUID) error {
+func (s *HandlerSession) emptyDashboardPage(c echo.Context, uid uuid.UUID) error {
 	bible := &entities.TrackedBible{
 		HasMore:       false,
 		TrackedGroups: []*entities.TrackedGroup{},

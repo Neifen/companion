@@ -33,43 +33,43 @@ func (api *APIServer) Run() {
 
 	e.GET("/home", s.dashboard, s.authorizeToken)
 
-	e.GET("/track-after/:date", s.handleGetAfterItem, s.authorizeTokenOptional)
-	e.GET("/track-before/:date", s.handleGetBeforeItem, s.authorizeTokenOptional)
+	e.GET("/track-after/:date", s.loadAfterItem, s.authorizeTokenOptional)
+	e.GET("/track-before/:date", s.loadBeforeItem, s.authorizeTokenOptional)
 
-	e.POST("/check-trackeditem/:itemId/:checked", s.handleCheckTrackedItem, s.authorizeTokenOptional)
+	e.POST("/check-trackeditem/:itemId/:checked", s.checkTask, s.authorizeTokenOptional)
 
 	// plan settings
-	e.GET("/plan-settings", s.handlePlanSettings, s.authorizeToken)
+	e.GET("/plan-settings", s.showPlanSettings, s.authorizeToken)
 	e.GET("/plan-settings/delete-plan", s.handleDeletePlanConfirm)
-	e.POST("/plan-settings/delete-plan", s.handleDeletePlan, s.authorizeToken)
+	e.POST("/plan-settings/delete-plan", s.deletePlan, s.authorizeToken)
 
-	e.GET("/join-plan", s.handleJoinPlanWindow)
-	e.GET("/join-plan/confirm", s.handleJoinPlanConfirm) // ?start (because of js) ?end
-	e.POST("/join-plan/:planId/:start/:end", s.handleJoinPlan, s.authorizeToken)
+	e.GET("/join-plan", s.joinPlanWindow)
+	e.GET("/join-plan/confirm", s.confirmJoinPlan) // ?start (because of js) ?end
+	e.POST("/join-plan/:planId/:start/:end", s.joinPlan, s.authorizeToken)
 
 	// /plan-settings/join-plan
-	e.GET("/move-start-confirm", s.handleConfirmMoveStart) // ?start (because of js) ?moveEnd
-	e.GET("/move-end-confirm", s.handleConfirmMoveEnd)     // ?end (because of js) ?resetStart
+	e.GET("/move-start-confirm", s.confirmPlanMoveStart) // ?start (because of js) ?moveEnd
+	e.GET("/move-end-confirm", s.confirmPlanMoveEnd)     // ?end (because of js) ?resetStart
 
-	e.GET("/move-start-popup/:start", s.handleMoveStartPopup)   // ?moveEnd
-	e.GET("/move-end-popup/:end", s.handleMoveEndPopup)         // ?resetStart
+	e.GET("/move-start-popup/:start", s.showMoveStart)          // ?moveEnd
+	e.GET("/move-end-popup/:end", s.showMoveEnd)                // ?resetStart
 	e.POST("/move-start/:start", s.moveStart, s.authorizeToken) // ?moveEnd
 	e.POST("/move-end/:end", s.moveEnd, s.authorizeToken)       // ?resetStart
 
 	// login
-	e.GET("/login", s.handleGetLogin, s.guestOnly)
-	e.POST("/login", s.handlePostLogin, s.guestOnly)
-	e.POST("/logout", s.handlePostLogout) //to be able to access refresh token
+	e.GET("/login", s.showLogin, s.guestOnly)
+	e.POST("/login", s.login, s.guestOnly)
+	e.POST("/logout", s.logout) //to be able to access refresh token
 
 	// verifications
-	e.GET("/signup", s.getSignup, s.guestOnly)                                       // todo - gets the signup page
-	e.POST("/signup", s.signupForm, s.guestOnly)                                     // todo - send signup form
-	e.GET("/verify-signup", s.getVerify, s.authorizeTokenOptional)                   // todo - verify long token
+	e.GET("/signup", s.showSignup, s.guestOnly)                                      // todo - gets the signup page
+	e.POST("/signup", s.signup, s.guestOnly)                                         // todo - send signup form
+	e.GET("/verify-signup", s.showVerify, s.authorizeTokenOptional)                  // todo - verify long token
 	e.POST("/verify-signup", s.verifyShort, s.authorizeToken)                        // todo - verify short token
 	e.POST("/renew-signup-token", s.renewSignupTokens, s.authorizeToken, s.loadUser) // todo - renew the tokens
 
-	// e.GET("/recovery", s.handleGetRecovery, s.guestOnly)
-	// e.POST("/recovery", s.handleRecovery, s.guestOnly)                    // todo - send signup form
+	e.GET("/recovery", s.showRecovery, s.guestOnly)
+	e.POST("/recovery", s.recovery, s.guestOnly) // todo - send signup form
 	// e.GET("/verify-recovery", s.handleGetVerifySignup, s.guestOnly)       // todo - verify long token
 	// e.POST("/verify-recovery", s.handleGetVerifySignup, s.guestOnly)      // todo - verify short token
 	// e.POST("/renew-recovery-token", s.handleGetVerifySignup, s.guestOnly) // todo - renew the tokens
@@ -77,11 +77,6 @@ func (api *APIServer) Run() {
 	// settings
 	// e.GET("/edit-user", s.editUser)
 	// e.POST("/edit-user", s.editUser)
-
-	// todo: not needed anymore
-	e.POST("/token/refresh", s.handleTokenRefresh)
-	e.GET("/token/refresh", s.handleTokenRefresh)
-	e.POST("/token/logout", s.handlePostLogout) //to be able to access refresh token
 
 	e.Logger.Fatal(e.Start(api.apiPath))
 }

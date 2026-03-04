@@ -10,8 +10,8 @@ import (
 	"github.com/neifen/companion/app/view"
 )
 
-// e.GET("/track-before/:date", s.handleGetBeforeItem, pasetoMiddleOpt())
-func (s *HandlerSession) handleGetBeforeItem(c echo.Context) error {
+// e.GET("/track-before/:date", s.loadBeforeItem, pasetoMiddleOpt())
+func (s *HandlerSession) loadBeforeItem(c echo.Context) error {
 	uid := ctxUID(c)
 	date, err := time.Parse("January 2, 2006", c.Param("date"))
 	if err != nil {
@@ -29,8 +29,8 @@ func (s *HandlerSession) handleGetBeforeItem(c echo.Context) error {
 	return view.PaginateTrackerListBefore(c, bible)
 }
 
-// e.GET("/track-after/:date", s.handleGetAfterItem, pasetoMiddleOpt())
-func (s *HandlerSession) handleGetAfterItem(c echo.Context) error {
+// e.GET("/track-after/:date", s.loadAfterItem, pasetoMiddleOpt())
+func (s *HandlerSession) loadAfterItem(c echo.Context) error {
 	uid := ctxUID(c)
 	date, err := time.Parse("January 2, 2006", c.Param("date"))
 	if err != nil {
@@ -48,8 +48,9 @@ func (s *HandlerSession) handleGetAfterItem(c echo.Context) error {
 	return view.PaginateTrackerListAfter(c, bible)
 }
 
+// todo: rename route
 // e.POST("/check-trackeditem/:itemId/:checked", s.handleCheckTrackeItem)
-func (s *HandlerSession) handleCheckTrackedItem(c echo.Context) error {
+func (s *HandlerSession) checkTask(c echo.Context) error {
 	itemID, err := strconv.ParseInt(c.Param("itemId"), 10, 64)
 	if err != nil {
 		fmt.Println(err)

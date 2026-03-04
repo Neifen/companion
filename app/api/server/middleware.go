@@ -45,13 +45,13 @@ func (s *HandlerSession) authorizeToken(next echo.HandlerFunc) echo.HandlerFunc 
 			uid, err := s.refreshToken(c)
 			if err != nil {
 				//todo: logging
-				return redirectToLogin(c)
+				return replaceLogin(c)
 			}
 			c.Set("uid", *uid)
 			return next(c)
 		}
 
-		return redirectToLogin(c)
+		return replaceLogin(c)
 	}
 }
 
@@ -100,7 +100,7 @@ func (s *HandlerSession) authorizeTokenVerify(next echo.HandlerFunc) echo.Handle
 		}
 
 		// no token, needs to be logged in
-		return redirectToLogin(c)
+		return replaceLogin(c)
 	}
 }
 

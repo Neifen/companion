@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/pkg/errors"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/crypto/sha3"
 )
@@ -16,7 +15,7 @@ func HashPassword(pw string) ([]byte, error) {
 	//todo: pepper
 	hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
 	if err != nil {
-		return nil, errors.Wrap(err, "hashing: Hash Password")
+		return nil, fmt.Errorf("hashing: Hash Password %w", err)
 	}
 
 	return hash, nil
@@ -30,7 +29,7 @@ func CheckPassword(pw string, hash []byte) bool {
 func HashToken(token string) ([]byte, error) {
 	b, err := base64.RawURLEncoding.DecodeString(token)
 	if err != nil {
-		return nil, errors.Wrapf(err, "token: Hash token")
+		return nil, fmt.Errorf("token: Hash token %w", err)
 	}
 
 	sh := sha3.Sum256(b)
@@ -56,7 +55,7 @@ func NewRandomCode() ([]byte, string, error) {
 	max := big.NewInt(999999)
 	n, err := rand.Int(rand.Reader, max)
 	if err != nil {
-		return nil, "", errors.Wrapf(err, "token: New Random Code")
+		return nil, "", fmt.Errorf("token: New Random Code %w", err)
 	}
 
 	token := fmt.Sprintf("%06d", n.Int64())

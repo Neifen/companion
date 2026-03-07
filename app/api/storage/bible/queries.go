@@ -2,9 +2,9 @@ package bible
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -23,12 +23,12 @@ func (pg *BibleStore) ReadPlanChapter(ctx context.Context, planID int) ([]Chapte
 		order by bp.id;
 `, planID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "ReadPlanChapter(%d) select", planID)
+		return nil, fmt.Errorf("bible db: ReadPlanChapter(%d) select %w", planID, err)
 	}
 
 	chapters, err := pgx.CollectRows(rows, pgx.RowToStructByNameLax[ChapterModel])
 	if err != nil {
-		return nil, errors.Wrapf(err, "ReadPlanChapter(%d) scan", planID)
+		return nil, fmt.Errorf("bible db: ReadPlanChapter(%d) scan %w", planID, err)
 	}
 	return chapters, nil
 }
@@ -68,12 +68,12 @@ func (pg *BibleStore) ReadBookChapters(ctx context.Context, parsedChapters []Bib
 	 	group by chn.ord, c.id
 	 	order by chn.ord, c.id `, books, wholeBook, chapters, versesStart, versesEnd)
 	if err != nil {
-		return nil, errors.Wrapf(err, "ReadBookChapters(parsed chapters: %v) select", parsedChapters)
+		return nil, fmt.Errorf("bible db: ReadBookChapters(parsed chapters: %v) select %w", parsedChapters, err)
 	}
 
 	chapterModels, err := pgx.CollectRows(rows, pgx.RowToStructByNameLax[ChapterModel])
 	if err != nil {
-		return nil, errors.Wrapf(err, "ReadBookChapters(parsed chapters: %v) scanning", parsedChapters)
+		return nil, fmt.Errorf("bible db: ReadBookChapters(parsed chapters: %v) scanning %w", parsedChapters, err)
 	}
 
 	return chapterModels, nil
@@ -93,12 +93,12 @@ func (pg *BibleStore) ReadVerses(ctx context.Context, chaptersIDs []int16) ([]Ve
 	order by ord
 	`, chaptersIDs)
 	if err != nil {
-		return nil, errors.Wrapf(err, "bible storage: Read Verses for chapters %v", chaptersIDs)
+		return nil, fmt.Errorf("bible db: Read Verses for chapters %v %w", chaptersIDs, err)
 	}
 
 	verseModels, err := pgx.CollectRows(rows, pgx.RowToStructByName[VerseModel])
 	if err != nil {
-		return nil, errors.Wrapf(err, "bible storage: Read Verses for chapters %v", chaptersIDs)
+		return nil, fmt.Errorf("bible db: Read Verses for chapters %v %w", chaptersIDs, err)
 	}
 
 	return verseModels, nil

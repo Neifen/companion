@@ -2,9 +2,9 @@ package iptracking
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 )
 
 const trackingTable = "auth.ip_tracking"
@@ -15,7 +15,7 @@ func (pg *IPTrackingStore) GetIPAttempts(ctx context.Context, ip string, trackin
 	var count uint16
 	err := row.Scan(&count)
 	if err != nil {
-		return 0, errors.Wrapf(err, "auth db: Get Ip Attempts for ip %s", ip)
+		return 0, fmt.Errorf("auth db: Get Ip Attempts for ip %s %w", ip, err)
 	}
 
 	return count, nil
@@ -24,7 +24,7 @@ func (pg *IPTrackingStore) GetIPAttempts(ctx context.Context, ip string, trackin
 func (pg *IPTrackingStore) AddIPAttempt(ctx context.Context, ip string, trackingCtx TrackingContext) error {
 	_, err := pg.db.Exec(ctx, "INSERT INTO "+trackingTable+"(ip, context) VALUES ($1, $2)", ip, trackingCtx)
 	if err != nil {
-		return errors.Wrapf(err, "auth db: Add Ip Attempt for ip %s", ip)
+		return fmt.Errorf("auth db: Add Ip Attempt for ip %s %w", ip, err)
 	}
 
 	return nil
@@ -36,7 +36,7 @@ func (pg *IPTrackingStore) GetIPUserAttempts(ctx context.Context, ip string, uid
 	var count uint16
 	err := row.Scan(&count)
 	if err != nil {
-		return 0, errors.Wrapf(err, "auth db: Get IP/User Attempts for ip %s/user %s/context %s", ip, uid, trackingCtx)
+		return 0, fmt.Errorf("auth db: Get IP/User Attempts for ip %s/user %s/context %s %w", ip, uid, trackingCtx, err)
 	}
 
 	return count, nil
@@ -45,7 +45,7 @@ func (pg *IPTrackingStore) GetIPUserAttempts(ctx context.Context, ip string, uid
 func (pg *IPTrackingStore) AddIPUserAttempts(ctx context.Context, ip string, uid uuid.UUID, trackingCtx TrackingContext) error {
 	_, err := pg.db.Exec(ctx, "INSERT INTO "+trackingTable+"(ip, user_id, context) VALUES ($1, $2, $3)", ip, uid, trackingCtx)
 	if err != nil {
-		return errors.Wrapf(err, "auth db: Add IP/User Attempt for ip %s/user %s/context %s", ip, uid, trackingCtx)
+		return fmt.Errorf("auth db: Add IP/User Attempt for ip %s/user %s/context %s %w", ip, uid, trackingCtx, err)
 	}
 
 	return nil
@@ -57,7 +57,7 @@ func (pg *IPTrackingStore) GetFailedAuthAttempts(ctx context.Context, uid uuid.U
 	var count uint16
 	err := row.Scan(&count)
 	if err != nil {
-		return 0, errors.Wrapf(err, "auth db: Get IP/User Attempts for user %s/context %s", uid, FailedAuthentication)
+		return 0, fmt.Errorf("auth db: Get IP/User Attempts for user %s/context %s %w", uid, FailedAuthentication, err)
 	}
 
 	return count, nil
@@ -66,7 +66,7 @@ func (pg *IPTrackingStore) GetFailedAuthAttempts(ctx context.Context, uid uuid.U
 func (pg *IPTrackingStore) AddFailedAuthAttempt(ctx context.Context, ip string, uid uuid.UUID) error {
 	_, err := pg.db.Exec(ctx, "INSERT INTO "+trackingTable+"(user_id, ip, context) VALUES ($1, $2, $3)", uid, ip, FailedAuthentication)
 	if err != nil {
-		return errors.Wrapf(err, "auth db: Add IP/User Attempt for user %s/context %s", uid, FailedAuthentication)
+		return fmt.Errorf("auth db: Add IP/User Attempt for user %s/context %s %w", uid, FailedAuthentication, err)
 	}
 
 	return nil

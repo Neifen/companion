@@ -7,8 +7,6 @@ import (
 	"github.com/neifen/companion/app/view"
 	"github.com/rs/zerolog/log"
 
-	"github.com/pkg/errors"
-
 	"github.com/labstack/echo/v4"
 	"github.com/neifen/companion/app/api/crypto"
 	"github.com/neifen/companion/app/api/storage/auth"
@@ -294,7 +292,7 @@ func (s *HandlerSession) replaceVerify(c echo.Context, uid uuid.UUID) error {
 
 func replaceLogin(c echo.Context) error {
 	child := view.Login()
-	return view.ReplaceUrl("/login", c, child)
+	return view.ReplaceURL("/login", c, child)
 }
 
 func (s *HandlerSession) replaceRecovery(c echo.Context) error {
@@ -321,7 +319,7 @@ func (s *HandlerSession) verifyPage(c echo.Context, uid uuid.UUID) error {
 func (s *HandlerSession) refreshToken(c echo.Context) (*uuid.UUID, error) {
 	refresh, err := c.Cookie("refresh")
 	if err != nil {
-		return nil, errors.Wrapf(err, "getting refresh token from cookie %q failed", "refresh")
+		return nil, fmt.Errorf("auth api: refresh %w", err)
 	}
 
 	if refresh == nil {
@@ -330,7 +328,7 @@ func (s *HandlerSession) refreshToken(c echo.Context) (*uuid.UUID, error) {
 
 	auth, err := s.services.RefreshToken(c.Request().Context(), c.RealIP(), refresh.Value)
 	if err != nil {
-		errors.WithMessagef(err, "api: refresh token")
+		return nil, fmt.Errorf("auth api: refresh token %w", err)
 	}
 
 	//todo: check if that works

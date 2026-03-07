@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/mail"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"github.com/neifen/companion/app/api/crypto"
 	"github.com/neifen/companion/app/api/storage/auth"
 	"github.com/neifen/companion/app/api/storage/iptracking"
-	"github.com/pkg/errors"
 )
 
 type AuthServices interface {
@@ -23,23 +23,23 @@ type ProductionAuthServices struct {
 func (s *Services) NewUser(ctx context.Context, ip string, u *auth.UserModel) error {
 	err := s.store.CreateTX(ctx)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: New User")
+		return fmt.Errorf("auth service: New User %w", err)
 	}
 	defer s.store.RollbackTX(ctx)
 
 	err = s.ipRateLimit(ctx, ip, iptracking.NewUser)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: New User")
+		return fmt.Errorf("auth service: New User %w", err)
 	}
 
 	_, err = mail.ParseAddress(u.Email)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: New User")
+		return fmt.Errorf("auth service: New User %w", err)
 	}
 
 	err = s.store.Auth.CreateUser(ctx, u)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: New User")
+		return fmt.Errorf("auth service: New User %w", err)
 	}
 
 	longHash, longToken := crypto.NewRandomHash()
@@ -53,12 +53,12 @@ func (s *Services) NewUser(ctx context.Context, ip string, u *auth.UserModel) er
 	}
 
 	if err := s.store.Auth.CreateVerification(ctx, longVerToken); err != nil {
-		return errors.WithMessage(err, "auth service: New User")
+		return fmt.Errorf("auth service: New User %w", err)
 	}
 
 	shortHash, shortToken, err := crypto.NewRandomCode()
 	if err != nil {
-		return errors.WithMessage(err, "auth service: New User")
+		return fmt.Errorf("auth service: New User %w", err)
 	}
 	exp = time.Now().Add(time.Minute * 5)
 	shortVerToken := &auth.VerificationTokenModel{
@@ -69,14 +69,14 @@ func (s *Services) NewUser(ctx context.Context, ip string, u *auth.UserModel) er
 		Expiration: exp,
 	}
 	if err = s.store.Auth.CreateVerification(ctx, shortVerToken); err != nil {
-		return errors.WithMessage(err, "auth service: New User")
+		return fmt.Errorf("auth service: New User %w", err)
 	}
 
 	s.auth.SendVerification(shortToken, longToken, u, auth.PurposeSignup)
 
 	err = s.store.CommitTX(ctx)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: New User")
+		return fmt.Errorf("auth service: New User %w", err)
 	}
 
 	return nil
@@ -116,21 +116,21 @@ func (s *Services) GetVerificationTokenExpiration(ctx context.Context, uid uuid.
 func (s *Services) RequestSignupVerificationTokens(ctx context.Context, ip string, u *auth.UserModel) error {
 	err := s.store.CreateTX(ctx)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Request Signup Verification Tokens")
+		return fmt.Errorf("auth service: Request Signup Verification Tokens %w", err)
 	}
 	defer s.store.RollbackTX(ctx)
 
 	err = s.ipRateLimit(ctx, ip, iptracking.RequestSignupVerification)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Request Signup Verification Tokens")
+		return fmt.Errorf("auth service: Request Signup Verification Tokens %w", err)
 	}
 
 	if err := s.ipUserRateLimit(ctx, ip, u.ID, iptracking.RequestSignupVerification); err != nil {
-		return errors.WithMessage(err, "auth service: Request Signup Verification Tokens")
+		return fmt.Errorf("auth service: Request Signup Verification Tokens %w", err)
 	}
 
 	if err := s.verifyVerificationTimeouts(ctx, auth.PurposeSignup, u.ID); err != nil {
-		return errors.WithMessage(err, "auth service: Request Signup Verification Tokens")
+		return fmt.Errorf("auth service: Request Signup Verification Tokens %w", err)
 	}
 
 	longHash, longToken := crypto.NewRandomHash()
@@ -144,12 +144,12 @@ func (s *Services) RequestSignupVerificationTokens(ctx context.Context, ip strin
 	}
 
 	if err := s.store.Auth.CreateVerification(ctx, longVerToken); err != nil {
-		return errors.WithMessage(err, "auth service: Request Signup Verification Tokens")
+		return fmt.Errorf("auth service: Request Signup Verification Tokens %w", err)
 	}
 
 	shortHash, shortToken, err := crypto.NewRandomCode()
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Request Signup Verification Tokens")
+		return fmt.Errorf("auth service: Request Signup Verification Tokens %w", err)
 	}
 	exp = time.Now().Add(time.Minute * 5)
 	shortVerToken := &auth.VerificationTokenModel{
@@ -160,14 +160,14 @@ func (s *Services) RequestSignupVerificationTokens(ctx context.Context, ip strin
 		Expiration: exp,
 	}
 	if err = s.store.Auth.CreateVerification(ctx, shortVerToken); err != nil {
-		return errors.WithMessage(err, "auth service: Request Signup Verification Tokens")
+		return fmt.Errorf("auth service: Request Signup Verification Tokens %w", err)
 	}
 
 	s.auth.SendVerification(shortToken, longToken, u, auth.PurposeSignup)
 
 	err = s.store.CommitTX(ctx)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Request Signup Verification Tokens")
+		return fmt.Errorf("auth service: Request Signup Verification Tokens %w", err)
 	}
 
 	return nil
@@ -333,13 +333,13 @@ func (s *Services) verifyToken(ctx context.Context, verification *auth.Verificat
 	return verification.UserUID, nil
 }
 
-var ErrWaitTimeout = errors.New("Wait 5 minutes for another token")
+var ErrWaitTimeout = errors.New("wait 5 minutes for another token")
 
 func (s *Services) verifyVerificationTimeouts(ctx context.Context, purpose auth.VerificationPurpose, uid uuid.UUID) error {
 	// short channel is fine, both were created at same time
 	v, err := s.store.Auth.ReadUserVerification(ctx, purpose, auth.ChannelShortEmail, uid)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: verify verification timeouts")
+		return fmt.Errorf("auth service: verify verification timeouts %w", err)
 	}
 
 	if v == nil {
@@ -348,7 +348,7 @@ func (s *Services) verifyVerificationTimeouts(ctx context.Context, purpose auth.
 
 	if v.Consumed != nil || time.Now().After(v.Expiration) {
 		if err := s.store.Auth.DeleteVerificationToken(ctx, v); err != nil {
-			return errors.WithMessage(err, "auth service: verify verificaton timeouts")
+			return fmt.Errorf("auth service: verify verificaton timeouts %w", err)
 		}
 		return nil
 	}
@@ -357,36 +357,36 @@ func (s *Services) verifyVerificationTimeouts(ctx context.Context, purpose auth.
 		return nil
 	}
 
-	return errors.Wrapf(ErrWaitTimeout, "auth service: auth service: verify verification timeouts for uid %s", uid)
+	return fmt.Errorf("auth service: auth service: verify verification timeouts for uid %s %w", uid, ErrWaitTimeout)
 }
 
 func (s *Services) RequestResetPassword(ctx context.Context, ip, email string) error {
 	if err := s.store.CreateTX(ctx); err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password")
+		return fmt.Errorf("auth service: Request Reset Password %w", err)
 	}
 	defer s.store.RollbackTX(ctx)
 
 	if err := s.ipRateLimit(ctx, ip, iptracking.RequestPasswordReset); err != nil {
-		return errors.WithMessage(err, "auth service: Request Reset Password")
+		return fmt.Errorf("auth service: Request Reset Password %w", err)
 	}
 
 	u, err := s.store.Auth.ReadUserByEmail(ctx, email)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Request Reset Password")
+		return fmt.Errorf("auth service: Request Reset Password %w", err)
 	}
 
 	if err := s.ipUserRateLimit(ctx, ip, u.ID, iptracking.RequestPasswordReset); err != nil {
-		return errors.WithMessage(err, "auth service: Request Reset Password")
+		return fmt.Errorf("auth service: Request Reset Password %w", err)
 	}
 
 	if err := s.verifyVerificationTimeouts(ctx, auth.PurposePassword, u.ID); err != nil {
-		return errors.WithMessage(err, "auth service: Request Reset Password")
+		return fmt.Errorf("auth service: Request Reset Password %w", err)
 	}
 
 	longHash, longToken := crypto.NewRandomHash()
 	shortHash, shortToken, err := crypto.NewRandomCode()
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Request Reset Password")
+		return fmt.Errorf("auth service: Request Reset Password %w", err)
 	}
 
 	exp := time.Now().Add(time.Hour)
@@ -399,7 +399,7 @@ func (s *Services) RequestResetPassword(ctx context.Context, ip, email string) e
 	}
 
 	if err := s.store.Auth.CreateVerification(ctx, longVerToken); err != nil {
-		return errors.WithMessage(err, "auth service: Request Reset Password")
+		return fmt.Errorf("auth service: Request Reset Password %w", err)
 	}
 
 	exp = time.Now().Add(time.Minute * 5)
@@ -411,7 +411,7 @@ func (s *Services) RequestResetPassword(ctx context.Context, ip, email string) e
 		Expiration: exp,
 	}
 	if err = s.store.Auth.CreateVerification(ctx, shortVerToken); err != nil {
-		return errors.WithMessage(err, "auth service: Request Reset Password")
+		return fmt.Errorf("auth service: Request Reset Password %w", err)
 	}
 
 	err = s.auth.SendVerification(shortToken, longToken, u, auth.PurposePassword)
@@ -420,7 +420,7 @@ func (s *Services) RequestResetPassword(ctx context.Context, ip, email string) e
 	}
 
 	if err := s.store.CommitTX(ctx); err != nil {
-		return errors.WithMessage(err, "auth service: Request Reset Password")
+		return fmt.Errorf("auth service: Request Reset Password %w", err)
 	}
 
 	return nil
@@ -431,23 +431,23 @@ var ErrPasswordUnchanged error = fmt.Errorf("password unchanged")
 func (s *Services) ResetPasswordShort(ctx context.Context, ip, email, token, newPw string) error {
 	err := s.store.CreateTX(ctx)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password Short")
+		return fmt.Errorf("auth service: Reset Password Short %w", err)
 	}
 	defer s.store.RollbackTX(ctx)
 
 	err = s.ipRateLimit(ctx, ip, iptracking.Verification)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password Short")
+		return fmt.Errorf("auth service: Reset Password Short %w", err)
 	}
 
 	u, err := s.store.Auth.ReadUserByEmail(ctx, email)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password Short")
+		return fmt.Errorf("auth service: Reset Password Short %w", err)
 	}
 
 	err = s.ipUserRateLimit(ctx, ip, u.ID, iptracking.Verification)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password Short")
+		return fmt.Errorf("auth service: Reset Password Short %w", err)
 	}
 
 	hashed := crypto.HashCode(token)
@@ -456,20 +456,20 @@ func (s *Services) ResetPasswordShort(ctx context.Context, ip, email, token, new
 	if err != nil {
 		s.store.Auth.AddVerificationAttempt(ctx, u.ID)
 		if err := s.store.CommitTX(ctx); err != nil {
-			return errors.WithMessage(err, "auth service: Reset Password Short")
+			return fmt.Errorf("auth service: Reset Password Short %w", err)
 		}
 
-		return errors.WithMessage(err, "auth service: Reset Password Short")
+		return fmt.Errorf("auth service: Reset Password Short %w", err)
 	}
 
 	_, err = s.verifyToken(ctx, verification, u.ID, auth.PurposePassword)
 	if err != nil {
 		s.store.Auth.AddVerificationAttempt(ctx, u.ID)
 		if err := s.store.CommitTX(ctx); err != nil {
-			return errors.WithMessage(err, "auth service: Reset Password Short")
+			return fmt.Errorf("auth service: Reset Password Short %w", err)
 		}
 
-		return errors.WithMessage(err, "auth service: Reset Password Short")
+		return fmt.Errorf("auth service: Reset Password Short %w", err)
 	}
 
 	if crypto.CheckPassword(newPw, u.Pw) {
@@ -478,24 +478,24 @@ func (s *Services) ResetPasswordShort(ctx context.Context, ip, email, token, new
 
 	newHashedPw, err := crypto.HashPassword(newPw)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password Short")
+		return fmt.Errorf("auth service: Reset Password Short %w", err)
 	}
 
 	err = s.store.Auth.UpdateUserPassword(ctx, u.ID, newHashedPw)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password Short")
+		return fmt.Errorf("auth service: Reset Password Short %w", err)
 	}
 
 	now := time.Now()
 	verification.Consumed = &now
 	err = s.store.Auth.ConsumeVerification(ctx, verification)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password Short")
+		return fmt.Errorf("auth service: Reset Password Short %w", err)
 	}
 
 	err = s.store.CommitTX(ctx)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password Short")
+		return fmt.Errorf("auth service: Reset Password Short %w", err)
 	}
 
 	return nil
@@ -505,50 +505,50 @@ func (s *Services) ResetPasswordLong(ctx context.Context, ip, token, newPw strin
 
 	err := s.store.CreateTX(ctx)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password Long")
+		return fmt.Errorf("auth service: Reset Password Long %w", err)
 	}
 	defer s.store.RollbackTX(ctx)
 
 	err = s.ipRateLimit(ctx, ip, iptracking.Verification)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password Long")
+		return fmt.Errorf("auth service: Reset Password Long %w", err)
 	}
 
 	hashed, err := crypto.HashToken(token)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password Long")
+		return fmt.Errorf("auth service: Reset Password Long %w", err)
 	}
 
 	verification, err := s.store.Auth.ReadVerification(ctx, hashed)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password Long")
+		return fmt.Errorf("auth service: Reset Password Long %w", err)
 	}
 
 	uid, err := s.verifyToken(ctx, verification, uuid.Nil, auth.PurposePassword)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password Long")
+		return fmt.Errorf("auth service: Reset Password Long %w", err)
 	}
 
 	newHashedPw, err := crypto.HashPassword(newPw)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password Long")
+		return fmt.Errorf("auth service: Reset Password Long %w", err)
 	}
 
 	err = s.store.Auth.UpdateUserPassword(ctx, uid, newHashedPw)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password Long")
+		return fmt.Errorf("auth service: Reset Password Long %w", err)
 	}
 
 	now := time.Now()
 	verification.Consumed = &now
 	err = s.store.Auth.ConsumeVerification(ctx, verification)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password Long")
+		return fmt.Errorf("auth service: Reset Password Long %w", err)
 	}
 
 	err = s.store.CommitTX(ctx)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Reset Password Long")
+		return fmt.Errorf("auth service: Reset Password Long %w", err)
 	}
 
 	return nil
@@ -558,37 +558,37 @@ func (s *Services) ChangePassword(ctx context.Context, ip, email, oldPw, newPw s
 
 	err := s.store.CreateTX(ctx)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Change Password")
+		return fmt.Errorf("auth service: Change Password %w", err)
 	}
 	defer s.store.RollbackTX(ctx)
 
 	err = s.ipRateLimit(ctx, ip, iptracking.Authentication)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Change Password")
+		return fmt.Errorf("auth service: Change Password %w", err)
 	}
 
 	u, err := s.store.Auth.ReadUserByEmail(ctx, email)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Change Password")
+		return fmt.Errorf("auth service: Change Password %w", err)
 	}
 
 	if !crypto.CheckPassword(oldPw, u.Pw) {
-		return errors.Errorf("auth service: Change Password, Wrong Password for user %s", u.ID)
+		return fmt.Errorf("auth service: Change Password, Wrong Password for user %s", u.ID)
 	}
 
 	newHashedPw, err := crypto.HashPassword(newPw)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Change Password")
+		return fmt.Errorf("auth service: Change Password %w", err)
 	}
 
 	err = s.store.Auth.UpdateUserPassword(ctx, u.ID, newHashedPw)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Change Password")
+		return fmt.Errorf("auth service: Change Password %w", err)
 	}
 
 	err = s.store.CommitTX(ctx)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Change Password")
+		return fmt.Errorf("auth service: Change Password %w", err)
 	}
 
 	return nil
@@ -604,34 +604,34 @@ func (s *Services) Authenticate(ctx context.Context, ip, email, pw string, remem
 	err := s.store.CreateTX(ctx)
 	defer s.store.RollbackTX(ctx)
 	if err != nil {
-		return nil, errors.WithMessage(err, "service: Authenticate")
+		return nil, fmt.Errorf("service: Authenticate %w", err)
 	}
 
 	err = s.ipRateLimit(ctx, ip, iptracking.Authentication)
 	if err != nil {
-		return nil, errors.WithMessage(err, "service: Authenticate")
+		return nil, fmt.Errorf("service: Authenticate %w", err)
 	}
 
 	u, err := s.store.Auth.ReadUserByEmail(ctx, email)
 	if err != nil {
-		return nil, errors.WithMessage(err, "service: Authenticate")
+		return nil, fmt.Errorf("service: Authenticate %w", err)
 	}
 
 	err = s.checkAuthFailRate(ctx, u.ID)
 	if err != nil {
-		return nil, errors.WithMessage(err, "service: Authenticate")
+		return nil, fmt.Errorf("service: Authenticate %w", err)
 	}
 
 	err = s.ipUserRateLimit(ctx, ip, u.ID, iptracking.Authentication)
 	if err != nil {
-		return nil, errors.WithMessage(err, "service: Authenticate")
+		return nil, fmt.Errorf("service: Authenticate %w", err)
 	}
 
 	pwOK := crypto.CheckPassword(pw, u.Pw)
 	if !pwOK {
 		err = s.addAuthFailRate(ctx, ip, u.ID)
 		if err != nil {
-			return nil, errors.WithMessage(err, "service: Authenticate")
+			return nil, fmt.Errorf("service: Authenticate %w", err)
 		}
 		// auth fail todo: add
 		return nil, errors.New("service: Authenticate didn't succeed")
@@ -639,17 +639,17 @@ func (s *Services) Authenticate(ctx context.Context, ip, email, pw string, remem
 
 	t, err := s.CreateAccessToken(u.ID)
 	if err != nil {
-		return nil, errors.WithMessage(err, "service: Authenticate")
+		return nil, fmt.Errorf("service: Authenticate %w", err)
 	}
 
 	r, err := s.CreateRefreshToken(ctx, u.ID, remember)
 	if err != nil {
-		return nil, errors.WithMessage(err, "service: Authenticate")
+		return nil, fmt.Errorf("service: Authenticate %w", err)
 	}
 
 	err = s.store.CommitTX(ctx)
 	if err != nil {
-		return nil, errors.WithMessage(err, "service: Authenticate")
+		return nil, fmt.Errorf("service: Authenticate %w", err)
 	}
 
 	return &AuthResult{User: u, Access: t, Refresh: r}, nil
@@ -673,7 +673,7 @@ func (s *Services) CreateRefreshToken(ctx context.Context, uid uuid.UUID, rememb
 
 	err := s.store.Auth.StoreRefreshToken(ctx, uid, refresh)
 	if err != nil {
-		return nil, errors.WithMessagef(err, "auth service: Create Access Token")
+		return nil, fmt.Errorf("auth service: Create Access Token %w", err)
 	}
 
 	return refresh, nil
@@ -682,7 +682,7 @@ func (s *Services) CreateRefreshToken(ctx context.Context, uid uuid.UUID, rememb
 func (s *Services) InvalidateRefresh(ctx context.Context, token string) error {
 	hashed, err := crypto.HashToken(token)
 	if err != nil {
-		return errors.WithMessage(err, "auth service: Invalidate Refresh")
+		return fmt.Errorf("auth service: Invalidate Refresh %w", err)
 	}
 
 	return s.store.Auth.DeleteRefreshTokenByToken(ctx, hashed)
@@ -691,22 +691,22 @@ func (s *Services) InvalidateRefresh(ctx context.Context, token string) error {
 func (s *Services) RefreshToken(ctx context.Context, ip, token string) (*AuthResult, error) {
 	err := s.store.CreateTX(ctx)
 	if err != nil {
-		return nil, errors.WithMessage(err, "auth service: Refresh Token")
+		return nil, fmt.Errorf("auth service: Refresh Token %w", err)
 	}
 	defer s.store.RollbackTX(ctx)
 
 	if err := s.ipRateLimit(ctx, ip, iptracking.Refresh); err != nil {
-		return nil, errors.WithMessage(err, "auth service: Refresh Token")
+		return nil, fmt.Errorf("auth service: Refresh Token %w", err)
 	}
 
 	hashed, err := crypto.HashToken(token)
 	if err != nil {
-		return nil, errors.WithMessage(err, "auth service: Refresh Token")
+		return nil, fmt.Errorf("auth service: Refresh Token %w", err)
 	}
 
 	refresh, err := s.store.Auth.ReadRefreshTokenByToken(ctx, hashed)
 	if err != nil {
-		return nil, errors.WithMessage(err, "auth service: Refresh Token")
+		return nil, fmt.Errorf("auth service: Refresh Token %w", err)
 	}
 
 	//todo: if refresh.Revoked
@@ -718,27 +718,27 @@ func (s *Services) RefreshToken(ctx context.Context, ip, token string) (*AuthRes
 	//todo: s.store.Auth.Revoke(ctx, refresh.ID)
 	err = s.store.Auth.DeleteRefreshTokenByToken(ctx, hashed)
 	if err != nil {
-		return nil, errors.WithMessage(err, "auth service: Refresh Token")
+		return nil, fmt.Errorf("auth service: Refresh Token %w", err)
 	}
 
 	newRefresh, err := s.CreateRefreshToken(ctx, refresh.UserUID, refresh.Remember)
 	if err != nil {
-		return nil, errors.WithMessage(err, "auth service: Refresh Token")
+		return nil, fmt.Errorf("auth service: Refresh Token %w", err)
 	}
 
 	newAccess, err := s.CreateAccessToken(refresh.UserUID)
 	if err != nil {
-		return nil, errors.WithMessage(err, "auth service: Refresh Token")
+		return nil, fmt.Errorf("auth service: Refresh Token %w", err)
 	}
 
 	user, err := s.store.Auth.ReadUserByUID(ctx, refresh.UserUID)
 	if err != nil {
-		return nil, errors.WithMessage(err, "auth service: Refresh Token")
+		return nil, fmt.Errorf("auth service: Refresh Token %w", err)
 	}
 
 	err = s.store.CommitTX(ctx)
 	if err != nil {
-		return nil, errors.WithMessage(err, "auth service: Refresh Token")
+		return nil, fmt.Errorf("auth service: Refresh Token %w", err)
 	}
 
 	return &AuthResult{User: user, Refresh: newRefresh, Access: newAccess}, nil

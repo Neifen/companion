@@ -3,6 +3,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/neifen/companion/app/api/storage/iptracking"
 	"github.com/neifen/companion/app/api/storage/plans"
 	"github.com/neifen/companion/app/api/storage/tracking"
-	"github.com/pkg/errors"
 )
 
 func (s *Storage) CreateTX(ctx context.Context) error {
@@ -28,7 +28,7 @@ func (s *Storage) CreateTX(ctx context.Context) error {
 
 	tx, err := s.pgx.Begin(ctx)
 	if err != nil {
-		return errors.Wrap(err, "db: Create TX")
+		return fmt.Errorf("db: Create TX %w", err)
 	}
 
 	s.db = tx
@@ -44,7 +44,7 @@ func (s *Storage) RollbackTX(ctx context.Context) error {
 
 	err := s.tx.Rollback(ctx)
 	if err != nil {
-		return errors.Wrap(err, "db: Rollback TX")
+		return fmt.Errorf("db: Rollback TX %w", err)
 	}
 
 	s.db = s.pgx
@@ -58,7 +58,7 @@ func (s *Storage) CommitTX(ctx context.Context) error {
 
 	err := s.tx.Commit(ctx)
 	if err != nil {
-		return errors.Wrap(err, "db: Commit TX")
+		return fmt.Errorf("db: Commit TX %w", err)
 	}
 
 	s.db = s.pgx
@@ -95,7 +95,7 @@ func NewDB() (*Storage, *pgxpool.Pool, error) {
 
 	pgx, err := pgxpool.New(context.Background(), connStr)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "db: New DB")
+		return nil, nil, fmt.Errorf("db: New DB %w", err)
 	}
 
 	if err := pgx.Ping(context.Background()); err != nil {
@@ -122,12 +122,12 @@ func (s *Storage) InitDB() error {
 		path := "app/sql/" + file
 		authSQL, err := os.ReadFile(path)
 		if err != nil {
-			return errors.Wrapf(err, "db: Init DB with file %s", file)
+			return fmt.Errorf("db: Init DB with file %s %w", file, err)
 		}
 
 		res, err := s.pgx.Exec(context.Background(), string(authSQL))
 		if err != nil {
-			return errors.Wrapf(err, "db: Init DB with file %s with %s", file, string(authSQL))
+			return fmt.Errorf("db: Init DB with file %s with %s %w", file, string(authSQL), err)
 		}
 		aff := res.RowsAffected()
 		fmt.Printf("created %s tables, affected Rows: %v \n", file, aff)

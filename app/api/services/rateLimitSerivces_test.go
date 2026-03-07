@@ -1,13 +1,13 @@
 package services_test
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/neifen/companion/app/api/services"
 	"github.com/neifen/companion/app/api/storage/auth"
-	"github.com/pkg/errors"
 )
 
 func Test_RateLimitAuthenticationShort(t *testing.T) {

@@ -1,11 +1,11 @@
 package auth
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/neifen/companion/app/api/crypto"
-	"github.com/pkg/errors"
 )
 
 type UserModel struct {
@@ -64,7 +64,7 @@ const (
 func NewUserModel(name, email, pw string) (*UserModel, error) {
 	pwHash, err := crypto.HashPassword(pw)
 	if err != nil {
-		return nil, errors.WithMessage(err, "auth db: New User Model")
+		return nil, fmt.Errorf("auth db: New User Model %w", err)
 	}
 
 	id := uuid.New()

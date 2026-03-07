@@ -1,7 +1,7 @@
 package view
 
 import (
-	"github.com/pkg/errors"
+	"fmt"
 	"net/http"
 
 	"github.com/a-h/templ"
@@ -28,13 +28,13 @@ func RenderViews(c echo.Context, cmp ...templ.Component) error {
 		if err != nil && errStack == nil {
 			errStack = err
 		} else if err != nil {
-			errStack = errors.Wrap(errStack, err.Error())
+			errStack = fmt.Errorf(err.Error(), errStack)
 		}
 	}
 	return errStack
 }
 
-func ReplaceUrl(path string, c echo.Context, cmp templ.Component) error {
+func ReplaceURL(path string, c echo.Context, cmp templ.Component) error {
 	if c.Request().Header.Get("HX-Request") != "true" {
 		// standard redirect
 		return c.Redirect(http.StatusSeeOther, path)

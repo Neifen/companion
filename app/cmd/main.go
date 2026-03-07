@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"time"
 
@@ -8,7 +9,6 @@ import (
 	"github.com/neifen/companion/app/api/server"
 	"github.com/neifen/companion/app/api/services"
 	"github.com/neifen/companion/app/api/storage"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -65,7 +65,7 @@ func loadEnv() error {
 
 	err = godotenv.Load("/run/secrets/dot-env")
 	if err != nil {
-		return errors.Wrap(err, "error loading secret .env file")
+		return fmt.Errorf("error loading secret .env file %w", err)
 	}
 
 	return nil

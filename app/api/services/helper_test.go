@@ -15,7 +15,6 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/neifen/companion/app/api/services"
 	"github.com/neifen/companion/app/api/storage"
-	"github.com/pkg/errors"
 )
 
 var testContext TestContext
@@ -105,7 +104,7 @@ const (
 func clearTrackers() error {
 	res, err := testContext.db.Exec(context.Background(), "DELETE FROM tracking.trackers")
 	if err != nil {
-		return errors.Wrap(err, "Could not clean up Trackers table")
+		return fmt.Errorf("Could not clean up Trackers table %w", err)
 	}
 
 	affected := res.RowsAffected()
@@ -114,7 +113,7 @@ func clearTrackers() error {
 	row := testContext.db.QueryRow(context.Background(), "SELECT count(*) from tracking.tasks")
 	row.Scan(&count)
 	if count != 0 {
-		return errors.Errorf("tasks should be emty through delete cascade. Was %d instead", count)
+		return fmt.Errorf("tasks should be emty through delete cascade. Was %d instead", count)
 	}
 
 	fmt.Printf("Tracker Rows cleaned up: %d\n", affected)
@@ -124,7 +123,7 @@ func clearTrackers() error {
 func clearUsers() error {
 	res, err := testContext.db.Exec(context.Background(), "DELETE FROM auth.users")
 	if err != nil {
-		return errors.Wrap(err, "Could not clean up users table")
+		return fmt.Errorf("Could not clean up users table %w", err)
 	}
 
 	affected := res.RowsAffected()
@@ -132,13 +131,13 @@ func clearUsers() error {
 	row := testContext.db.QueryRow(context.Background(), "SELECT count(*) from auth.refresh_tokens")
 	row.Scan(&count)
 	if count != 0 {
-		return errors.Errorf("refresh_tokens should be emty through delete cascade. Was %d instead", count)
+		return fmt.Errorf("refresh_tokens should be emty through delete cascade. Was %d instead", count)
 	}
 
 	row = testContext.db.QueryRow(context.Background(), "SELECT count(*) from auth.verification_tokens")
 	row.Scan(&count)
 	if count != 0 {
-		return errors.Errorf("verification_tokens table should be emty through delete cascade. Was %d instead", count)
+		return fmt.Errorf("verification_tokens table should be emty through delete cascade. Was %d instead", count)
 	}
 
 	fmt.Printf("Auth Users Rows cleaned up: %d\n", affected)
@@ -148,7 +147,7 @@ func clearUsers() error {
 func clearIPTracking() error {
 	res, err := testContext.db.Exec(context.Background(), "DELETE FROM auth.ip_tracking")
 	if err != nil {
-		return errors.Wrap(err, "Could not clean up users table")
+		return fmt.Errorf("Could not clean up users table %w", err)
 	}
 
 	affected := res.RowsAffected()
@@ -159,7 +158,7 @@ func clearIPTracking() error {
 func clearCompanions() error {
 	res, err := testContext.db.Exec(context.Background(), "DELETE FROM companions.companions")
 	if err != nil {
-		return errors.Wrap(err, "Could not clean up Plans table")
+		return fmt.Errorf("Could not clean up Plans table %w", err)
 	}
 
 	affected := res.RowsAffected()
@@ -168,13 +167,13 @@ func clearCompanions() error {
 	row := testContext.db.QueryRow(context.Background(), "SELECT count(*) from companions.companion_items")
 	row.Scan(&count)
 	if count != 0 {
-		return errors.Errorf("companion items should be emty through delete cascade. Was %d instead", count)
+		return fmt.Errorf("companion items should be emty through delete cascade. Was %d instead", count)
 	}
 
 	row = testContext.db.QueryRow(context.Background(), "SELECT count(*) from companions.plan_companions")
 	row.Scan(&count)
 	if count != 0 {
-		return errors.Errorf("plan companion connection table should be emty through delete cascade. Was %d instead", count)
+		return fmt.Errorf("plan companion connection table should be emty through delete cascade. Was %d instead", count)
 	}
 
 	fmt.Printf("Companion Rows cleaned up: %d\n", affected)
@@ -184,7 +183,7 @@ func clearCompanions() error {
 func clearPlans() error {
 	res, err := testContext.db.Exec(context.Background(), "DELETE FROM plans.plans where id != 0")
 	if err != nil {
-		return errors.Wrap(err, "Could not clean up Plans table")
+		return fmt.Errorf("Could not clean up Plans table %w", err)
 	}
 
 	affected := res.RowsAffected()
@@ -207,7 +206,7 @@ func loadEnv() error {
 
 	err := godotenv.Load(envPath)
 	if err == nil {
-		return errors.Wrap(err, "error 130: could not load .env")
+		return fmt.Errorf("error 130: could not load .env %w", err)
 	}
 	return nil
 }
@@ -215,28 +214,28 @@ func loadEnv() error {
 func insertSplitVersesPlan(db *pgxpool.Pool) (int, error) {
 	tx, err := db.Begin(context.Background())
 	if err != nil {
-		return -1, errors.Wrap(err, "first insert")
+		return -1, fmt.Errorf("first insert %w", err)
 	}
 	_, err = tx.Exec(context.Background(), `INSERT INTO plans.plans( name, plan_desc)
     VALUES ('split chapters', 'This is like the plan that is shown by default but with long chapters split. Is just a canonical plan')
 ON CONFLICT
     DO NOTHING;`)
 	if err != nil {
-		return -1, errors.Wrap(err, "first insert")
+		return -1, fmt.Errorf("first insert %w", err)
 	}
 
 	row := tx.QueryRow(context.Background(), "select max(id) from plans.plans")
 	var plansID int
 	err = row.Scan(&plansID)
 	if err != nil {
-		return -1, errors.Wrap(err, "query plans ID")
+		return -1, fmt.Errorf("query plans ID %w", err)
 	}
 
 	row = tx.QueryRow(context.Background(), "select avg(chapter_word_count) from static.chapters")
 	var avg float32
 	err = row.Scan(&avg)
 	if err != nil {
-		return -1, errors.Wrap(err, "query avg")
+		return -1, fmt.Errorf("query avg %w", err)
 	}
 
 	rows, err := tx.Query(context.Background(), `    
@@ -261,7 +260,7 @@ ON CONFLICT
 		group by v.chapter_fk)
     v on v.chapter_fk = c.id`)
 	if err != nil {
-		return -1, errors.Wrap(err, "query deets")
+		return -1, fmt.Errorf("query deets %w", err)
 	}
 	defer rows.Close()
 
@@ -331,7 +330,7 @@ ON CONFLICT
 			values ($1, $2, $3, $4, $5, $6)
 			`, plansID, chapter.ID, versesLengths[insertIter], sum, ids, versesDesc[insertIter])
 				if err != nil {
-					return -1, errors.Wrap(err, "insert plans.bible_plans")
+					return -1, fmt.Errorf("insert plans.bible_plans %w", err)
 				}
 			}
 
@@ -344,7 +343,7 @@ ON CONFLICT
 			values ($1, $2, $3, $4)
 			`, plansID, chapter.ID, chapter.length, sum)
 			if err != nil {
-				return -1, errors.Wrap(err, "insert plans.bible_plans")
+				return -1, fmt.Errorf("insert plans.bible_plans %w", err)
 			}
 		}
 
@@ -352,7 +351,7 @@ ON CONFLICT
 
 	err = tx.Commit(context.Background())
 	if err != nil {
-		return -1, errors.Wrap(err, "commit")
+		return -1, fmt.Errorf("commit %w", err)
 	}
 	return plansID, nil
 
@@ -367,14 +366,14 @@ func newTestService() (*services.Services, *pgxpool.Pool, error) {
 	os.Setenv("POSTGRES_DB", "testing")
 	store, db, err := storage.NewDB()
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "couldnt create new db")
+		return nil, nil, fmt.Errorf("couldnt create new db %w", err)
 	}
 
 	sqlFiles := []string{"auth.sql", "chapters.sql", "verses.sql", "bible.sql", "plans.sql", "tracking.sql", "companions.sql", "data/bible_data.sql", "data/plans_data.sql", "data/companion_data.sql", "test_data/auth_test_data.sql"}
 
 	err = execScripts(db, sqlFiles)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "couldnt exec script")
+		return nil, nil, fmt.Errorf("couldnt exec script %w", err)
 	}
 
 	serv := services.NewTestServices(store, MockAuthServices{})
@@ -386,12 +385,12 @@ func execScripts(db *pgxpool.Pool, sqlFiles []string) error {
 		path := getRelativePath("app/sql/" + file)
 		authSQL, err := os.ReadFile(path)
 		if err != nil {
-			return errors.Wrapf(err, "error reading %s", file)
+			return fmt.Errorf("error reading %s %w", file, err)
 		}
 
 		res, err := db.Exec(context.Background(), string(authSQL))
 		if err != nil {
-			return errors.Wrapf(err, "error initializing %s", file)
+			return fmt.Errorf("error initializing %s %w", file, err)
 		}
 		aff := res.RowsAffected()
 		fmt.Printf("created %s tables, affected Rows: %v \n", file, aff)

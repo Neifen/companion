@@ -5,7 +5,6 @@ import (
 	"os"
 
 	"github.com/neifen/companion/app/api/storage/auth"
-	"github.com/pkg/errors"
 	"github.com/resend/resend-go/v3"
 	"github.com/rs/zerolog/log"
 )
@@ -42,7 +41,7 @@ func sendSignupMail(short, long string, u *auth.UserModel, p auth.VerificationPu
 
 	sent, err := client.Emails.Send(email)
 	if err != nil {
-		return errors.Wrapf(err, "mail service: send signup email to %s with uid %s", u.Email, u.ID)
+		return fmt.Errorf("mail service: send signup email to %s with uid %s %w", u.Email, u.ID, err)
 	}
 
 	log.Info().

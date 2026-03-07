@@ -2,9 +2,9 @@ package companions
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -32,7 +32,7 @@ func (pg *CompanionsStore) CreateCompanion(ctx context.Context, companion Compan
 	var id int
 	err := row.Scan(&id)
 	if err != nil {
-		return -1, errors.Wrapf(err, "companion storage: CreateCompanion with values %v", companion)
+		return -1, fmt.Errorf("companion storage: CreateCompanion with values %v %w", companion, err)
 	}
 
 	return id, nil
@@ -45,7 +45,7 @@ func (pg *CompanionsStore) ConnectCompanionToPlan(ctx context.Context, planID, c
 	`
 	_, err := pg.db.Exec(ctx, query, planID, companionID)
 	if err != nil {
-		return errors.Wrapf(err, "companion storage: connect plan %d to companion %d", planID, companionID)
+		return fmt.Errorf("companion storage: connect plan %d to companion %d %w", planID, companionID, err)
 	}
 
 	return nil
@@ -69,7 +69,7 @@ func (pg *CompanionsStore) AddCompanionItem(ctx context.Context, item CompanionI
 	_, err := pg.db.Exec(ctx, query, args)
 	if err != nil {
 		//todo: can I print %v but without Markdown?
-		return errors.Wrapf(err, "companion storage: AddCompanionItem values: %v", item)
+		return fmt.Errorf("companion storage: AddCompanionItem values: %v %w", item, err)
 	}
 
 	return nil
@@ -90,12 +90,12 @@ func (pg *CompanionsStore) ReadPlansCompanions(ctx context.Context, planID int) 
 		order by c.id
 	`, planID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "companion storage: Read all Companions belonging to Plan %d", planID)
+		return nil, fmt.Errorf("companion storage: Read all Companions belonging to Plan %d %w", planID, err)
 	}
 
 	models, err := pgx.CollectRows(rows, pgx.RowToStructByNameLax[CompanionModel])
 	if err != nil {
-		return nil, errors.Wrapf(err, "companion storage: Read all Companions belonging to Plan %d", planID)
+		return nil, fmt.Errorf("companion storage: Read all Companions belonging to Plan %d %w", planID, err)
 	}
 
 	return models, nil
@@ -127,12 +127,12 @@ func (pg *CompanionsStore) ReadChaptersCompanion(ctx context.Context, companionI
 			limit 1
 `, companionID, chapterID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "companion storage: ReadChaptersCompanion with companionID %d", companionID)
+		return nil, fmt.Errorf("companion storage: ReadChaptersCompanion with companionID %d %w", companionID, err)
 	}
 
 	companionModel, err := pgx.CollectExactlyOneRow(rows, pgx.RowToStructByName[CompanionItemModel])
 	if err != nil {
-		return nil, errors.Wrapf(err, "companion storage: ReadChaptersCompanion with companionID %d", companionID)
+		return nil, fmt.Errorf("companion storage: ReadChaptersCompanion with companionID %d %w", companionID, err)
 	}
 
 	return &companionModel, nil

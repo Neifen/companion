@@ -2,13 +2,13 @@ package services
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"github.com/neifen/companion/app/api/storage/bible"
 	"github.com/neifen/companion/app/api/storage/plans"
-	"github.com/pkg/errors"
 )
 
 func (s *Services) GetAllPlans(ctx context.Context) ([]plans.PlanModel, error) {
@@ -44,7 +44,7 @@ func parseChapter(book, chapters string) ([]bible.BibleChapter, bool, error) {
 			fromRaw := strings.TrimSpace(splitChapterRange[0])
 			from, err := strconv.Atoi(fromRaw)
 			if err != nil {
-				return nil, false, errors.Wrapf(err, "plans service: Parse chapter %s in %s %s", splitChapterRange[0], book, chapters)
+				return nil, false, fmt.Errorf("plans service: Parse chapter %s in %s %s %w", splitChapterRange[0], book, chapters, err)
 			}
 			if len(splitChapterRange) == 1 {
 				chapterRes = append(chapterRes, bible.BibleChapter{Book: book, Chapter: int16(from)})
@@ -52,7 +52,7 @@ func parseChapter(book, chapters string) ([]bible.BibleChapter, bool, error) {
 				toRaw := strings.TrimSpace(splitChapterRange[1])
 				to, err := strconv.Atoi(toRaw)
 				if err != nil {
-					return nil, false, errors.Wrapf(err, "plans service: Parse chapter %s in %s %s", splitChapterRange[1], book, chapters)
+					return nil, false, fmt.Errorf("plans service: Parse chapter %s in %s %s %w", splitChapterRange[1], book, chapters, err)
 				}
 
 				for ch := from; ch <= to; ch++ {
@@ -63,7 +63,7 @@ func parseChapter(book, chapters string) ([]bible.BibleChapter, bool, error) {
 			hasVerses = true
 			verses, err := parseVerses(book, splitVerses[0], splitVerses[1])
 			if err != nil {
-				return nil, true, errors.WithMessagef(err, "plans service: Parse chapter %s %s", book, chapters)
+				return nil, true, fmt.Errorf("plans service: Parse chapter %s %s %w", book, chapters, err)
 			}
 			chapterRes = append(chapterRes, verses)
 		}
@@ -78,7 +78,7 @@ func parseVerses(book, chapter, verses string) (bible.BibleChapter, error) {
 
 	ch, err := strconv.Atoi(chapter)
 	if err != nil {
-		return bible.BibleChapter{}, errors.Wrapf(err, "plans service: Parse verse. chapter %s in %s %s", chapter, chapter, verses)
+		return bible.BibleChapter{}, fmt.Errorf("plans service: Parse verse. chapter %s in %s %s %w", chapter, chapter, verses, err)
 	}
 
 	verseSplit := strings.Split(verses, "-")
@@ -86,7 +86,7 @@ func parseVerses(book, chapter, verses string) (bible.BibleChapter, error) {
 	fromRaw := strings.TrimSpace(verseSplit[0])
 	from, err := strconv.Atoi(fromRaw)
 	if err != nil {
-		return bible.BibleChapter{}, errors.Wrapf(err, "plans service: Parse verse %s in %s", verseSplit[0], verses)
+		return bible.BibleChapter{}, fmt.Errorf("plans service: Parse verse %s in %s %w", verseSplit[0], verses, err)
 	}
 
 	if len(verseSplit) == 1 {
@@ -96,7 +96,7 @@ func parseVerses(book, chapter, verses string) (bible.BibleChapter, error) {
 		toRaw := strings.TrimSpace(verseSplit[1])
 		to, err := strconv.Atoi(toRaw)
 		if err != nil {
-			return bible.BibleChapter{}, errors.Wrapf(err, "plans service: Parse verse %s in %s", verseSplit[1], verses)
+			return bible.BibleChapter{}, fmt.Errorf("plans service: Parse verse %s in %s %w", verseSplit[1], verses, err)
 		}
 
 		return bible.BibleChapter{Book: book, Chapter: int16(ch), VerseStart: int16(from), VerseEnd: int16(to)}, nil
@@ -109,7 +109,7 @@ func (s *Services) CreateNewPlan(ctx context.Context, name, desc string, books [
 	for _, book := range books {
 		chs, hasV, err := parseBook(book)
 		if err != nil {
-			return -1, errors.WithMessagef(err, "plans service: Create New Plan")
+			return -1, fmt.Errorf("plans service: Create New Plan %w", err)
 		}
 
 		hasVerses = hasV || hasVerses
@@ -117,39 +117,39 @@ func (s *Services) CreateNewPlan(ctx context.Context, name, desc string, books [
 	}
 
 	if hasVerses && cutRatio > 0 {
-		return -1, errors.Errorf("plans service: Create New Plan: Can't have verses in the books (%v) and use a cutRatio (%f):", books, cutRatio)
+		return -1, fmt.Errorf("plans service: Create New Plan: Can't have verses in the books (%v) and use a cutRatio (%f)", books, cutRatio)
 	}
 
 	if err := s.store.CreateTX(ctx); err != nil {
-		return -1, errors.WithMessagef(err, "plans service: Create New Plan")
+		return -1, fmt.Errorf("plans service: Create New Plan %w", err)
 	}
 	defer s.store.RollbackTX(ctx)
 
 	chapterModels, err := s.store.Bible.ReadBookChapters(ctx, parsedChapters)
 	if err != nil {
-		return -1, errors.WithMessagef(err, "plans service: Create New Plan")
+		return -1, fmt.Errorf("plans service: Create New Plan %w", err)
 	}
 
 	includeVerses := cutRatio > 0 || hasVerses
 	planID, err := s.store.Plans.CreateNewPlan(ctx, name, desc, includeVerses)
 	if err != nil {
-		return -1, errors.WithMessagef(err, "plans service: Create New Plan")
+		return -1, fmt.Errorf("plans service: Create New Plan %w", err)
 	}
 
 	if cutRatio > 0 {
 		chapterModels, err = s.splitChapters(ctx, cutRatio, chapterModels)
 		if err != nil {
-			return -1, errors.WithMessage(err, "plans service: Create New Plan")
+			return -1, fmt.Errorf("plans service: Create New Plan %w", err)
 		}
 	}
 
 	err = s.store.Plans.CreateNewBiblePlan(ctx, planID, chapterModels)
 	if err != nil {
-		return -1, errors.WithMessagef(err, "plans service: Create New Plan")
+		return -1, fmt.Errorf("plans service: Create New Plan %w", err)
 	}
 
 	if err = s.store.CommitTX(ctx); err != nil {
-		return -1, errors.WithMessagef(err, "plans service: Create New Plan")
+		return -1, fmt.Errorf("plans service: Create New Plan %w", err)
 	}
 
 	return planID, nil
@@ -187,7 +187,7 @@ func (s *Services) splitChapters(ctx context.Context, cutRatio float32, chapters
 	//get verses info
 	verseModels, err := s.store.Bible.ReadVerses(ctx, chaptersToCut)
 	if err != nil {
-		return nil, errors.WithMessage(err, "plans service: Get Split Verses")
+		return nil, fmt.Errorf("plans service: Get Split Verses")
 	}
 
 	var blocksIDS [][]int16

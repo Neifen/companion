@@ -1,6 +1,7 @@
 package services_test
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"testing"
@@ -8,7 +9,6 @@ import (
 
 	"github.com/neifen/companion/app/api/services"
 	"github.com/neifen/companion/app/api/storage/auth"
-	"github.com/pkg/errors"
 )
 
 type MockAuthServices struct{}

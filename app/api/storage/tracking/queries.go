@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/pkg/errors"
 )
 
 const (
@@ -23,13 +22,13 @@ const (
 func (pg *TrackingStore) CheckTask(ctx context.Context, taskID int64, checked bool) error {
 	exec, err := pg.db.Exec(ctx, `update `+tasksTable+` set read = $1, updated_at = $2 where id= $3`, checked, time.Now(), taskID)
 	if err != nil {
-		return errors.Wrapf(err, `error updating task %d`, taskID)
+		return fmt.Errorf(`error updating task %d %w`, taskID, err)
 	}
 
 	aff := exec.RowsAffected()
 	if aff != 1 {
 		fmt.Println("ISSUE WITH CHECKING 1 ROW")
-		return errors.Errorf(`task %d not tracked`, taskID)
+		return fmt.Errorf(`task %d not tracked %w`, taskID, err)
 	}
 
 	return nil
@@ -44,7 +43,7 @@ func (pg *TrackingStore) ReadUserTracker(ctx context.Context, userID uuid.UUID) 
 
 	err := row.Scan(&trackerSettings.ID, &trackerSettings.StartDate, &trackerSettings.EndDate)
 	if err != nil {
-		return nil, errors.Wrapf(err, `error reading task settings for user %s`, userID)
+		return nil, fmt.Errorf(`error reading task settings for user %s %w`, userID, err)
 	}
 
 	return &trackerSettings, nil
@@ -71,7 +70,7 @@ func (pg *TrackingStore) ReadTasksUntil(ctx context.Context, userID uuid.UUID, p
 		ORDER BY ta.read_by ASC, ta.id ASC;`,
 		userID, toDate, pages)
 	if err != nil {
-		return nil, errors.Wrapf(err, "ReadTrackerFromuserID(%s) select", userID)
+		return nil, fmt.Errorf("readTrackerFromuserID(%s) select %w", userID, err)
 	}
 
 	return pg.scanTasks(rows)
@@ -99,7 +98,7 @@ func (pg *TrackingStore) ReadTasksFrom(ctx context.Context, userID uuid.UUID, pa
 		ORDER BY ta.read_by ASC, ta.id ASC;`,
 		userID, fromDate, pages)
 	if err != nil {
-		return nil, errors.Wrapf(err, "ReadTrackerFromuserID(%s) select", userID)
+		return nil, fmt.Errorf("readTrackerFromuserID(%s) select %w", userID, err)
 	}
 
 	return pg.scanTasks(rows)
@@ -110,7 +109,7 @@ func (pg *TrackingStore) scanTasks(rows pgx.Rows) ([]TaskModel, error) {
 
 	trackers, err := pgx.CollectRows(rows, pgx.RowToStructByName[TaskModel])
 	if err != nil {
-		return nil, errors.Wrapf(err, "db: scan Tasks")
+		return nil, fmt.Errorf("db: scan Tasks %w", err)
 	}
 
 	return trackers, nil
@@ -119,7 +118,7 @@ func (pg *TrackingStore) scanTasks(rows pgx.Rows) ([]TaskModel, error) {
 func (pg *TrackingStore) DeleteUserTracker(ctx context.Context, userID uuid.UUID) error {
 	_, err := pg.db.Exec(ctx, `DELETE FROM `+trackersTable+` WHERE user_fk = $1`, userID)
 	if err != nil {
-		return errors.Wrapf(err, "Could not delete trackers Table for userID %s", userID)
+		return fmt.Errorf("could not delete trackers Table for userID %s %w", userID, err)
 	}
 
 	return nil
@@ -132,7 +131,7 @@ func (pg *TrackingStore) CreateTracker(ctx context.Context, userID uuid.UUID, st
 	VALUES ($1, $2, $3)
 	RETURNING id`, userID, start, end).Scan(&utID)
 	if err != nil {
-		return -1, errors.Wrapf(err, "Could not create tracker(userID: %s, start: %s, end: %s) ", userID, start, end)
+		return -1, fmt.Errorf("could not create tracker(userID: %s, start: %s, end: %s) %w", userID, start, end, err)
 	}
 
 	return utID, nil
@@ -154,12 +153,12 @@ func (pg *TrackingStore) CreateTasks(ctx context.Context, trackerID int64, planI
 				where pb.plan_fk = $2
 	`, trackerID, planID, start, end)
 	if err != nil {
-		return errors.Wrapf(err, "Could not create task (trackerID: %d, planID: %d, start: %s, end: %s)", trackerID, planID, start, end)
+		return fmt.Errorf("could not create task (trackerID: %d, planID: %d, start: %s, end: %s) %w", trackerID, planID, start, end, err)
 	}
 
 	rows := res.RowsAffected()
 	if rows < 1 {
-		return errors.Errorf("Could not create task, no rows affected (trackerID: %d, planID: %d, start: %s, end: %s)", trackerID, planID, start, end)
+		return fmt.Errorf("could not create task, no rows affected (trackerID: %d, planID: %d, start: %s, end: %s)", trackerID, planID, start, end)
 	}
 	return nil
 }
@@ -172,7 +171,7 @@ func (pg *TrackingStore) MoveTrackerDays(ctx context.Context, userID uuid.UUID, 
 		where user_fk = $1
 	`, userID, days)
 	if err != nil {
-		return errors.Wrapf(err, "MoveTrackerDays(userID: %s, days: %d) ", userID, days)
+		return fmt.Errorf("moveTrackerDays(userID: %s, days: %d) %w", userID, days, err)
 	}
 
 	return nil
@@ -186,7 +185,7 @@ func (pg *TrackingStore) MoveTaskDays(ctx context.Context, userID uuid.UUID, day
 		where tr.user_fk = $1 and ta.tracker_fk = tr.id AND not ta.read 
 	`, userID, days)
 	if err != nil {
-		return errors.Wrapf(err, "MoveTaskDays(userID: %s, days: %d) ", userID, days)
+		return fmt.Errorf("moveTaskDays(userID: %s, days: %d) %w", userID, days, err)
 	}
 
 	return nil
@@ -243,7 +242,7 @@ func (pg *TrackingStore) MoveTasks(ctx context.Context, userID uuid.UUID, start,
 	where f.id = ta.id
 `, userID)
 	if err != nil {
-		return errors.Wrapf(err, "db: MoveTasks(userID: %s, start: %v, end %v) ", userID, start, end)
+		return fmt.Errorf("db: MoveTasks(userID: %s, start: %v, end %v) %w", userID, start, end, err)
 	}
 
 	return nil
@@ -257,7 +256,7 @@ func (pg *TrackingStore) GetTrackerStart(ctx context.Context, userID uuid.UUID) 
 		where user_fk = $1
 	`, userID).Scan(&start)
 	if err != nil {
-		return time.Time{}, errors.Wrapf(err, "db: GetTrackerStart(userID: %s) ", userID)
+		return time.Time{}, fmt.Errorf("db: GetTrackerStart(userID: %s) %w", userID, err)
 	}
 
 	return start, nil
@@ -271,7 +270,7 @@ func (pg *TrackingStore) GetTrackerEnd(ctx context.Context, userID uuid.UUID) (t
 		where user_fk = $1
 	`, userID).Scan(&end)
 	if err != nil {
-		return time.Time{}, errors.Wrapf(err, "db: GetTrackerEnd(userID: %s) ", userID)
+		return time.Time{}, fmt.Errorf("db: GetTrackerEnd(userID: %s) %w", userID, err)
 	}
 
 	return end, nil
@@ -293,7 +292,7 @@ func (pg *TrackingStore) MoveTracker(ctx context.Context, userID uuid.UUID, star
 		where user_fk = $1
 	`, userID)
 	if err != nil {
-		return errors.Wrapf(err, "db: MoveTracker(userID: %s, start: %v, end %v) ", userID, start, end)
+		return fmt.Errorf("db: MoveTracker(userID: %s, start: %v, end %v) %w", userID, start, end, err)
 	}
 
 	return nil

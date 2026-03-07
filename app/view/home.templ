@@ -5,7 +5,7 @@ import "fmt"
 import "github.com/neifen/companion/app/entities"
 
 func HomeHTMLReplace(c echo.Context, bible *entities.TrackedBible, u *entities.ViewUser, welcome bool) error {
-	return ReplaceUrl("/", c, home(bible, u, welcome))
+	return ReplaceURL("/", c, home(bible, u, welcome))
 }
 
 func HomeHTML(c echo.Context, bible *entities.TrackedBible, u *entities.ViewUser, welcome bool) error {

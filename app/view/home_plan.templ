@@ -3,7 +3,7 @@ package view //import github.com/neifen/companion/app/view
 import "github.com/labstack/echo/v4"
 
 func HomeWPlanHTMLReplace(c echo.Context) error {
-	return ReplaceUrl("/", c, homeWPlan())
+	return ReplaceURL("/", c, homeWPlan())
 }
 
 func HomeWPlanHTML(c echo.Context) error {

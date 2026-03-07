@@ -16,6 +16,7 @@ import (
 	"github.com/neifen/companion/app/api/storage/iptracking"
 	"github.com/neifen/companion/app/api/storage/plans"
 	"github.com/neifen/companion/app/api/storage/tracking"
+	"github.com/rs/zerolog/log"
 )
 
 func (s *Storage) CreateTX(ctx context.Context) error {
@@ -130,7 +131,7 @@ func (s *Storage) InitDB() error {
 			return fmt.Errorf("db: Init DB with file %s with %s %w", file, string(authSQL), err)
 		}
 		aff := res.RowsAffected()
-		fmt.Printf("created %s tables, affected Rows: %v \n", file, aff)
+		log.Debug().Str("file", file).Int64("Affected Rows", aff).Msg("Created tables")
 	}
 
 	return nil

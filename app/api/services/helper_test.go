@@ -15,6 +15,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/neifen/companion/app/api/services"
 	"github.com/neifen/companion/app/api/storage"
+	"github.com/rs/zerolog/log"
 )
 
 var testContext TestContext
@@ -33,10 +34,10 @@ func TestMain(m *testing.M) {
 	os.Exit(exitCode)
 }
 func doMain(m *testing.M) int {
-	fmt.Println("Start setting up tests")
+	log.Info().Msg("Start setting up tests")
 	s, d, err := newTestService()
 	if err != nil {
-		fmt.Printf("failed to create new test service with err \n%+v\n", err)
+		log.Err(err).Msg("failed to create new test service with err")
 
 		if s != nil {
 			s.Close()
@@ -49,12 +50,12 @@ func doMain(m *testing.M) int {
 
 	exitCode := m.Run()
 
-	fmt.Println("Tests done, clean up")
+	log.Info().Msg("Tests done, clean up")
 
 	if testContext.resetCompanions {
 		err = clearCompanions()
 		if err != nil {
-			fmt.Printf("failed to clear users with err \n%+v\n", err)
+			log.Err(err).Msg("failed to clear users with err")
 			exitCode = 1
 		}
 	}
@@ -62,7 +63,7 @@ func doMain(m *testing.M) int {
 	if testContext.resetTracking {
 		err = clearTrackers()
 		if err != nil {
-			fmt.Printf("failed to clear users with err \n%+v\n", err)
+			log.Err(err).Msg("failed to clear users with err")
 			exitCode = 1
 		}
 	}
@@ -70,7 +71,7 @@ func doMain(m *testing.M) int {
 	if testContext.resetPlans {
 		err = clearPlans()
 		if err != nil {
-			fmt.Printf("failed to clear users with err \n%+v\n", err)
+			log.Err(err).Msg("failed to clear users with err")
 			exitCode = 1
 		}
 	}
@@ -78,13 +79,13 @@ func doMain(m *testing.M) int {
 	if testContext.resetAuth {
 		err = clearUsers()
 		if err != nil {
-			fmt.Printf("failed to clear users with err \n%+v\n", err)
+			log.Err(err).Msg("failed to clear users with err")
 			exitCode = 1
 		}
 
 		err = clearIPTracking()
 		if err != nil {
-			fmt.Printf("failed to clear iptracking with err \n%+v\n", err)
+			log.Err(err).Msg("failed to clear iptracking with err")
 			exitCode = 1
 		}
 	}
@@ -116,7 +117,7 @@ func clearTrackers() error {
 		return fmt.Errorf("tasks should be emty through delete cascade. Was %d instead", count)
 	}
 
-	fmt.Printf("Tracker Rows cleaned up: %d\n", affected)
+	log.Info().Int64("affected", affected).Msg("Tracker Rows cleaned up")
 	return nil
 }
 
@@ -140,7 +141,7 @@ func clearUsers() error {
 		return fmt.Errorf("verification_tokens table should be emty through delete cascade. Was %d instead", count)
 	}
 
-	fmt.Printf("Auth Users Rows cleaned up: %d\n", affected)
+	log.Info().Int64("affected", affected).Msg("Auth Users Rows cleaned up")
 	return nil
 }
 
@@ -151,7 +152,7 @@ func clearIPTracking() error {
 	}
 
 	affected := res.RowsAffected()
-	fmt.Printf("Auth Users Rows cleaned up: %d\n", affected)
+	log.Info().Int64("affected", affected).Msg("Auth IP Tracking Rows cleaned up")
 	return nil
 }
 
@@ -176,7 +177,7 @@ func clearCompanions() error {
 		return fmt.Errorf("plan companion connection table should be emty through delete cascade. Was %d instead", count)
 	}
 
-	fmt.Printf("Companion Rows cleaned up: %d\n", affected)
+	log.Info().Int64("affected", affected).Msg("Companion Rows cleaned up")
 	return nil
 }
 
@@ -188,7 +189,7 @@ func clearPlans() error {
 
 	affected := res.RowsAffected()
 
-	fmt.Printf("Plans Rows cleaned up: %d\n", affected)
+	log.Info().Int64("affected", affected).Msg("Plans Rows cleaned up")
 	return nil
 }
 
@@ -202,7 +203,7 @@ func getRelativePath(path string) string {
 
 func loadEnv() error {
 	envPath := getRelativePath(".env")
-	fmt.Printf("env path is: %s\n", envPath)
+	log.Info().Str("Path", envPath).Msg("env path is")
 
 	err := godotenv.Load(envPath)
 	if err == nil {
@@ -393,7 +394,7 @@ func execScripts(db *pgxpool.Pool, sqlFiles []string) error {
 			return fmt.Errorf("error initializing %s %w", file, err)
 		}
 		aff := res.RowsAffected()
-		fmt.Printf("created %s tables, affected Rows: %v \n", file, aff)
+		log.Info().Str("file", file).Int64("affected", aff).Msg("created tables")
 	}
 
 	return nil

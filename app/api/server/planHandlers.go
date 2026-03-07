@@ -1,13 +1,13 @@
 package server
 
 import (
-	"fmt"
 	"strconv"
 	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/neifen/companion/app/entities"
 	"github.com/neifen/companion/app/view"
+	"github.com/rs/zerolog/log"
 )
 
 // e.GET("/plan-settings", s.showPlanSettings)
@@ -32,7 +32,7 @@ func (s *HandlerSession) handleDeletePlanConfirm(c echo.Context) error {
 func (s *HandlerSession) deletePlan(c echo.Context) error {
 	uid := ctxUID(c)
 	if err := s.services.DeleteUserTracker(c.Request().Context(), uid); err != nil {
-		fmt.Println("Could not delete tracker: ", err)
+		log.Err(err).Msg("Could not delete Plan")
 		return view.ErrorHTML(c, "Could not delete the plan")
 	}
 
@@ -51,7 +51,7 @@ func (s *HandlerSession) joinPlanWindow(c echo.Context) error {
 
 	plansModel, err := s.services.GetAllPlans(c.Request().Context())
 	if err != nil {
-		fmt.Println("Could not read all plans: ", err)
+		log.Err(err).Msg("plan handler: get Join plan window - could not read all plans")
 		return view.ErrorHTML(c, "Could not load list of plan")
 	}
 
@@ -71,13 +71,13 @@ func (s *HandlerSession) confirmJoinPlan(c echo.Context) error {
 
 	startTime, err := time.Parse("2006-01-02", start)
 	if err != nil {
-		fmt.Println("error parsing time: ", err)
+		log.Err(err).Msg("plan handler: get join plan confirmation window - could not parse time")
 		return view.ErrorHTML(c, "Error with the time")
 	}
 
 	endTime, err := time.Parse("2006-01-02", end)
 	if err != nil {
-		fmt.Println("error parsing time: ", err)
+		log.Err(err).Msg("plan handler: get join plan confirmation window - could not parse time")
 		return view.ErrorHTML(c, "Error with the time")
 	}
 
@@ -95,13 +95,13 @@ func (s *HandlerSession) joinPlan(c echo.Context) error {
 
 	planID, err := strconv.Atoi(planIDRaw)
 	if err != nil {
-		fmt.Println("Could not transform planId to int: ", err)
+		log.Err(err).Msg("plan handler: join plan - could not parse int")
 		return view.ErrorHTML(c, "Issue creating new Plan")
 	}
 
 	err = s.services.CreateTracker(c.Request().Context(), uid, planID, startRaw, endRaw)
 	if err != nil {
-		fmt.Println("Could not create tracker: ", err)
+		log.Err(err).Msg("plan handler: join plan - could not create tracker")
 		return view.ErrorHTML(c, "Issue creating new Plan")
 	}
 
@@ -116,13 +116,13 @@ func (s *HandlerSession) confirmPlanMoveStart(c echo.Context) error {
 	moveEndRaw := c.QueryParam("moveEnd")
 	moveEnd, err := strconv.ParseBool(moveEndRaw)
 	if err != nil && moveEndRaw != "" {
-		fmt.Println("error parsing moveEnd:", err)
+		log.Err(err).Msg("plan handler: get move plan confirmation window - error parsing moveEnd")
 		moveEnd = false
 	}
 
 	start, err := time.Parse("2006-01-02", startShort)
 	if err != nil {
-		fmt.Println("error parsing date:", err)
+		log.Err(err).Msg("plan handler: get move plan confirmation window - error parsing date")
 	}
 	return view.ConfirmStartPlanPopup(c, start.Format("January 02, 2006"), startShort, moveEnd)
 }
@@ -133,13 +133,13 @@ func (s *HandlerSession) confirmPlanMoveEnd(c echo.Context) error {
 	resetStartRaw := c.QueryParam("resetStart")
 	resetStart, err := strconv.ParseBool(resetStartRaw)
 	if err != nil && resetStartRaw != "" {
-		fmt.Println("error parsing resetStart:", err)
+		log.Err(err).Msg("plan handler: get move plan end confirmation window - error parsing resetStart")
 		resetStart = false
 	}
 
 	end, err := time.Parse("2006-01-02", endShort)
 	if err != nil {
-		fmt.Println("error parsing date:", err)
+		log.Err(err).Msg("plan handler: get move plan end confirmation window - error parsing date")
 	}
 	return view.ConfirmEndPlanPopup(c, end.Format("January 02, 2006"), endShort, resetStart)
 }
@@ -150,7 +150,7 @@ func (s *HandlerSession) showMoveStart(c echo.Context) error {
 	moveEndRaw := c.QueryParam("moveEnd")
 	moveEnd, err := strconv.ParseBool(moveEndRaw)
 	if err != nil && moveEndRaw != "" {
-		fmt.Println("error parsing moveEnd:", err)
+		log.Err(err).Msg("plan handler: move start window - error parsing moveEnd")
 		moveEnd = false
 	}
 
@@ -163,7 +163,7 @@ func (s *HandlerSession) showMoveEnd(c echo.Context) error {
 	resetStartRaw := c.QueryParam("resetStart")
 	resetStart, err := strconv.ParseBool(resetStartRaw)
 	if err != nil && resetStartRaw != "" {
-		fmt.Println("error parsing resetStart:", err)
+		log.Err(err).Msg("plan handler: move end window - error parsing resetStart")
 		resetStart = false
 	}
 
@@ -178,13 +178,13 @@ func (s *HandlerSession) moveStart(c echo.Context) error {
 	moveEndRaw := c.QueryParam("moveEnd")
 	moveEnd, err := strconv.ParseBool(moveEndRaw)
 	if err != nil && moveEndRaw != "" {
-		fmt.Println("error parsing moveEnd:", err)
+		log.Err(err).Msg("plan handler: move start window - error parsing moveEnd")
 		moveEnd = false
 	}
 
 	err = s.services.MoveTrackerStart(c.Request().Context(), uid, start, moveEnd)
 	if err != nil {
-		fmt.Println(err)
+		log.Err(err).Msg("plan handler: move start - could not move tracker start")
 		return view.ErrorHTML(c, "Something went wrong, contact admin")
 	}
 
@@ -200,13 +200,13 @@ func (s *HandlerSession) moveEnd(c echo.Context) error {
 	resetStartRaw := c.QueryParam("resetStart")
 	resetStart, err := strconv.ParseBool(resetStartRaw)
 	if err != nil && resetStartRaw != "" {
-		fmt.Println("error parsing moveEnd:", err)
+		log.Err(err).Msg("plan handler: move end - could parse moveEnd")
 		resetStart = false
 	}
 
 	err = s.services.MoveTrackerEnd(c.Request().Context(), uid, end, resetStart)
 	if err != nil {
-		fmt.Println(err)
+		log.Err(err).Msg("plan handler: move end - could not move end")
 		return view.ErrorHTML(c, "Something went wrong, contact admin")
 	}
 	c.Response().Header().Add("HX-Retarget", "#base")

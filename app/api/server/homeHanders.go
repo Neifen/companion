@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"net/http"
 	"time"
 
@@ -67,7 +66,7 @@ func (s *HandlerSession) onboardingPage(c echo.Context, uid uuid.UUID) error {
 	chapters, err := s.services.GetPlansChapters(c.Request().Context(), 0)
 	// todo real errors
 	if err != nil {
-		fmt.Printf("Issue with getting welcome screen: \n%+v\n", err)
+		log.Err(err).Msg("Issue with getting welcome screen")
 		return c.JSON(http.StatusInternalServerError, err) // todo do better
 	}
 

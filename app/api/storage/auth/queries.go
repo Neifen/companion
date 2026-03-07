@@ -45,7 +45,6 @@ func (pg *AuthStore) InvalidateVerificationToken(ctx context.Context, u *Verific
 func (pg *AuthStore) AddVerificationAttempt(ctx context.Context, uid uuid.UUID) error {
 	_, err := pg.db.Exec(ctx, "UPDATE "+verificationTokensTable+" set attempts = attempts + 1 where user_id=$1", uid)
 	if err != nil {
-		fmt.Printf("db: Add verification attempt for user %s with err \n%+s\n", uid, err)
 		return fmt.Errorf("auth db: Add verification attempt for user %s %w", uid, err)
 	}
 

@@ -3,6 +3,7 @@ package view
 import "github.com/labstack/echo/v4"
 
 func ErrorHTML(c echo.Context, message string) error {
+	//todo: oob error?
 	return RenderView(c, errorMessage(message))
 }
 

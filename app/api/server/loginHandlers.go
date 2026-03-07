@@ -24,7 +24,7 @@ func (s *HandlerSession) login(c echo.Context) error {
 
 	u, err := s.services.Authenticate(c.Request().Context(), c.RealIP(), email, pw, remember)
 	if err != nil {
-		fmt.Printf("api: handlePostLogin: \n%+v\n", err)
+		log.Err(err).Msg("Login (post)")
 		return replaceLogin(c)
 	}
 

@@ -2,7 +2,6 @@ package services_test
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"testing"
 	"time"
@@ -419,7 +418,6 @@ func TestCreateTrackerDifferentDays(t *testing.T) {
 			var readBy time.Time
 			var id string
 			rows.Scan(&id, &readBy)
-			fmt.Printf("%s for %s\n", readBy.Format("2006-01-02"), id)
 			count++
 		}
 
@@ -554,9 +552,6 @@ func TestMoveTrackers(t *testing.T) {
 		if err := testContext.serv.MoveTracker(context.Background(), userID, test.start, test.end); err != nil {
 			if !test.err {
 				t.Fatalf("CreateTask failed: %s", err)
-			} else {
-				fmt.Printf("expected error: %s \n", err)
-				continue
 			}
 		}
 
@@ -687,9 +682,6 @@ func TestMoveTrackersStart(t *testing.T) {
 		if err := testContext.serv.MoveTrackerStart(context.Background(), userID, test.start, test.moveEnd); err != nil {
 			if !test.err {
 				t.Fatalf("CreateTask failed: %s", err)
-			} else {
-				fmt.Printf("expected error: %s \n", err)
-				continue
 			}
 		}
 
@@ -804,9 +796,6 @@ func TestMoveTrackersEnd(t *testing.T) {
 		if err := testContext.serv.MoveTrackerEnd(context.Background(), userID, test.end, test.resetStart); err != nil {
 			if !test.err {
 				t.Fatalf("CreateTask failed: %s", err)
-			} else {
-				fmt.Printf("expected error: %s \n", err)
-				continue
 			}
 		}
 

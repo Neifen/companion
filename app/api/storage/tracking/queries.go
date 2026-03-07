@@ -27,8 +27,7 @@ func (pg *TrackingStore) CheckTask(ctx context.Context, taskID int64, checked bo
 
 	aff := exec.RowsAffected()
 	if aff != 1 {
-		fmt.Println("ISSUE WITH CHECKING 1 ROW")
-		return fmt.Errorf(`task %d not tracked %w`, taskID, err)
+		return fmt.Errorf(`task %d not tracked`, taskID)
 	}
 
 	return nil

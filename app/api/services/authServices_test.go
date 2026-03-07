@@ -15,10 +15,12 @@ type MockAuthServices struct{}
 
 var longVerificationToken string
 var shortVerificationToken string
+var purpose auth.VerificationPurpose
 
-func (MockAuthServices) SendVerification(shortToken, longToken string, u *auth.UserModel) error {
+func (MockAuthServices) SendVerification(shortToken, longToken string, u *auth.UserModel, p auth.VerificationPurpose) error {
 	longVerificationToken = longToken
 	shortVerificationToken = shortToken
+	purpose = p
 
 	return nil
 }
@@ -282,6 +284,11 @@ func Test_ResetPw(t *testing.T) {
 	err = testContext.serv.ResetPasswordLong(ctx, ip, longVerificationToken, "newpass")
 	if err != nil {
 		t.Fatalf("failed to check Verification with token %s and err \n%+v\n", longVerificationToken, err)
+	}
+
+	err = testContext.serv.ResetPasswordShort(ctx, ip, u.Email, shortVerificationToken, "newpass")
+	if err == nil || err != services.ErrPasswordUnchanged {
+		t.Fatalf("Expected password unchanged error %v", err)
 	}
 
 	err = testContext.serv.ResetPasswordShort(ctx, ip, u.Email, shortVerificationToken, "newpass2")

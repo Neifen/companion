@@ -10,15 +10,24 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func sendSignupMail(short, long string, u *auth.UserModel) error {
+func sendSignupMail(short, long string, u *auth.UserModel, p auth.VerificationPurpose) error {
 	apiToken := os.Getenv("RESEND_TOKEN")
 	base := os.Getenv("URL")
-	url := fmt.Sprintf("%s/verify-signup?ltoken=%s", base, long)
+
+	var url string
+	var id string
+	if p == auth.PurposeEmail {
+		id = "signup"
+		url = fmt.Sprintf("%s/verify-signup?ltoken=%s", base, long)
+	} else if p == auth.PurposePassword {
+		id = "reset"
+		url = fmt.Sprintf("%s/reset-password?ltoken=%s", base, long)
+	}
 
 	client := resend.NewClient(apiToken)
 
 	emailTemp := &resend.EmailTemplate{
-		Id: "signup",
+		Id: id,
 		Variables: map[string]any{
 			"USER_NAME":  u.Name,
 			"CODE":       short,
@@ -42,6 +51,7 @@ func sendSignupMail(short, long string, u *auth.UserModel) error {
 		Str("email-ID", sent.Id).
 		Str("short", short).
 		Str("url", url).
+		Str("id", id).
 		Msg("mail service: sent signup email")
 	return nil
 }

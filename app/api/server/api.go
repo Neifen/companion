@@ -2,6 +2,9 @@
 package server
 
 import (
+	"net/http"
+
+	"github.com/google/uuid"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/neifen/companion/app/api/services"
@@ -68,15 +71,38 @@ func (api *APIServer) Run() {
 	e.POST("/verify-signup", s.verifyShort, s.authorizeToken)                        // todo - verify short token
 	e.POST("/renew-signup-token", s.renewSignupTokens, s.authorizeToken, s.loadUser) // todo - renew the tokens
 
-	e.GET("/recovery", s.showRecovery, s.guestOnly)
-	e.POST("/recovery", s.recovery, s.guestOnly) // todo - send signup form
-	// e.GET("/verify-recovery", s.handleGetVerifySignup, s.guestOnly)       // todo - verify long token
-	// e.POST("/verify-recovery", s.handleGetVerifySignup, s.guestOnly)      // todo - verify short token
-	// e.POST("/renew-recovery-token", s.handleGetVerifySignup, s.guestOnly) // todo - renew the tokens
+	e.GET("/forgot-password", s.forgotPasswordPage, s.guestOnly) // Get forgot password page
+	//todo: f5 here goes back to /forgot-password, so thats no bueno
+	e.POST("/forgot-password", s.forgotPassword, s.guestOnly) // Send forgot password request -> return recovery page ()
+
+	e.GET("/reset-password", s.resetPasswordLongPage, s.guestOnly)       // Get reset password page (long token)
+	e.POST("/verify-recovery-long", s.verifyRecoveryLong, s.guestOnly)   // Verify long token -> show login
+	e.POST("/verify-recovery-short", s.verifyRecoveryShort, s.guestOnly) // Verify the short token for recovery -> show login
+
+	e.POST("/renew-recovery-token", s.renewRecoveryToken, s.guestOnly) //  renew the recovery tokens
 
 	// settings
 	// e.GET("/edit-user", s.editUser)
 	// e.POST("/edit-user", s.editUser)
 
 	e.Logger.Fatal(e.Start(api.apiPath))
+}
+
+// todo: uid/user -> authUser object
+func replaceUID(c echo.Context, url string, uid uuid.UUID, next func(echo.Context, uuid.UUID) error) error {
+	if c.Request().Header.Get("HX-Request") != "true" {
+		return c.Redirect(http.StatusSeeOther, url)
+	}
+
+	c.Response().Header().Set("HX-Replace-Url", url)
+	return next(c, uid)
+}
+
+func replace(c echo.Context, url string, next func(echo.Context) error) error {
+	if c.Request().Header.Get("HX-Request") != "true" {
+		return c.Redirect(http.StatusSeeOther, url)
+	}
+
+	c.Response().Header().Set("HX-Replace-Url", url)
+	return next(c)
 }

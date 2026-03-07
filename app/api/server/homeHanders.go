@@ -39,16 +39,6 @@ func (s *HandlerSession) replaceOnobarding(c echo.Context, uid uuid.UUID) error 
 	return replaceUID(c, "/", uid, s.onboardingPage)
 }
 
-// todo: uid/user -> authUser object
-func replaceUID(c echo.Context, url string, uid uuid.UUID, next func(echo.Context, uuid.UUID) error) error {
-	if c.Request().Header.Get("HX-Request") != "true" {
-		return c.Redirect(http.StatusSeeOther, url)
-	}
-
-	c.Response().Header().Set("HX-Replace-Url", url)
-	return next(c, uid)
-}
-
 // /////////////////// Routing Entry ////////////////////
 
 func (s *HandlerSession) routeEntry(c echo.Context, u *auth.UserModel) error {
@@ -94,7 +84,7 @@ func (s *HandlerSession) dashboardPage(c echo.Context, uid uuid.UUID) error {
 
 	tracker, hasMore, err := s.services.ReadTasksFrom(c.Request().Context(), uid, time.Now().AddDate(0, 0, -2))
 	if err != nil {
-		log.Err(err)
+		log.Err(err).Msg("Dashboard Page: Error")
 		//todo: with error
 		return s.emptyDashboardPage(c, uid)
 	}

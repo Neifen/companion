@@ -14,7 +14,7 @@ import (
 )
 
 type AuthServices interface {
-	SendVerification(shortToken, longToken string, u *auth.UserModel) error
+	SendVerification(shortToken, longToken string, u *auth.UserModel, p auth.VerificationPurpose) error
 }
 
 type ProductionAuthServices struct {
@@ -72,7 +72,7 @@ func (s *Services) NewUser(ctx context.Context, ip string, u *auth.UserModel) er
 		return errors.WithMessage(err, "auth service: New User")
 	}
 
-	s.auth.SendVerification(shortToken, longToken, u)
+	s.auth.SendVerification(shortToken, longToken, u, auth.PurposeSignup)
 
 	err = s.store.CommitTX(ctx)
 	if err != nil {
@@ -80,6 +80,24 @@ func (s *Services) NewUser(ctx context.Context, ip string, u *auth.UserModel) er
 	}
 
 	return nil
+}
+
+func (s *Services) GetPasswordRecoveryTokenExpiration(ctx context.Context, email string) (time.Time, error) {
+	u, err := s.store.Auth.ReadUserByEmail(ctx, email)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("auth service: get password recovery token expiration for %s %w", email, err)
+	}
+
+	v, err := s.store.Auth.ReadUserVerification(ctx, auth.PurposePassword, auth.ChannelShortEmail, u.ID)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("auth service: get verification token expiration for %s %w", email, err)
+	}
+	if v == nil {
+		// no more token, just allow refresh
+		return time.Time{}, nil
+	}
+
+	return v.Expiration, nil
 }
 
 func (s *Services) GetVerificationTokenExpiration(ctx context.Context, uid uuid.UUID) (time.Time, error) {
@@ -145,7 +163,7 @@ func (s *Services) RequestSignupVerificationTokens(ctx context.Context, ip strin
 		return errors.WithMessage(err, "auth service: Request Signup Verification Tokens")
 	}
 
-	s.auth.SendVerification(shortToken, longToken, u)
+	s.auth.SendVerification(shortToken, longToken, u, auth.PurposeSignup)
 
 	err = s.store.CommitTX(ctx)
 	if err != nil {
@@ -155,8 +173,8 @@ func (s *Services) RequestSignupVerificationTokens(ctx context.Context, ip strin
 	return nil
 }
 
-func (ProductionAuthServices) SendVerification(shortToken, longToken string, u *auth.UserModel) error {
-	return sendSignupMail(shortToken, longToken, u)
+func (ProductionAuthServices) SendVerification(shortToken, longToken string, u *auth.UserModel, p auth.VerificationPurpose) error {
+	return sendSignupMail(shortToken, longToken, u, p)
 }
 
 func (s *Services) CheckLongVerificationToken(ctx context.Context, ip, token string) (*auth.UserModel, error) {
@@ -396,7 +414,10 @@ func (s *Services) RequestResetPassword(ctx context.Context, ip, email string) e
 		return errors.WithMessage(err, "auth service: Request Reset Password")
 	}
 
-	s.auth.SendVerification(shortToken, longToken, u)
+	err = s.auth.SendVerification(shortToken, longToken, u, auth.PurposePassword)
+	if err != nil {
+		return fmt.Errorf("auth service: Request Reset Password %w", err)
+	}
 
 	if err := s.store.CommitTX(ctx); err != nil {
 		return errors.WithMessage(err, "auth service: Request Reset Password")
@@ -404,6 +425,8 @@ func (s *Services) RequestResetPassword(ctx context.Context, ip, email string) e
 
 	return nil
 }
+
+var ErrPasswordUnchanged error = fmt.Errorf("password unchanged")
 
 func (s *Services) ResetPasswordShort(ctx context.Context, ip, email, token, newPw string) error {
 	err := s.store.CreateTX(ctx)
@@ -447,6 +470,10 @@ func (s *Services) ResetPasswordShort(ctx context.Context, ip, email, token, new
 		}
 
 		return errors.WithMessage(err, "auth service: Reset Password Short")
+	}
+
+	if crypto.CheckPassword(newPw, u.Pw) {
+		return ErrPasswordUnchanged
 	}
 
 	newHashedPw, err := crypto.HashPassword(newPw)

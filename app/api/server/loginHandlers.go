@@ -63,7 +63,7 @@ func (s *HandlerSession) signup(c echo.Context) error {
 
 	u, err := auth.NewUserModel(name, email, pw)
 	if err != nil {
-		log.Err(err)
+		log.Err(err).Msg("Signup: Error creating new User model")
 		// todo show error
 		return s.showSignup(c)
 	}
@@ -73,21 +73,21 @@ func (s *HandlerSession) signup(c echo.Context) error {
 
 	err = s.services.NewUser(ctx, ip, u)
 	if err != nil {
-		log.Err(err)
+		log.Err(err).Msg("Signup: Error creating new User")
 		// todo show error
 		return s.showSignup(c)
 	}
 
 	access, err := s.services.CreateAccessToken(u.ID)
 	if err != nil {
-		log.Err(err)
+		log.Err(err).Msg("Signup: Error creating new Access Token")
 		// todo show error
 		return replaceLogin(c)
 	}
 
 	refresh, err := s.services.CreateRefreshToken(ctx, u.ID, false)
 	if err != nil {
-		log.Err(err)
+		log.Err(err).Msg("Signup: Error creating new Refresh Token")
 		// todo show error
 		return replaceLogin(c)
 	}
@@ -126,7 +126,7 @@ func (s *HandlerSession) renewSignupTokens(c echo.Context) error {
 	err := s.services.RequestSignupVerificationTokens(ctx, ip, u)
 	if err != nil {
 		//todo: show error
-		log.Err(err)
+		log.Err(err).Msg("Renew Signup Token: Error Requesting new Token")
 
 		return replaceLogin(c)
 	}
@@ -134,15 +134,136 @@ func (s *HandlerSession) renewSignupTokens(c echo.Context) error {
 	return s.replaceVerify(c, u.ID)
 }
 
-func (s *HandlerSession) showRecovery(c echo.Context) error {
-	child := view.PWRecovery()
+func (s *HandlerSession) forgotPasswordPage(c echo.Context) error {
+	child := view.ForgotPassword()
 	return view.RenderView(c, child)
 }
 
-func (s *HandlerSession) recovery(c echo.Context) error {
-	child := view.PWRecovery()
-	//todo: recovery
+func (s *HandlerSession) forgotPassword(c echo.Context) error {
+	email := c.FormValue("email")
+	ctx := c.Request().Context()
+	ip := c.RealIP()
+
+	err := s.services.RequestResetPassword(ctx, ip, email)
+	if err != nil {
+		log.Err(err).Msg("Forgot Password: Error Requesting Token")
+		//todo: show error
+		return s.forgotPasswordPage(c)
+	}
+	return s.resetPasswordShortPage(c)
+}
+
+func (s *HandlerSession) resetPasswordShortPage(c echo.Context) error {
+	email := c.FormValue("email")
+	if email == "" {
+		log.Warn().Msg("Verify Recovery Page, email was empty. Back to recovery page")
+		return replace(c, "/forgot-password", s.forgotPasswordPage)
+	}
+
+	ctx := c.Request().Context()
+	//todo: maybe this could be passed in this method (get it from requestPwReset)
+	exp, err := s.services.GetPasswordRecoveryTokenExpiration(ctx, email)
+	if err != nil {
+		log.Err(err).Msg("Reset Password Short Page: Error Requesting Token Expiration Date")
+	}
+
+	child := view.ResetPasswordShort(exp, email)
 	return view.RenderView(c, child)
+}
+
+func (s *HandlerSession) verifyRecoveryShort(c echo.Context) error {
+	email := c.FormValue("email")
+	short := c.FormValue("stoken")
+	password := c.FormValue("password")
+	if email == "" {
+		log.Warn().Msg("Verify Recovery Short, email was empty. Back to forgot pw page")
+		return replace(c, "/forgot-password", s.forgotPasswordPage)
+	}
+
+	if short == "" {
+		log.Warn().Msg("Verify Recovery Short, short token was empty. Back to verify page")
+		return s.resetPasswordShortPage(c)
+	}
+
+	if password == "" {
+		log.Warn().Msg("Verify Recovery Short, password was empty. Back to verify page")
+		//todo: what if I refresh after this does it show?
+		//todo: error
+		return s.resetPasswordShortPage(c)
+	}
+
+	ctx := c.Request().Context()
+	ip := c.RealIP()
+
+	err := s.services.ResetPasswordShort(ctx, ip, email, short, password)
+	if err != nil {
+		log.Err(err).Msg("Error verifying short recovery token")
+		//todo: show error
+		return s.resetPasswordShortPage(c)
+	}
+
+	//todo: why am I logged in at this point?
+	return replace(c, "/login", s.showLogin)
+}
+
+func (s *HandlerSession) resetPasswordLongPage(c echo.Context) error {
+	long := c.QueryParam("ltoken")
+
+	if long == "" {
+		log.Warn().Msg("Verify Recovery Long, long token was empty. Back to revert page")
+		return replace(c, "/forgot-password", s.forgotPasswordPage)
+	}
+
+	child := view.ResetPasswordLong(long)
+	return view.RenderView(c, child)
+}
+
+func (s *HandlerSession) verifyRecoveryLong(c echo.Context) error {
+	long := c.FormValue("ltoken")
+	password := c.FormValue("password")
+
+	if long == "" {
+		log.Warn().Msg("Verify Recovery Long, long token was empty. Back to revert page")
+		return replace(c, "/forgot-password", s.forgotPasswordPage)
+	}
+
+	if password == "" {
+		log.Warn().Msg("Verify Recovery Long, password was empty. Back to long recovery page page")
+		url := fmt.Sprintf("/reset-password?ltoken=%s", long)
+		//todo: will this work with the ltoken?
+		return replace(c, url, s.resetPasswordLongPage)
+	}
+
+	ctx := c.Request().Context()
+	ip := c.RealIP()
+
+	err := s.services.ResetPasswordLong(ctx, ip, long, password)
+	if err != nil {
+		log.Err(err).Msg("Verify PW Recovery Long: Error verifying long token")
+		//todo: show error
+		return replace(c, "/forgot-password", s.forgotPasswordPage)
+	}
+
+	return replace(c, "/login", s.login)
+}
+
+func (s *HandlerSession) renewRecoveryToken(c echo.Context) error {
+	email := c.FormValue("email")
+	if email == "" {
+		log.Warn().Msg("Verify Recovery Page, email was empty. Back to recovery page")
+		return replace(c, "/recovery", s.forgotPasswordPage)
+	}
+
+	ctx := c.Request().Context()
+	ip := c.RealIP()
+
+	err := s.services.RequestResetPassword(ctx, ip, email)
+	if err != nil {
+		log.Err(err).Msg("Renew recovery token: Error requesting new token")
+	}
+
+	//todo: replace?
+	return s.resetPasswordShortPage(c)
 }
 
 func (s *HandlerSession) showVerify(c echo.Context) error {
@@ -176,6 +297,10 @@ func replaceLogin(c echo.Context) error {
 	return view.ReplaceUrl("/login", c, child)
 }
 
+func (s *HandlerSession) replaceRecovery(c echo.Context) error {
+	return replace(c, "/recovery", s.forgotPasswordPage)
+}
+
 // /////////////////// Pages ////////////////////
 
 func (s *HandlerSession) verifyPage(c echo.Context, uid uuid.UUID) error {
@@ -184,9 +309,8 @@ func (s *HandlerSession) verifyPage(c echo.Context, uid uuid.UUID) error {
 	exp, err := s.services.GetVerificationTokenExpiration(ctx, uid)
 	if err != nil {
 		//todo: add error
-		log.Err(err)
+		log.Err(err).Msg("Verify Signup Page: Error getting token expiration")
 	}
-	fmt.Printf("exp %s\n", exp)
 	log.Info().Any("exp", exp)
 
 	child := view.Verify(exp)
@@ -239,7 +363,7 @@ func (s *HandlerSession) redirect(c echo.Context, uid uuid.UUID) error {
 	ctx := c.Request().Context()
 	u, err := s.services.GetUserByID(ctx, uid)
 	if err != nil {
-		log.Err(err)
+		log.Err(err).Msg("Verify Signup Page: Error getting user by ID")
 	}
 
 	return s.replaceEntry(c, u)

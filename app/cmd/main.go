@@ -14,6 +14,12 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		log.Fatal().Err(err).Msg("Run failed")
+	}
+}
+
+func run() error {
 	// if I want it even faster
 	// zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	// Pretty console writer
@@ -30,13 +36,12 @@ func main() {
 	// 1. load env variable
 	err := loadEnv()
 	if err != nil {
-		log.Fatal().Err(err).Msg("failed to load environment variables")
+		return err
 	}
 
 	store, _, err := storage.NewDB()
 	if err != nil {
-		// need to be able to set up db, otherwise fail
-		log.Err(err)
+		return err
 	}
 	defer store.Close()
 
@@ -49,6 +54,7 @@ func main() {
 	services := services.NewServicesProd(store)
 	api := server.NewAPIHandler(":1323", services)
 	api.Run()
+	return nil
 }
 
 func loadEnv() error {

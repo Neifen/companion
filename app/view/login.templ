@@ -35,7 +35,7 @@ templ Login() {
 					/>
 					<span class="ml-2 text-sm text-gray-600">Remember me</span>
 				</label>
-				<a hx-get="/recovery" hx-target="#base" class="text-sm text-blue-600 hover:underline cursor-pointer">Forgot Password?</a>
+				<a hx-get="/forgot-password" hx-target="#base" hx-push-url="true" class="text-sm text-blue-600 hover:underline cursor-pointer">Forgot Password?</a>
 			</div>
 			<button
 				hx-post="/login"
@@ -47,7 +47,7 @@ templ Login() {
 		</form>
 		<p class="mt-6 text-center text-sm text-gray-600">
 			Don't have an account? 
-			<a hx-get="/signup" hx-target="#base" class="text-blue-600 hover:underline cursor-pointer">Sign up</a>
+			<a hx-get="/signup" hx-target="#base" hx-push-url="true" class="text-blue-600 hover:underline cursor-pointer">Sign up</a>
 		</p>
 	</div>
 }

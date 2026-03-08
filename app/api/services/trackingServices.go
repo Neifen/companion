@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/neifen/companion/app/api/storage/auth"
 	"github.com/neifen/companion/app/api/storage/tracking"
 )
 
@@ -205,6 +206,11 @@ func (s *Services) CreateTracker(ctx context.Context, userID uuid.UUID, planID i
 		return fmt.Errorf("tracking service: createTracker(%d) could not start tx %w", userID, err)
 	}
 	defer s.store.RollbackTX(ctx)
+
+	err = s.store.Auth.EditUserStatus(ctx, userID, auth.StatusVerified)
+	if err != nil {
+		return fmt.Errorf("tracking service: CreateTracker(userID: %d, start: %s, end: %s) could not edit user status %w", userID, startRaw, endRaw, err)
+	}
 
 	err = s.store.Tracking.DeleteUserTracker(ctx, userID)
 	if err != nil {

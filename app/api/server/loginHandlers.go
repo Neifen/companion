@@ -25,7 +25,7 @@ func (s *HandlerSession) login(c echo.Context) error {
 	u, err := s.services.Authenticate(c.Request().Context(), c.RealIP(), email, pw, remember)
 	if err != nil {
 		log.Err(err).Msg("Login (post)")
-		return replaceLogin(c)
+		return view.ErrorHTML(c, "nope")
 	}
 
 	tokenToCookie(u.Access, u.Refresh, c)

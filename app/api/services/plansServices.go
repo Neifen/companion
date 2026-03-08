@@ -290,3 +290,23 @@ func (s *Services) splitChapters(ctx context.Context, cutRatio float32, chapters
 
 	return chapters, nil
 }
+
+func (s *Services) InsertSplitVersesPlan(ctx context.Context) (int, error) {
+	err := s.store.CreateTX(ctx)
+	if err != nil {
+		return -1, fmt.Errorf("plan service: create tx %w", err)
+	}
+	defer s.store.RollbackTX(ctx)
+
+	plansID, err := s.store.Plans.SpecialSplitPlan(ctx)
+	if err != nil {
+		return -1, fmt.Errorf("plan service: InsertSplitVersPlan %w", err)
+	}
+
+	err = s.store.CommitTX(ctx)
+	if err != nil {
+		return -1, fmt.Errorf("plan service: commit %w", err)
+	}
+
+	return plansID, nil
+}

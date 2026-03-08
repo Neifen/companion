@@ -49,12 +49,14 @@ templ Base(errMsgs, sucMsgs []string) {
                 }
             </style>
 		</head>
-		<body class="bg-gray-100 flex items-center justify-center min-h-screen" id="base">
-			{ children... }
-			// @partials.FlashMessages(errMsgs, sucMsgs)
+		<body>
+			<div class="bg-gray-100 flex items-center justify-center min-h-screen" id="base">
+				{ children... }
+				// @partials.FlashMessages(errMsgs, sucMsgs)
+			</div>
 			<!-- Error Popup -->
 			@infoMessage("")
-			@errorMessage("")
+			<div id="err-messages"></div>
 			<script src="https://cdn.jsdelivr.net/npm/flowbite@3.1.2/dist/flowbite.min.js"></script>
 		</body>
 	</html>

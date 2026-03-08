@@ -1,7 +1,6 @@
 package server
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -63,41 +62,47 @@ func (s *HandlerSession) welcomePage(c echo.Context) error {
 }
 
 func (s *HandlerSession) onboardingPage(c echo.Context, uid uuid.UUID) error {
-	chapters, err := s.services.GetPlansChapters(c.Request().Context(), 0)
-	// todo real errors
-	if err != nil {
-		log.Err(err).Msg("Issue with getting welcome screen")
-		return c.JSON(http.StatusInternalServerError, err) // todo do better
-	}
+	// chapters, err := s.services.GetPlansChapters(c.Request().Context(), 0)
+	// // todo real errors
+	// if err != nil {
+	// 	log.Err(err).Msg("Issue with getting welcome screen")
+	// 	return c.JSON(http.StatusInternalServerError, err) // todo do better
+	// }
 
-	bible := chapterModelToEntity(chapters)
+	// bible := chapterModelToEntity(chapters)
 
-	name := ""
-	viewU := entities.NewViewUser(name, true)
-	return view.HomeHTML(c, bible, viewU, true)
+	// name := ""
+	viewU := entities.NewViewUser("", true)
+	return view.Onboarding(c, viewU)
 
 }
 
 func (s *HandlerSession) dashboardPage(c echo.Context, uid uuid.UUID) error {
 	var bible *entities.TrackedBible
-
-	tracker, hasMore, err := s.services.ReadTasksFrom(c.Request().Context(), uid, time.Now().AddDate(0, 0, -2))
+	ctx := c.Request().Context()
+	tracker, err := s.services.ReadUserTracker(ctx, uid)
 	if err != nil {
 		log.Err(err).Msg("Dashboard Page: Error")
 		//todo: with error
 		return s.emptyDashboardPage(c, uid)
 	}
 
-	if len(tracker) == 0 {
+	tasks, hasMore, err := s.services.ReadTasksFrom(ctx, uid, time.Now().AddDate(0, 0, -2))
+	if err != nil {
+		log.Err(err).Msg("Dashboard Page: Error")
+		//todo: with error
 		return s.emptyDashboardPage(c, uid)
-
 	}
 
-	bible = trackerModelToEntity(tracker, hasMore)
+	if len(tasks) == 0 {
+		return s.emptyDashboardPage(c, uid)
+	}
+
+	bible = trackerModelToEntity(tasks, hasMore)
 
 	name := ""
 	viewU := entities.NewViewUser(name, true)
-	return view.HomeHTML(c, bible, viewU, false)
+	return view.HomeHTML(c, bible, viewU, tracker.ID)
 }
 
 func (s *HandlerSession) emptyDashboardPage(c echo.Context, uid uuid.UUID) error {
@@ -108,5 +113,5 @@ func (s *HandlerSession) emptyDashboardPage(c echo.Context, uid uuid.UUID) error
 
 	name := ""
 	viewU := entities.NewViewUser(name, true)
-	return view.HomeHTML(c, bible, viewU, false)
+	return view.HomeHTML(c, bible, viewU, -1)
 }

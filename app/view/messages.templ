@@ -3,28 +3,57 @@ package view
 import "github.com/labstack/echo/v4"
 
 func ErrorHTML(c echo.Context, message string) error {
-	//todo: oob error?
-	return RenderView(c, errorMessage(message))
+	return RenderOnly(c, errorMessageOld(message))
 }
 
 func InfoHTML(c echo.Context, message string) error {
-	return RenderView(c, infoMessage(message))
+	return RenderOnly(c, infoMessage(message))
 }
 
+//todo: fix error messages
 templ errorMessage(message string) {
-	<!-- Error Popup -->
 	<div
-		class={ "fixed bottom-5 left-1/2 transform -translate-x-1/2 w-4/5 max-w-md p-4 text-white bg-red-500 rounded-lg",
-		"shadow-lg transition-all duration-300 ease-in-out z-50 ",
-		"has-checked:hidden" }
-		hx-swap-oob="outerHTML#err-messages"
+		data-toast
+		hx-swap-oob="afterbegin:#err-messages"
+		class="bg-red-500 text-white px-4 py-3 rounded shadow flex gap-3 max-w-sm"
 		id="err-messages"
 	>
+		<div class="flex-1">
+			{ message }
+		</div>
+		<button onclick="this.closest('[data-toast]').remove()">✕</button>
+		<script>
+			(function(el){
+				setTimeout(() => el.remove(), 10000);
+			})(document.currentScript.parentElement);
+		</script>
+	</div>
+}
+
+templ errorMessageOld(message string) {
+	<!-- todo: this doesn't stack -->
+	<div
+		hx-swap-oob="afterend"
+		id="err-messages"
+	>
+		<!-- Error Popup -->
+		<div
+			data-toast
+			class={ "fixed bottom-5 left-1/2 transform -translate-x-1/2 w-4/5 max-w-md p-4 text-white bg-red-500 rounded-lg",
+		"shadow-lg transition-all duration-300 ease-in-out z-50" }
 		>
-		{{ checked := len(message) == 0 }}
-		<input type="checkbox" id="error-popup" class="hidden" checked?={ checked }/>
-		{ message }
-		<label for="error-popup" class="absolute top-2 right-3 text-white font-bold cursor-pointer">X</label>
+			>
+			{ message }
+			<button
+				class="absolute top-2 right-3 text-white font-bold cursor-pointer"
+				onclick="this.closest('[data-toast]').remove()"
+			>✕</button>
+			<script>
+				(function(el){
+					setTimeout(() => el.remove(), 10000);
+				})(document.currentScript.parentElement);
+			</script>
+		</div>
 	</div>
 }
 

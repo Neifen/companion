@@ -1,0 +1,26 @@
+package view //import github.com/neifen/companion/app/view
+
+import (
+	"github.com/labstack/echo/v4"
+	"github.com/neifen/companion/app/entities"
+	"github.com/neifen/companion/app/view/common"
+)
+
+func Onboarding(c echo.Context, u *entities.ViewUser) error {
+	return RenderView(c, onboarding(u))
+}
+
+templ onboarding(u *entities.ViewUser) {
+	<div class="bg-gray-100 flex min-h-screen overflow-hidden m-4 ">
+		<!-- Left Sidebar -->
+		<div class="w-full bg-white rounded-lg shadow-lg p-8 flex flex-col h-screen m-2">
+			<div id="plan-popup"></div>
+			<!-- Navbar -->
+			@common.Navbar(u, -1)
+			<!-- Scrollable List -->
+			<div class="p-2" id="scrollbar-tracker">
+				This is the onboarding
+			</div>
+		</div>
+	</div>
+}

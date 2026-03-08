@@ -1,3 +1,4 @@
+// Package view contains all templ UI code
 package view
 
 import (
@@ -7,6 +8,12 @@ import (
 	"github.com/a-h/templ"
 	"github.com/labstack/echo/v4"
 )
+
+func RenderOnly(c echo.Context, cmp templ.Component) error {
+	c.Response().Header().Set(echo.HeaderContentType, echo.MIMETextHTML)
+	c.Response().Header().Set("HX-Reswap", "none")
+	return cmp.Render(c.Request().Context(), c.Response().Writer)
+}
 
 func RenderView(c echo.Context, cmp templ.Component) error {
 	c.Response().Header().Set(echo.HeaderContentType, echo.MIMETextHTML)

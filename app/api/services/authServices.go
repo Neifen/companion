@@ -82,6 +82,16 @@ func (s *Services) NewUser(ctx context.Context, ip string, u *auth.UserModel) er
 	return nil
 }
 
+// todo: test
+func (s *Services) EditUserStatus(ctx context.Context, uid uuid.UUID, status auth.UserStatus) error {
+	err := s.store.Auth.EditUserStatus(ctx, uid, status)
+	if err != nil {
+		return fmt.Errorf("user service: EditUserStatus() %w", err)
+	}
+
+	return nil
+}
+
 func (s *Services) GetPasswordRecoveryTokenExpiration(ctx context.Context, email string) (time.Time, error) {
 	u, err := s.store.Auth.ReadUserByEmail(ctx, email)
 	if err != nil {

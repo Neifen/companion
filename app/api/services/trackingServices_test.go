@@ -354,8 +354,8 @@ func TestCreateTrackerDouble(t *testing.T) {
 func TestCreateTrackerDifferentDays(t *testing.T) {
 	testContext.resetTracking = true
 	testContext.resetPlans = true
-
-	planID, err := insertSplitVersesPlan(testContext.db)
+	ctx := t.Context()
+	planID, err := testContext.serv.InsertSplitVersesPlan(ctx)
 	if err != nil {
 		t.Fatalf("Getting max id failed: %s", err)
 	}
@@ -370,14 +370,14 @@ func TestCreateTrackerDifferentDays(t *testing.T) {
 		inXDays := begin.AddDate(0, 0, timeRange)
 		inXDaysString := inXDays.Format("2006-01-02")
 
-		err = testContext.serv.CreateTracker(context.Background(), userID, planID, nowString, inXDaysString)
+		err = testContext.serv.CreateTracker(ctx, userID, planID, nowString, inXDaysString)
 		if err != nil {
 			t.Fatalf("CreateTask failed: %s", err)
 		}
 
 		// ----  check tracker -----=
 
-		rows, err := testContext.db.Query(context.Background(), "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
+		rows, err := testContext.db.Query(ctx, "SELECT id, user_fk, start_date, end_date FROM tracking.trackers")
 		if err != nil {
 			t.Fatalf("Error getting Rows from Trackers: %s", err)
 		}
@@ -407,7 +407,7 @@ func TestCreateTrackerDifferentDays(t *testing.T) {
 		}
 
 		// ----  check tasks -----=
-		rows, err = testContext.db.Query(context.Background(), "SELECT array_agg(id)::varchar, read_by FROM tracking.tasks group by read_by order by read_by")
+		rows, err = testContext.db.Query(ctx, "SELECT array_agg(id)::varchar, read_by FROM tracking.tasks group by read_by order by read_by")
 		if err != nil {
 			t.Fatalf("Error getting Rows from Tasks: %s", err)
 		}

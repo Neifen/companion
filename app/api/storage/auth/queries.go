@@ -148,6 +148,15 @@ func (pg *AuthStore) CreateUser(ctx context.Context, u *UserModel) error {
 	return nil
 }
 
+func (pg *AuthStore) EditUserStatus(ctx context.Context, uid uuid.UUID, status UserStatus) error {
+	_, err := pg.db.Exec(ctx, "UPDATE "+usersTable+" set status = $2 where id=$1", uid, status)
+	if err != nil {
+		return fmt.Errorf("auth db: EditUserStatus for user %s and status %s %w", uid, status, err)
+	}
+
+	return nil
+}
+
 func (pg *AuthStore) UserVerified(ctx context.Context, uid uuid.UUID) error {
 	_, err := pg.db.Exec(ctx, "UPDATE "+usersTable+" set verified = true, status = 'NEWUSER' where id=$1", uid)
 	if err != nil {

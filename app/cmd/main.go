@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"time"
@@ -50,8 +51,9 @@ func run() error {
 		// need to be able to set up db, otherwise fail
 		log.Fatal().Err(err).Msg("failed to init db")
 	}
-
 	services := services.NewServicesProd(store)
+	services.InsertSplitVersesPlan(context.Background()) //todo: move or remove, put it somwehre idk
+
 	api := server.NewAPIHandler(":1323", services)
 	api.Run()
 	return nil

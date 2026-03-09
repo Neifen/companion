@@ -82,8 +82,9 @@ func (s *Services) NewUser(ctx context.Context, ip string, u *auth.UserModel) er
 	return nil
 }
 
-// todo: test
 func (s *Services) EditUserStatus(ctx context.Context, uid uuid.UUID, status auth.UserStatus) error {
+	// todo: test
+
 	err := s.store.Auth.EditUserStatus(ctx, uid, status)
 	if err != nil {
 		return fmt.Errorf("user service: EditUserStatus() %w", err)

@@ -82,7 +82,7 @@ func (api *APIServer) Run() {
 	e.POST("/renew-recovery-token", s.renewRecoveryToken, s.guestOnly) //  renew the recovery tokens
 
 	// settings
-	// e.GET("/edit-user", s.editUser)
+	e.GET("/user-settings", s.userSettings, s.authorizeToken, s.loadUser)
 	// e.POST("/edit-user", s.editUser)
 
 	e.Logger.Fatal(e.Start(api.apiPath))

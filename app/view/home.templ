@@ -67,7 +67,7 @@ templ trackerList(bible *entities.TrackedBible, before bool, after bool) {
 						{{
 	title := fmt.Sprintf(`%s`, item.Title)
 						}}
-						@trackerCheck(item.Id, item.Read)
+						@trackerCheck(item.ID, item.Read)
 						<a href="#" class="flex-1 bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-blue-600 hover:text-white transition duration-200 text-center ">{ title }</a>
 					</div>
 				}

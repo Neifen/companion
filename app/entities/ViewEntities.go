@@ -1,14 +1,26 @@
+// Package entities
 package entities
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/neifen/companion/app/api/storage/auth"
+)
 
 type ViewUser struct {
+	UID        uuid.UUID
 	IsLoggedIn bool
 	Name       string
+	Email      string
 }
 
-func NewViewUser(name string, loggedIn bool) *ViewUser {
-	return &ViewUser{loggedIn, name}
+func ViewUserFromModel(u *auth.UserModel) *ViewUser {
+	return &ViewUser{u.ID, true, u.Name, u.Email}
+}
+
+func NewViewUser(uid uuid.UUID, name string, loggedIn bool) *ViewUser {
+	return &ViewUser{uid, loggedIn, name, ""}
 }
 
 type ViewSettings struct {
@@ -58,18 +70,18 @@ func NewTrackedGroup(title, pagination string, items []*TrackedItem) *TrackedGro
 }
 
 type TrackedItem struct {
-	Id        int64
+	ID        int64
 	Read      bool
 	Title     string // BookName + Chapter + Verses (opt)
-	ChapterId int16
+	ChapterID int16
 }
 
-func NewTrackedItem(id int64, read bool, title string, chapterId int16) *TrackedItem {
-	return &TrackedItem{id, read, title, chapterId}
+func NewTrackedItem(id int64, read bool, title string, chapterID int16) *TrackedItem {
+	return &TrackedItem{id, read, title, chapterID}
 }
 
 type Plan struct {
-	Id   int
+	ID   int
 	Name string
 	Desc string
 }

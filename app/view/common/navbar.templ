@@ -32,7 +32,7 @@ templ Navbar(u *entities.ViewUser, trackerID int64) {
 			<div class="flex space-x-2">
 				if u.IsLoggedIn {
 					// todo: user id?
-					<button hx-get="user-settings" hx-target="#base" hx-push-url="true" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">User Settings</button>
+					<button hx-get="user-settings" hx-swap="none" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">User Settings</button>
 					<button hx-post="/logout" hx-target="#base" hx-push-url="true" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Logout</button>
 				} else {
 					<button hx-get="/login" hx-target="#base" hx-push-url="true" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-200 font-medium">Login</button>

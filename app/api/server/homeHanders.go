@@ -25,6 +25,10 @@ func (s *HandlerSession) welcome(c echo.Context) error {
 	return s.welcomePage(c)
 }
 
+func (s *HandlerSession) userSettings(c echo.Context) error {
+	return s.settingsPage(c)
+}
+
 // /////////////////// Replacements ////////////////////
 func (s *HandlerSession) replaceEntry(c echo.Context, u *auth.UserModel) error {
 	// might have to push the url
@@ -61,6 +65,13 @@ func (s *HandlerSession) welcomePage(c echo.Context) error {
 	return view.Welcome(c)
 }
 
+func (s *HandlerSession) settingsPage(c echo.Context) error {
+	u := ctxUser(c)
+
+	vu := entities.ViewUserFromModel(u)
+	return view.Settings(c, vu)
+}
+
 func (s *HandlerSession) onboardingPage(c echo.Context, uid uuid.UUID) error {
 	// chapters, err := s.services.GetPlansChapters(c.Request().Context(), 0)
 	// // todo real errors
@@ -72,7 +83,7 @@ func (s *HandlerSession) onboardingPage(c echo.Context, uid uuid.UUID) error {
 	// bible := chapterModelToEntity(chapters)
 
 	// name := ""
-	viewU := entities.NewViewUser("", true)
+	viewU := entities.NewViewUser(uid, "", true)
 	return view.Onboarding(c, viewU)
 
 }
@@ -101,7 +112,7 @@ func (s *HandlerSession) dashboardPage(c echo.Context, uid uuid.UUID) error {
 	bible = trackerModelToEntity(tasks, hasMore)
 
 	name := ""
-	viewU := entities.NewViewUser(name, true)
+	viewU := entities.NewViewUser(uid, name, true)
 	return view.HomeHTML(c, bible, viewU, tracker.ID)
 }
 
@@ -112,6 +123,6 @@ func (s *HandlerSession) emptyDashboardPage(c echo.Context, uid uuid.UUID) error
 	}
 
 	name := ""
-	viewU := entities.NewViewUser(name, true)
+	viewU := entities.NewViewUser(uid, name, true)
 	return view.HomeHTML(c, bible, viewU, -1)
 }

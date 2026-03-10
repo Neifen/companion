@@ -11,58 +11,105 @@ func Settings(c echo.Context, u *entities.ViewUser) error {
 templ settings(u *entities.ViewUser) {
 	<div id="plan-popup" hx-swap-oob="true">
 		<div id="plan-popup-window" class="fixed inset-0 flex bg-black/50 items-center justify-center z-50" hx-on:click="document.getElementById('plan-popup-window').remove()">
-			<div id="plan-popup-content" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto" hx-on:click="event.stopPropagation()">
+			<div id="plan-popup-content" class="bg-white shadow-md rounded-lg p-6 max-w-md mx-auto" hx-on:click="event.stopPropagation()" x-data="{editing: ''}">
 				<!-- Plan Name Section -->
 				<div class="flex items-center justify-between mb-4">
-					<h2 class="text-lg font-semibold text-gray-800">Settings</h2>
+					<h2 class="text-lg font-semibold text-gray-800">
+						<span
+							x-text="
+								editing === '' ? 'Settings' :
+								editing === 'name' ? 'Edit Name' :
+								editing === 'email' ? 'Edit Email' :
+								'Edit Password'"
+						></span>
+					</h2>
+				</div>
+				<div class="space-y-4" x-show="editing==='name'">
+					<div class="flex gap-4">
+						<label for="name" class="block text-gray-700 font-medium mb-1">Name</label>
+						<input
+							type="text"
+							id="name"
+							name="name"
+							placeholder="Your full name"
+							value={ u.Name }
+							class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+						/>
+					</div>
+					<button x-on:click="editing=''" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-100 transition duration-200 font-medium">Update</button>
+				</div>
+				<div class="space-y-4" x-show="editing==='email'">
+					<div class="flex gap-4">
+						<label for="email" class="block text-gray-700 font-medium mb-1">Email</label>
+						<input
+							type="email"
+							id="email"
+							name="email"
+							value={ u.Email }
+							placeholder="you@example.com"
+							class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+						/>
+					</div>
+					<button x-on:click="editing=''" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-100 transition duration-200 font-medium">Update</button>
+				</div>
+				<div class="space-y-4" x-show="editing==='password'">
+					<div class="flex gap-4">
+						<label for="password" class="block text-gray-700 font-medium mb-1">Password</label>
+						<input
+							type="password"
+							id="password"
+							name="password"
+							value=""
+							placeholder="••••••••"
+							class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+						/>
+					</div>
+					<button x-on:click="editing=''" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-100 transition duration-200 font-medium">Update</button>
 				</div>
 				<!-- Settings -->
-				<div class="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow-md">
-					<h2 class="text-2xl font-semibold mb-6 text-gray-800">Settings</h2>
-					<form class="space-y-4">
-						<!-- Name -->
-						<div>
-							<label for="name" class="block text-gray-700 font-medium mb-1">Name</label>
-							<input
-								type="text"
-								id="name"
-								name="name"
-								placeholder="Your full name"
-								class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-							/>
-						</div>
-						<!-- Email -->
-						<div>
-							<label for="email" class="block text-gray-700 font-medium mb-1">Email</label>
-							<input
-								type="email"
-								id="email"
-								name="email"
-								placeholder="you@example.com"
-								class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-							/>
-						</div>
-						<!-- Password -->
-						<div>
-							<label for="password" class="block text-gray-700 font-medium mb-1">Password</label>
-							<input
-								type="password"
-								id="password"
-								name="password"
-								placeholder="••••••••"
-								class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
-							/>
-						</div>
-						<!-- Save Button -->
-						<div class="pt-2">
-							<button
-								type="submit"
-								class="w-full bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 rounded-md transition-colors duration-200"
-							>
-								Save Changes
-							</button>
-						</div>
-					</form>
+				<div class="space-y-4" x-show="editing===''">
+					<!-- Name -->
+					<div class="flex gap-4">
+						<label for="name" class="block text-gray-700 font-medium mb-1">Name</label>
+						<input
+							disabled
+							type="text"
+							id="name"
+							name="name"
+							placeholder="Your full name"
+							value={ u.Name }
+							class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+						/>
+						<button x-on:click="editing='name'" class="bg-white text-blue-600 outline-blue-500 px-4 py-2 rounded-md hover:bg-blue-100 transition duration-200 font-medium">Update</button>
+					</div>
+					<!-- Email -->
+					<div class="flex gap-4">
+						<label for="email" class="block text-gray-700 font-medium mb-1">Email</label>
+						<input
+							disabled
+							type="email"
+							id="email"
+							name="email"
+							value={ u.Email }
+							placeholder="you@example.com"
+							class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+						/>
+						<button x-on:click="editing='email'" class="bg-white text-blue-600 outline-blue-500 px-4 py-2 rounded-md hover:bg-blue-100 transition duration-200 font-medium">Update</button>
+					</div>
+					<!-- Password -->
+					<div class="flex gap-4">
+						<label for="password" class="block text-gray-700 font-medium mb-1">Password</label>
+						<input
+							disabled
+							type="password"
+							id="password"
+							name="password"
+							value=""
+							placeholder="••••••••"
+							class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-blue-400"
+						/>
+						<button x-on:click="editing='password'" class="bg-white text-blue-600 outline-blue-500 px-4 py-2 rounded-md hover:bg-blue-100 transition duration-200 font-medium">Update</button>
+					</div>
 				</div>
 			</div>
 		</div>

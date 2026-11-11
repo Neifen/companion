@@ -15,10 +15,11 @@ func sendSignupMail(short, long string, u *auth.UserModel, p auth.VerificationPu
 
 	var url string
 	var id string
-	if p == auth.PurposeEmail {
+	switch p {
+	case auth.PurposeEmail:
 		id = "signup"
 		url = fmt.Sprintf("%s/verify-signup?ltoken=%s", base, long)
-	} else if p == auth.PurposePassword {
+	case auth.PurposePassword:
 		id = "reset"
 		url = fmt.Sprintf("%s/reset-password?ltoken=%s", base, long)
 	}

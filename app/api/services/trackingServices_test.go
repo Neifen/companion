@@ -553,10 +553,11 @@ func TestMoveTrackers(t *testing.T) {
 			if !test.err {
 				t.Fatalf("CreateTask failed: %s", err)
 			}
-		}
-
-		if test.err {
-			t.Fatalf("Error was expected for %s, %s, didn't happen", start, stop)
+			continue
+		} else {
+			if test.err {
+				t.Fatalf("Error was expected for %s, %s, didn't happen", test.start, test.end)
+			}
 		}
 
 		// ----  check tracker -----=
@@ -683,10 +684,11 @@ func TestMoveTrackersStart(t *testing.T) {
 			if !test.err {
 				t.Fatalf("CreateTask failed: %s", err)
 			}
-		}
-
-		if test.err {
-			t.Fatalf("Error was expected for %s, %s, didn't happen", start, stop)
+			continue
+		} else {
+			if test.err {
+				t.Fatalf("Error was expected for %s, %s, didn't happen", start, stop)
+			}
 		}
 
 		// ----  check tracker -----=
@@ -797,9 +799,8 @@ func TestMoveTrackersEnd(t *testing.T) {
 			if !test.err {
 				t.Fatalf("CreateTask failed: %s", err)
 			}
-		}
-
-		if test.err {
+			continue
+		} else if test.err {
 			t.Fatalf("Error was expected for %s, %s, didn't happen", start, stop)
 		}
 

@@ -49,8 +49,8 @@ func TestInvalidPrivateKey(t *testing.T) {
 		t.Errorf(`ValidSynmTokenFromCookies: Having ♥ as a Private key should return an error for ValidSynmTokenFromCookies`)
 	}
 
-	if !strings.Contains(err.Error(), expError) {
-		t.Errorf(`ValidSynmTokenFromCookies: Having ♥ as a Private key returned the following error %q expected %q`, err.Error(), expError)
+	if !strings.Contains(err.Error(), ErrNoAccessToken.Error()) {
+		t.Errorf(`ValidSynmTokenFromCookies: Having ♥ as a Private key returned the following error %q expected %q`, err.Error(), ErrNoAccessToken)
 	}
 
 	if token != nil {
@@ -68,7 +68,6 @@ func TestInvalidPrivateKeyEmpty(t *testing.T) {
 	}
 
 	expError := "key length incorrect (0), expected 32"
-
 	if !strings.Contains(err.Error(), expError) {
 		t.Errorf(`NewAccessToken: Having an empty Private key returned the following error %q expected %q`, err.Error(), expError)
 	}
@@ -95,8 +94,8 @@ func TestInvalidPrivateKeyEmpty(t *testing.T) {
 		t.Errorf(`ValidSynmTokenFromCookies: Having an empty Private key should return an error for ValidSynmTokenFromCookies`)
 	}
 
-	if !strings.Contains(err.Error(), expError) {
-		t.Errorf(`ValidSynmTokenFromCookies: Having an empty Private key returned the following error %q expected %q`, err.Error(), expError)
+	if !strings.Contains(err.Error(), ErrNoAccessToken.Error()) {
+		t.Errorf(`ValidSynmTokenFromCookies: Having an empty Private key returned the following error %q expected %q`, err.Error(), ErrNoAccessToken)
 	}
 
 	if token != nil {
@@ -235,7 +234,7 @@ func TestAddRefreshTokenToCookie(t *testing.T) {
 
 	cookie := refresh.AddToCookie()
 
-	expectePath := "/token"
+	expectePath := "/"
 	expectExp := time.Now().Add(7 * 24 * time.Hour)
 
 	if !timeAlmostEqual(expectExp, cookie.Expires) {
@@ -270,9 +269,8 @@ func TestInvalidSynmTokenFromCookiesEmpty(t *testing.T) {
 		t.Errorf(`ValidSynmTokenFromCookies(nil) should return error`)
 	}
 
-	expError := "cannot validate token from cookie, cookie empty"
-	if err.Error() != expError {
-		t.Errorf(`ValidSynmTokenFromCookies(nil) error said %q instead of %q`, err.Error(), expError)
+	if err.Error() != ErrNoAccessToken.Error() {
+		t.Errorf(`ValidSynmTokenFromCookies(nil) error said %q instead of %q`, err.Error(), ErrNoAccessToken)
 	}
 
 	if token != nil {

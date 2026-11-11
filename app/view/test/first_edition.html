@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://unpkg.com/alpinejs"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <style>
+    .panel {
+      width: var(--panel-size);
+      transition: width 0.15s ease;
+    }
+
+    @media (max-width: 639px) {
+      .panel {
+        width: 100%;
+        height: var(--panel-size);
+        transition: height 0.15s ease;
+      }
+    } 
+
+    body.no-select {
+      user-select: none;
+    }
+  </style>
+</head>
+
+<body x-data="{ open: false }" class="bg-gray-100 h-screen overflow-hidden">
+
+  <!-- Mobile Header -->
+  <header class="fixed top-0 left-0 right-0 h-16 bg-white shadow md:hidden z-50">
+
+    <!-- Hamburger -->
+    <button @click="open = !open"
+      class="absolute left-4 top-1/2 -translate-y-1/2 text-3xl">
+      <div x-show="!open">☰</div>
+      <div x-show="open">✕</div>
+    </button>
+
+    <!-- Always centered logo -->
+    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+      <span class="text-2xl font-bold">Logo</span>
+    </div>
+
+  </header>
+
+  <!-- Desktop Layout -->
+  <div class="flex flex-col md:flex-row h-full">
+
+    <!-- Sidebar -->
+    <aside
+      :class="{ 'flex': open, 'hidden': !open }"
+      class="fixed inset-0 hidden bg-gray-700 text-white z-40
+
+             md:static
+             md:flex
+             md:w-64
+             md:h-full
+             md:flex-shrink-0">
+
+      <div class="flex flex-col w-full h-full">
+
+        <!-- Desktop Logo -->
+        <div class="hidden md:flex justify-center pt-8 text-3xl font-bold">
+          Logo
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 flex flex-col justify-center items-center gap-8 px-6">
+
+          <button class="w-full max-w-sm py-5 rounded bg-gray-600 text-2xl">
+            Plan
+          </button>
+
+          <button class="w-full max-w-sm py-5 rounded bg-gray-600 text-2xl">
+            Settings
+          </button>
+
+          <button class="w-full max-w-sm py-5 rounded bg-gray-600 text-2xl">
+            Logout
+          </button>
+
+        </nav>
+
+      </div>
+
+    </aside>
+
+    <!-- Main Content -->
+    <main class=" relative flex-1 pt-16 md:pt-0 p-8 overflow-auto">
+
+      <h1 class="text-4xl font-bold">
+        Main Content
+      </h1>
+
+      <p class="mt-4">
+        Lorem ipsum dolor sit amet...
+      </p>
+
+      <div class="absolute bottom-4 right-4 flex flex-row gap-2">
+        <!-- Go to Today -->
+        <button
+          class="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-700 text-white shadow-lg hover:bg-gray-600"
+          title="Go to Today"
+        >
+          <!-- Today icon -->
+          📅
+        </button>
+
+        <!-- Go to First -->
+        <button
+          class="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-700 text-white shadow-lg hover:bg-gray-600"
+          title="Go to First"
+        >
+          <!-- First icon -->
+          ⏮
+        </button>
+      </div>
+    </main>
+
+    <!-- RIGHT PANEL (collapses to a thin strip) -->
+  <aside
+  x-data="{
+    panelSize: 300,
+
+    maxWidth: 600,
+    minWidth: 160,
+    collapseThreshold: 100,
+
+    collapsed: false,
+    dragging: false,
+
+    lastWidth: 300,
+    hasMoved: false,
+
+    click(e) {
+      if(this.collapsed) {
+        this.collapsed = false;
+        this.panelSize = this.lastWidth;
+      } else {
+        this.collapsed = true;
+        this.lastWidth = this.panelSize;
+        this.panelSize = this.minWidth;
+      }
+      this.hasMoved = false;
+    },
+
+    startDrag(e) {
+      this.hasMoved = false;
+      this.dragging = true;
+      document.body.classList.add('no-select');
+    },
+
+    onDrag(e) {
+      if (!this.dragging) return;
+      var sm = window.innerWidth < 640;
+
+      var newSize;
+      if (sm) {
+        newSize = window.innerHeight - e.clientY;
+      } else {
+        newSize = window.innerWidth - e.clientX;
+      }
+
+
+      if (newSize < this.collapseThreshold) {
+        this.collapsed = true;
+        this.panelSize = this.minWidth;
+      } else {
+        const moved = newSize - this.panelSize;
+        this.hasMoved = moved != 0 || this.hasMoved; 
+        this.collapsed = false;
+        this.panelSize = Math.min(Math.max(newSize, this.minWidth), this.maxWidth);
+      }
+    },
+
+    stopDrag(e) {
+      document.body.classList.remove('no-select');
+      if (!this.hasMoved && this.dragging) {
+        this.click(e);
+      }
+      this.dragging = false;
+    }
+  }"
+  @mousemove.window="onDrag($event)"
+  @mouseup.window="stopDrag($event)"
+    class="relative bg-gray-100 border-t md:border-l md:border-t-0 border-gray-300 flex-shrink-0 panel"
+    :style="'--panel-size: ' + (collapsed ? 10 : panelSize) + 'px; transition: ' + (dragging ? 'none' : 'width 0.15s ease')"
+  >
+    <!-- panel content, hidden once collapsed -->
+    <div x-show="!collapsed" class="p-4 md:h-full overflow-y-auto sm:overflow-x-auto">
+      <h2 class="font-semibold mb-2">Side Panel</h2>
+      <p class="text-sm text-gray-600">Drag the handle on the left edge to resize me. Drag far enough right and I'll disappear.</p>
+    </div>
+
+    <!-- drag handle, centered vertically on the left border of this panel -->
+    <div
+      @mousedown="startDrag($event)"
+      class="absolute 
+              left-1/2 top-0 w-10 h-5 cursor-row-resize
+
+              md:top-1/2 md:left-0 
+              md:w-5 md:h-10 md:cursor-col-resize
+              -translate-y-1/2 -translate-x-1/2
+               z-10
+              flex items-center justify-center
+              rounded-md bg-gray-400 hover:bg-gray-500
+              select-none"
+      title="Drag to resize"
+    >
+      <!-- grip icon: three vertical dots-ish lines -->
+      <svg class="rotate-90 md:rotate-0" width="10" height="16" viewBox="0 0 10 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="2.5" cy="2" r="1.4" fill="white"/>
+        <circle cx="2.5" cy="8" r="1.4" fill="white"/>
+        <circle cx="2.5" cy="14" r="1.4" fill="white"/>
+        <circle cx="7.5" cy="2" r="1.4" fill="white"/>
+        <circle cx="7.5" cy="8" r="1.4" fill="white"/>
+        <circle cx="7.5" cy="14" r="1.4" fill="white"/>
+      </svg>
+    </div>
+  </aside>
+
+  </div>
+
+</body>
+
+</html>

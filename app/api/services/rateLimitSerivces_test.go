@@ -182,8 +182,8 @@ func Test_RateLimitResetPwShort(t *testing.T) {
 		t.Fatalf("request reset password failed with err %+v", err)
 	}
 
-	for range 6 {
-		err := testContext.serv.ResetPasswordShort(t.Context(), ip, email, shortVerificationToken, "newPw")
+	for i := range 6 {
+		err := testContext.serv.ResetPasswordShort(t.Context(), ip, email, shortVerificationToken, fmt.Sprintf("newPw %d", i))
 		if err != nil || errors.Is(err, services.ErrIPRateLimit) {
 			t.Fatalf("authentication failed with error %+v", err)
 		}

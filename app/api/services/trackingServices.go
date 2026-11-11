@@ -172,7 +172,7 @@ func (s *Services) MoveTracker(ctx context.Context, userID uuid.UUID, start, end
 	}
 
 	if endTime.Before(startTime) {
-		return fmt.Errorf("tracking service: MoveTracker End %s was after Start %s", end, start)
+		return fmt.Errorf("tracking service: MoveTracker End %s was before Start %s", endTime, startTime)
 	}
 
 	if err := s.store.Tracking.MoveTracker(ctx, userID, start, end); err != nil {

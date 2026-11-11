@@ -13,4 +13,13 @@ And the bible translation used to estimate time to read a chapter is the ASV (Am
 	POSTGRES_DB=
 	POSTGRES_USER=
 	POSTGRES_PW=
+
+	TOKEN_PRIV_KEY=
+	TOKEN_PUB_KEY=
+	TOKEN_LOCAL_KEY=
+	PEPPER=
+
+
+	RESEND_TOKEN=
+	URL=
 ```
